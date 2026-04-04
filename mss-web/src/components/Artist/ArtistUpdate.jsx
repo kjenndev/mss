@@ -3,6 +3,7 @@ import useSWR from 'swr';
 import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom';
 
+// Representation of an empty artist object
 var _artist = {
     name: '',
     location: '',
@@ -14,13 +15,16 @@ var _artist = {
     userId: -1
 }
 
+// setup the fetcher for the SWR lib
 const fetcher = (...args) => fetch(...args).then(res => res.json());
 
+// handle any textbox change events
 function handleChange(e, artist, setArtist) {
     artist[e.target.name] = e.target.value;
     setArtist(artist);
 }
 
+// manually handle the API call with this override
 async function UpdateArtist(url, artist) {
     await fetch(url, {
         method: 'PUT',
@@ -28,15 +32,19 @@ async function UpdateArtist(url, artist) {
     });
 }
 
+// Component declaration
 export default function ArtistUpdate() {
+    // Get the Id from the URL params
     const { id } = useParams();
+    // Call the API and get the Artist by Id
     const { data, error, isLoading } = useSWR(`http://127.0.0.1:5000/artists/${id}`, fetcher, { suspense: true });
     
     if (error) return <div>failed to load</div>
     if (isLoading) return <div>loading...</div>
 
+    // Set a state object for Artist
     const [artist, setArtist] = useState(data);
-
+    // Setup the trigger event 
     const { trigger } = useSWRMutation(`http://127.0.0.1:5000/artists/${id}`, UpdateArtist, { suspense: true });
 
     return (
@@ -64,7 +72,8 @@ export default function ArtistUpdate() {
             <label for="soundcloud">Soundcloud:</label>
             <input type="text" id="soundcloud" name="soundcloud" defaultValue={artist.soundcloud} onChange={(e)=>{ handleChange(e, artist, setArtist) }} />
             <br /><br />
-            <button onClick={() => { 
+            <button onClick={() => {
+                // Call the trigger event passing in the updated artist
                 trigger(artist);
                 }}>
                     Update Artist

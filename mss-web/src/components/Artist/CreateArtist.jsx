@@ -2,6 +2,7 @@ import useSWRMutation from 'swr/mutation'
 import { useState, useRef, useContext  } from 'react'
 import UserDropdown from '../User/UserDropdown';
 
+// Representation of an empty artist object
 var _artist = {
     name: '',
     location: '',
@@ -13,16 +14,20 @@ var _artist = {
     userid: -1
 }
 
-async function _CreateArtistHandler(url, artist) {
+// manually handle the API call with this override
+async function CreateArtistHandler(url, artist) {
     await fetch(url, {
         method: 'POST',
         body: JSON.stringify(artist)
     });
 }
 
+// Component Declaration
 export default function CreateArtist() {
+    // Setup state object for Artist
     const [artist, setArtist] = useState(_artist);
 
+    // Setup refence hooks so we can clear the objects later
     const nameRef = useRef(null);
     const locationRef = useRef(null);
     const descriptionRef = useRef(null);
@@ -33,12 +38,14 @@ export default function CreateArtist() {
 
     var selectedUserId = -1;
 
+    // handle when the select value changes
     function handleArtistChange(e) {
         artist[e.target.name] = e.target.value;
         setArtist(artist);
     }
 
-    const { trigger } = useSWRMutation('http://127.0.0.1:5000/artists', _CreateArtistHandler, {});
+    // Setup the trigger event 
+    const { trigger } = useSWRMutation('http://127.0.0.1:5000/artists', CreateArtistHandler, {});
 
     return (
         <div>
@@ -69,7 +76,9 @@ export default function CreateArtist() {
             <input type="text" id="soundcloud" name="soundcloud" ref={soundcloudRef} onChange={(e)=>{ handleArtistChange(e) }} />
             <br /><br />
             <button onClick={() => {
+                // Call trigger event passing in the new artist
                 trigger(artist);
+                // clear the values
                 nameRef.current.value = '';
                 locationRef.current.value = '';
                 descriptionRef.current.value = '';

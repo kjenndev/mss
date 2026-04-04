@@ -1,15 +1,18 @@
 import { useParams } from 'react-router-dom';
 import useSWR from 'swr';
 
+// setup the fetcher for the SWR lib
 const fetcher = (...args) => fetch(...args).then(res => res.json());
 
+// Component declaration
 export default function ArtistDetail() {
+    // Get the userId from the URL params
     const { id } = useParams();
+    // Call the API and get the Artist by Id
     const { data, error, isLoading } = useSWR(`http://127.0.0.1:5000/artists/${id}`, fetcher);
     
     if (error) return <div>failed to load</div>
     if (isLoading) return <div>loading...</div>
-
 
     return (
         <div>
