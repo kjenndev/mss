@@ -1,6 +1,6 @@
 import useSWRMutation from 'swr/mutation'
 import { useState, useRef, useContext  } from 'react'
-import UserDropdown from './UserDropdown';
+import UserDropdown from '../User/UserDropdown';
 
 var _artist = {
     name: '',

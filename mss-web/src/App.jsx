@@ -1,11 +1,11 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import './App.css'
 
-import ArtistList from './components/ArtistList'
-import CreateArtist from './components/CreateArtist'
-import ArtistDetail from './components/ArtistDetail'
-import ArtistUpdate from './components/ArtistUpdate'
-import CreateUser from './components/CreateUser'
+import ArtistList from './components/Artist/ArtistList'
+import CreateArtist from './components/Artist/CreateArtist'
+import ArtistDetail from './components/Artist/ArtistDetail'
+import ArtistUpdate from './components/Artist/ArtistUpdate'
+import CreateUser from './components/User/CreateUser'
 
 // 1. Define page components
 const Home = () => (
