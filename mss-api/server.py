@@ -84,7 +84,7 @@ def create_artist():
     artist.soundcloud = data['arg'].get("soundcloud")
     artist.mixcloud = data['arg'].get("mixcloud")
     artist.user_id = data['arg'].get("userid")
-    print("Artist created: " + str(artist.__dict__))
+
     artist.Save()
 
     # serialize the artist object to JSON and return it with a 201 status code

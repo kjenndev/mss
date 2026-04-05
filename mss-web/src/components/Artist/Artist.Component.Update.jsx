@@ -3,18 +3,6 @@ import useSWR from 'swr';
 import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom';
 
-// Representation of an empty artist object
-var _artist = {
-    name: '',
-    location: '',
-    description: '',
-    youtube: '',
-    twitch: '',
-    mixcloud: '', 
-    soundcloud: '',
-    userId: -1
-}
-
 // setup the fetcher for the SWR lib
 const fetcher = (...args) => fetch(...args).then(res => res.json());
 
