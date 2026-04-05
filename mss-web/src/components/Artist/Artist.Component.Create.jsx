@@ -1,15 +1,10 @@
-import { useState, useRef, useContext  } from 'react'
+import { useState, useRef  } from 'react'
+import useSWRMutation from 'swr/mutation'
 import UserDropdown from '../User/User.Helper.DropDown';
-import { Artist } from './Artist.Class';
-
-
+import { useNavigate } from 'react-router-dom';
 
 // Component Declaration
 export default function CreateArtist() {
-    var artist = new Artist();
-    // Setup state object for Artist
-    const [artistState, setArtistState] = useState(artist);
-
     // Setup refence hooks so we can clear the objects later
     const nameRef = useRef(null);
     const locationRef = useRef(null);
@@ -21,39 +16,41 @@ export default function CreateArtist() {
 
     var selectedUserId = -1;
 
+    const navigate = useNavigate();
+
+    // Set a state object for Artist
+    const [artist, setArtist] = useState({
+        id: -1,
+        name: '',
+        location: '',
+        description: '',
+        youtube: '',
+        twitch: '',
+        soundcloud: '',
+        mixcloud: '',
+        userid: -1
+    });
+
     // handle when the select value changes
     function handleArtistChange(e) {
-        switch (e.target.name) {
-            case "name":
-                artist.name = e.target.value
-                break;
-            case "location":
-                artist.location = e.target.value
-                break;
-            case "description":
-                artist.description = e.target.value
-                break;
-            case "youtube":
-                artist.youtube = e.target.value
-                break;
-            case "twitch":
-                artist.twitch = e.target.value
-                break;
-            case "mixcloud":
-                artist.mixcloud = e.target.value
-                break;
-            case "soundcloud":
-                artist.soundcloud = e.target.value
-                break;
-        }
+        artist[e.target.name] = e.target.value;
+        setArtist(artist);
+    }
+
+    // manually handle the API call with this override
+    async function CreateArtistHandler(url, data) {
+        await fetch(url, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        })
     }
 
     // Setup the trigger event 
-    const { trigger } = artist.Create();
+    const { trigger } = useSWRMutation('http://127.0.0.1:5000/artists', CreateArtistHandler, {});
 
     return (
         <div>
-            <UserDropdown onUpdate={(userId) => {  selectedUserId = userId; artist.userId = userId; }} />
+            <UserDropdown onUpdate={(userId) => {  selectedUserId = userId; artist.userid = userId; setArtist(artist); }} />
             <br /><br />
             Create Artist
             <br /><br />
@@ -80,16 +77,10 @@ export default function CreateArtist() {
             <input type="text" id="soundcloud" name="soundcloud" ref={soundcloudRef} onChange={(e)=>{ handleArtistChange(e) }} />
             <br /><br />
             <button onClick={() => {
-                // Call trigger event passing in the new artist
+                // Call trigger event passing in thje new artist
                 trigger(artist);
-                // clear the values
-                nameRef.current.value = '';
-                locationRef.current.value = '';
-                descriptionRef.current.value = '';
-                youtubeRef.current.value = '';
-                twitchRef.current.value = '';
-                mixcloudRef.current.value = '';
-                soundcloudRef.current.value = '';
+                navigate('/artists');
+
                 }}>
                     Create Artist
             </button>

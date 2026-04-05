@@ -1,14 +1,17 @@
 
 import { Link } from 'react-router-dom';
+import useSWR from 'swr';
+import { mutate } from 'swr';
 
 import DeleteArtist from './Artist.Component.Delete';
-import { Artist } from './Artist.Class';
+
+// setup the fetcher for the SWR lib
+const fetcher = (...args) => fetch(...args).then(res => res.json());
 
 // Component declaration
 export default function ArtistList() {
-  var artist = new Artist();
   // Call the API and get the all the artists
-  const { data, error, isLoading } = artist.GetAllUsers();
+  const { data, error, isLoading } = useSWR(`http://127.0.0.1:5000/artists`, fetcher);
 
   if (error) return <div>failed to load</div>
   if (isLoading) return <div>loading...</div> 
@@ -16,7 +19,7 @@ export default function ArtistList() {
   // handles the delete callback
   function handleDelete(id) {
     // forces the SWR cache to update
-    artist.UpdateCache(id);
+    mutate('http://127.0.0.1:5000/artists', data.filter(artist => artist.id !== id), false);
   }
 
     return (
