@@ -1,31 +1,14 @@
-import useSWRMutation from 'swr/mutation'
 import { useState, useRef, useContext  } from 'react'
 import UserDropdown from '../User/User.Helper.DropDown';
+import { Artist } from './Artist.Class';
 
-// Representation of an empty artist object
-var _artist = {
-    name: '',
-    location: '',
-    description: '',
-    youtube: '',
-    twitch: '',
-    mixcloud: '', 
-    soundcloud: '',
-    userid: -1
-}
 
-// manually handle the API call with this override
-async function CreateArtistHandler(url, artist) {
-    await fetch(url, {
-        method: 'POST',
-        body: JSON.stringify(artist)
-    });
-}
 
 // Component Declaration
 export default function CreateArtist() {
+    var artist = new Artist();
     // Setup state object for Artist
-    const [artist, setArtist] = useState(_artist);
+    const [artistState, setArtistState] = useState(artist);
 
     // Setup refence hooks so we can clear the objects later
     const nameRef = useRef(null);
@@ -40,16 +23,37 @@ export default function CreateArtist() {
 
     // handle when the select value changes
     function handleArtistChange(e) {
-        artist[e.target.name] = e.target.value;
-        setArtist(artist);
+        switch (e.target.name) {
+            case "name":
+                artist.name = e.target.value
+                break;
+            case "location":
+                artist.location = e.target.value
+                break;
+            case "description":
+                artist.description = e.target.value
+                break;
+            case "youtube":
+                artist.youtube = e.target.value
+                break;
+            case "twitch":
+                artist.twitch = e.target.value
+                break;
+            case "mixcloud":
+                artist.mixcloud = e.target.value
+                break;
+            case "soundcloud":
+                artist.soundcloud = e.target.value
+                break;
+        }
     }
 
     // Setup the trigger event 
-    const { trigger } = useSWRMutation('http://127.0.0.1:5000/artists', CreateArtistHandler, {});
+    const { trigger } = artist.Create();
 
     return (
         <div>
-            <UserDropdown onUpdate={(userId) => {  selectedUserId = userId; artist.userid = userId; }} />
+            <UserDropdown onUpdate={(userId) => {  selectedUserId = userId; artist.userId = userId; }} />
             <br /><br />
             Create Artist
             <br /><br />
