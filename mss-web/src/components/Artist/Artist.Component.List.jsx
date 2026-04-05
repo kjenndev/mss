@@ -2,7 +2,7 @@ import useSWR from 'swr';
 import { mutate } from 'swr';
 import { Link } from 'react-router-dom';
 
-import DeleteArtist from './DeleteArtist';
+import DeleteArtist from './Artist.Component.Delete';
 
 // setup the fetcher for the SWR lib
 const fetcher = (...args) => fetch(...args).then(res => res.json());
