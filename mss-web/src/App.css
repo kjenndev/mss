@@ -1,15 +1,3 @@
-th, td {
-  padding-left: 15px;
-}
-
-table, th, td {
-  border: none;
-  border-collapse: collapse; /* Prevents gaps that look like borders */
-}
-
-tr:nth-child(even) {
-  background-color: #D6EEEE;
-}
 
 .delete-artist-button {
   background: none!important;
