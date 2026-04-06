@@ -1,5 +1,10 @@
 import useSWR from 'swr';
 import { useState } from 'react';
+import Box from '@mui/material/Box';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import Select from '@mui/material/Select';
 
 // setup the fetcher for the SWR lib
 const fetcher = (...args) => fetch(...args).then(res => res.json());
@@ -23,13 +28,18 @@ export default function UserDropdown(props) {
 
     return (
         <>
-            <label for="users">Choose a user:</label>
-            <select id="users" name="users" value={selectedUserId} onChange={changeHandler}>
-                <option value="">--Please choose a user--</option>
-                {data.map(u => (
-                    <option value={u.id}>{u.username}</option>
-                ))}
-            </select>
+            <Box>
+                <Select
+                    id="user-select"
+                    value={selectedUserId}
+                    label="Age"
+                    onChange={changeHandler}>
+                        <MenuItem value={-1}>Choose a User</MenuItem>
+                    {data.map(u => (
+                        <MenuItem value={u.id}>{u.username}</MenuItem>
+                    ))}
+                </Select>
+            </Box>
         </>
     )
 

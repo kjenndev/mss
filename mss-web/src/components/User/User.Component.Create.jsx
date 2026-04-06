@@ -1,11 +1,22 @@
 import useSWRMutation from 'swr/mutation'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom';
 
-// Representation of an empty User object
-var _user = {
-    username: '',
-    password: ''
-}
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import TextField from '@mui/material/TextField';
+import Stack from '@mui/material/Stack';
+
+
+const darkTheme = createTheme({
+  palette: {
+    mode: 'dark',
+  },
+});
 
 // Manually handle the API call
 async function _CreateUserHandler(url, user) {
@@ -18,10 +29,8 @@ async function _CreateUserHandler(url, user) {
 // Component Declaration
 export default function CreateUser() {
     // Setup a state object for User
-    const [user, setUser] = useState(_user);
-    // Setup refences to the DOM objects via ref hooks
-    const usernameRef = useRef(null);
-    const passwordRef = useRef(null);
+    const [user, setUser] = useState({username: '', password: ''});
+    const navigate = useNavigate();
 
     // Handle when a textbox value changes
     function handleUserChange(e) {
@@ -33,24 +42,29 @@ export default function CreateUser() {
     const { trigger } = useSWRMutation('http://127.0.0.1:5000/users', _CreateUserHandler, {});
 
     return (
-        <div>
-            Create User
-            <br /><br />
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" ref={usernameRef} onChange={(e)=>{ handleUserChange(e) }}/>
-            <br /><br />
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" ref={passwordRef} onChange={(e)=>{ handleUserChange(e) }} />
-            <br /><br />
-            <button onClick={() => {
-                // trigger the event passing in the new user
-                trigger(user);
-                // clear the inputs
-                usernameRef.current.value = '';
-                passwordRef.current.value = '';
-            }}>
-                Create User
-            </button>
-        </div>
+        <Container>
+            <ThemeProvider theme={darkTheme}>
+                <Box component="form" noValidate autoComplete="off">
+                    <Paper elevation={3} sx={{p: 5}}>
+                        <Box sx={{width: 600}}>
+                            <Stack>
+                                <Typography sx={{marginBottom: 5}} variant='h4'>Create New User</Typography>
+                                <TextField id="username" sx={{marginBottom: 5}} label="Username" name='username' variant="standard" defaultValue={user.username} onChange={(e)=>{ handleUserChange(e) }} />
+                                <TextField id="password" sx={{marginBottom: 5}} label="Password" name='password' variant="standard" type='password' defaultValue={user.password} onChange={(e)=>{ handleUserChange(e) }} />
+                
+                                <Button onClick={() => {
+                                    // Call trigger event passing in thje new artist
+                                    trigger(user);
+                                    navigate('/artists');
+
+                                    }}>
+                                        Create User
+                                </Button>
+                            </Stack>
+                            </Box>
+                    </Paper>
+                </Box>
+            </ThemeProvider>
+        </Container>
     );
 }

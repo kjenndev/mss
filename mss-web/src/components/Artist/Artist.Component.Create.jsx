@@ -3,17 +3,24 @@ import useSWRMutation from 'swr/mutation'
 import UserDropdown from '../User/User.Helper.DropDown';
 import { useNavigate } from 'react-router-dom';
 
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import TextField from '@mui/material/TextField';
+import Stack from '@mui/material/Stack';
+
+
+const darkTheme = createTheme({
+  palette: {
+    mode: 'dark',
+  },
+});
+
 // Component Declaration
 export default function CreateArtist() {
-    // Setup refence hooks so we can clear the objects later
-    const nameRef = useRef(null);
-    const locationRef = useRef(null);
-    const descriptionRef = useRef(null);
-    const youtubeRef = useRef(null);
-    const twitchRef = useRef(null);
-    const mixcloudRef = useRef(null);
-    const soundcloudRef = useRef(null);
-
     var selectedUserId = -1;
 
     const navigate = useNavigate();
@@ -33,8 +40,20 @@ export default function CreateArtist() {
 
     // handle when the select value changes
     function handleArtistChange(e) {
-        artist[e.target.name] = e.target.value;
-        setArtist(artist);
+        let _artist = {
+            id: artist.id,
+            name: artist.name,
+            location: artist.location,
+            description: artist.description,
+            youtube: artist.youtube,
+            twitch: artist.twitch,
+            soundcloud: artist.soundcloud,
+            mixcloud: artist.mixcloud,
+            userid: artist.userid
+        };
+   
+        _artist[e.target.name] = e.target.value;
+        setArtist(_artist);
     }
 
     // manually handle the API call with this override
@@ -49,41 +68,34 @@ export default function CreateArtist() {
     const { trigger } = useSWRMutation('http://127.0.0.1:5000/artists', CreateArtistHandler, {});
 
     return (
-        <div>
-            <UserDropdown onUpdate={(userId) => {  selectedUserId = userId; artist.userid = userId; setArtist(artist); }} />
-            <br /><br />
-            Create Artist
-            <br /><br />
+        <Container>
+            <ThemeProvider theme={darkTheme}>
+                <Box component="form" noValidate autoComplete="off">
+                    <Paper elevation={3} sx={{p: 5}}>
+                        <Stack>
+                                <Typography sx={{marginBottom: 5}} variant='h4'>Create New Artist</Typography>
+                                <UserDropdown onUpdate={(userId) => {  selectedUserId = userId; artist.userid = userId; setArtist(artist); }} />
+                                <br />
+                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Artist Name" name='name' variant="standard" defaultValue={artist.name} onChange={(e)=>{ handleArtistChange(e) }} />
+                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Location" name='location' variant="standard" defaultValue={artist.location} onChange={(e)=>{ handleArtistChange(e) }} />
+                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Description" name='description' variant="standard" defaultValue={artist.description} onChange={(e)=>{ handleArtistChange(e) }} />
+                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="YouTube" name='youtube' variant="standard" defaultValue={artist.youtube} onChange={(e)=>{ handleArtistChange(e) }} />
+                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Twitch" name='twitch' variant="standard" defaultValue={artist.twitch} onChange={(e)=>{ handleArtistChange(e) }} />
+                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Mixcloud" name='mixcloud' variant="standard" defaultValue={artist.mixcloud} onChange={(e)=>{ handleArtistChange(e) }} />
+                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Soundcloud" name='soundcloud' variant="standard" defaultValue={artist.soundcloud} onChange={(e)=>{ handleArtistChange(e) }} />
+                            
+                                <Button onClick={() => {
+                                    // Call trigger event passing in thje new artist
+                                    trigger(artist);
+                                    navigate('/artists');
 
-            <label for="name">Artist Name:</label>
-            <input type="text" id="name" name="name" ref={nameRef} onChange={(e)=>{ handleArtistChange(e) }}/>
-            <br /><br />
-            <label for="location">Location:</label>
-            <input type="text" id="location" name="location" ref={locationRef} onChange={(e)=>{ handleArtistChange(e) }} />
-            <br /><br />
-            <label for="description">Description:</label>
-            <input type="text" id="description" name="description" ref={descriptionRef} onChange={(e)=>{ handleArtistChange(e) }} />
-            <br /><br />
-            <label for="youtube">Youtube:</label>
-            <input type="text" id="youtube" name="youtube" ref={youtubeRef} onChange={(e)=>{ handleArtistChange(e) }} />
-            <br /><br />
-            <label for="twitch">Twitch:</label>
-            <input type="text" id="twitch" name="twitch" ref={twitchRef} onChange={(e)=>{ handleArtistChange(e) }} />
-            <br /><br />
-            <label for="mixcloud">Mixcloud:</label>
-            <input type="text" id="mixcloud" name="mixcloud" ref={mixcloudRef} onChange={(e)=>{ handleArtistChange(e) }} />
-            <br /><br />
-            <label for="soundcloud">Soundcloud:</label>
-            <input type="text" id="soundcloud" name="soundcloud" ref={soundcloudRef} onChange={(e)=>{ handleArtistChange(e) }} />
-            <br /><br />
-            <button onClick={() => {
-                // Call trigger event passing in thje new artist
-                trigger(artist);
-                navigate('/artists');
-
-                }}>
-                    Create Artist
-            </button>
-        </div>
+                                    }}>
+                                        Create Artist
+                                </Button>
+                        </Stack>            
+                    </Paper>
+                </Box>
+            </ThemeProvider>
+        </Container>
   );
 }
