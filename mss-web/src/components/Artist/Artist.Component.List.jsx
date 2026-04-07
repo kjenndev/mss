@@ -1,9 +1,6 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import { Link } from 'react-router-dom';
-import useSWR from 'swr';
-import { mutate } from 'swr';
-
-import Box from '@mui/material/Box';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -17,9 +14,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import Container from '@mui/material/Container';
 
 import DeleteArtist from './Artist.Component.Delete';
-
-// setup the fetcher for the SWR lib
-const fetcher = (...args) => fetch(...args).then(res => res.json());
+import * as helpers from '../../Data.Helper.Api';
 
 const darkTheme = createTheme({
   palette: {
@@ -29,17 +24,23 @@ const darkTheme = createTheme({
 
 // Component declaration
 export default function ArtistList() {
-  // Call the API and get the all the artists
-  const { data, error, isLoading } = useSWR(`http://127.0.0.1:5000/artists`, fetcher);
+    const [artists, setArtists] = useState([]);
+    const navigate = useNavigate();
 
-  if (error) return <div>failed to load</div>
-  if (isLoading) return <div>loading...</div> 
-
-  // handles the delete callback
-  function handleDelete(id) {
-    // forces the SWR cache to update
-    mutate('http://127.0.0.1:5000/artists', data.filter(artist => artist.id !== id), false);
-  }
+    useEffect(() => {
+        // Side effect logic here
+        helpers.GetAllArtists().then(response => {
+            if (response.status === 401) {
+                localStorage.removeItem('session-id')
+                localStorage.removeItem('session-userid')
+                navigate("/login");
+            }
+    
+            response.json().then(res => {
+                setArtists(res);
+            });
+        });
+    }, []);
 
     return (
         <Container>
@@ -62,23 +63,28 @@ export default function ArtistList() {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                            {data.map(artist => (
-                                <TableRow key={artist.name}>
-                                    <TableCell>
-                                        <Button href={`/artists/${artist.id}`}>{artist.name}</Button>
-                                    </TableCell>
-                                    <TableCell>{artist.location}</TableCell>
-                                    <TableCell>{artist.description}</TableCell>
-                                    <TableCell>{artist.youtube}</TableCell>
-                                    <TableCell>{artist.twitch}</TableCell>
-                                    <TableCell>{artist.mixcloud}</TableCell>
-                                    <TableCell>{artist.soundcloud}</TableCell>
-                                    <TableCell>
-                                        <Button size="small" href={`/artists/${artist.id}/update`}>Update</Button>
-                                        <DeleteArtist id={artist.id} onDelete={handleDelete} /> 
-                                    </TableCell>
-                                </TableRow>
-                            ))} 
+                            {
+                                artists.map(artist => (
+                                    <TableRow key={artist.name}>
+                                        <TableCell>
+                                            <Button href={`/artists/${artist.id}`}>{artist.name}</Button>
+                                        </TableCell>
+                                        <TableCell>{artist.location}</TableCell>
+                                        <TableCell>{artist.description}</TableCell>
+                                        <TableCell>{artist.youtube}</TableCell>
+                                        <TableCell>{artist.twitch}</TableCell>
+                                        <TableCell>{artist.mixcloud}</TableCell>
+                                        <TableCell>{artist.soundcloud}</TableCell>
+                                        <TableCell>
+                                            <Button size="small" href={`/artists/${artist.id}/update`}>Update</Button>
+                                            <DeleteArtist id={artist.id} onDelete = { id => {
+                                                const newSet = artists.filter(a => a.id != id );
+                                                setArtists(newSet);
+                                            }} /> 
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            } 
                             </TableBody>
                         </Table>
                     </TableContainer>

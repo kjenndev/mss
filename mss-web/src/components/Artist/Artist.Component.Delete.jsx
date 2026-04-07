@@ -1,15 +1,22 @@
-import useSWRMutation from 'swr/mutation'
 import Button from '@mui/material/Button';
+import * as helpers from '../../Data.Helper.Api';
+import { useNavigate } from 'react-router-dom';
 
 // component declaration
 export default function DeleteArtist(props) {
-    async function DeleteArtist(url) {
-        await fetch(url, {
-            method: 'DELETE'
-        })
+    const navigate = useNavigate();
+    const handler = (id) => {
+        // Side effect logic here
+        helpers.DeleteArtist(id).then((res) => {
+            if (res.status === 401) {
+                localStorage.removeItem('session-id')
+                localStorage.removeItem('session-userid')
+                navigate('/login')
+            } else {
+                props.onDelete(id)
+            }
+        });
     }
-    // Setup the trigger event
-    const { trigger } = useSWRMutation(`http://127.0.0.1:5000/artists/${props.id}`, DeleteArtist, {});
-    // Return a button that triggers the event and calls the passed props onDelete callback
-    return <Button size="small" onClick={() => { trigger(props.id); props.onDelete(props.id); }}>Delete</Button>
+   
+    return <Button size="small" onClick={() => { handler(props.id); }}>Delete</Button>
 }

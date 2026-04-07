@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { md5 } from 'js-md5';
+import { useEffect } from 'react';
 
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -20,18 +21,19 @@ const darkTheme = createTheme({
 });
 
 // Component Declaration
-export default function CreateUser() {
+export default function Login() {
     // Setup a state object for User
     const [user, setUser] = useState({username: '', password: ''});
     const navigate = useNavigate();
 
     // Handle when a textbox value changes
-    function handleUserChange(e) {
+    function handleAuthChange(e) {
         if (e.target.name === 'password'){
             user.password = md5(e.target.value);
         } else {
             user[e.target.name] = e.target.value;
         }
+
         setUser(user);
     }
 
@@ -42,25 +44,24 @@ export default function CreateUser() {
                     <Paper elevation={3} sx={{p: 5}}>
                         <Box sx={{width: 600}}>
                             <Stack>
-                                <Typography sx={{marginBottom: 5}} variant='h4'>Create New User</Typography>
-                                <TextField id="username" sx={{marginBottom: 5}} label="Username" name='username' variant="standard" defaultValue={user.username} onChange={(e)=>{ handleUserChange(e) }} />
-                                <TextField id="password" sx={{marginBottom: 5}} label="Password" name='password' variant="standard" type='password' defaultValue={user.password} onChange={(e)=>{ handleUserChange(e) }} />
+                                <Typography sx={{marginBottom: 5}} variant='h4'>Login</Typography>
+                                <TextField id="username" sx={{marginBottom: 5}} label="Username" name='username' variant="standard" defaultValue={user.username} onChange={(e)=>{ handleAuthChange(e) }} />
+                                <TextField id="password" sx={{marginBottom: 5}} label="Password" name='password' variant="standard" type='password' defaultValue={user.password} onChange={(e)=>{ handleAuthChange(e) }} />
                 
                                 <Button onClick={() => {
-                                    // Call trigger event passing in thje new artist
-                                    helpers.CreateUser(user).then(res => {
-                                        if (res.status === 401) {
-                                            localStorage.removeItem('session-id')
-                                            localStorage.removeItem('session-userid')
+                                    helpers.Authenticate(user).then(response => {
+                                        if (response.status === 401) {
                                             navigate("/login");
-                                        } else {
-                                            res.json().then(data => {
-                                                navigate('/artists');
-                                            });
                                         }
+                                
+                                        response.json().then(res => {
+                                            localStorage.setItem('session-id', res.session)
+                                            localStorage.setItem('session-userid', res.userid)
+                                            navigate('/')
+                                        });
                                     });
                                 }}>
-                                        Create User
+                                    Login
                                 </Button>
                             </Stack>
                             </Box>
@@ -68,5 +69,5 @@ export default function CreateUser() {
                 </Box>
             </ThemeProvider>
         </Container>
-    );
+    )
 }

@@ -1,5 +1,4 @@
-import { useState, useRef  } from 'react'
-import useSWRMutation from 'swr/mutation'
+import { useState, useEffect } from 'react'
 import UserDropdown from '../User/User.Helper.DropDown';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,6 +11,7 @@ import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
 
+import * as helpers from '../../Data.Helper.Api';
 
 const darkTheme = createTheme({
   palette: {
@@ -56,17 +56,6 @@ export default function CreateArtist() {
         setArtist(_artist);
     }
 
-    // manually handle the API call with this override
-    async function CreateArtistHandler(url, data) {
-        await fetch(url, {
-            method: 'POST',
-            body: JSON.stringify(data)
-        })
-    }
-
-    // Setup the trigger event 
-    const { trigger } = useSWRMutation('http://127.0.0.1:5000/artists', CreateArtistHandler, {});
-
     return (
         <Container>
             <ThemeProvider theme={darkTheme}>
@@ -85,11 +74,18 @@ export default function CreateArtist() {
                                 <TextField id="standard-basic" sx={{marginBottom: 5}} label="Soundcloud" name='soundcloud' variant="standard" defaultValue={artist.soundcloud} onChange={(e)=>{ handleArtistChange(e) }} />
                             
                                 <Button onClick={() => {
-                                    // Call trigger event passing in thje new artist
-                                    trigger(artist);
-                                    navigate('/artists');
-
-                                    }}>
+                                    helpers.CreateArtist(artist).then(res => {
+                                        if (res.status === 401) {
+                                            localStorage.removeItem('session-id')
+                                            localStorage.removeItem('session-userid')
+                                            navigate("/login");
+                                        } else {
+                                            res.json().then(data => {
+                                            navigate('/artists');
+                                        });
+                                        }
+                                    });
+                                }}>
                                         Create Artist
                                 </Button>
                         </Stack>            
