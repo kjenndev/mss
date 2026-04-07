@@ -1,8 +1,7 @@
-import useSWRMutation from 'swr/mutation'
-import useSWR from 'swr';
 import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -13,14 +12,13 @@ import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
 
+import * as helpers from '../../Data.Helper.Api';
+
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
   },
 });
-
-// setup the fetcher for the SWR lib
-const fetcher = (...args) => fetch(...args).then(res => res.json());
 
 // Component declaration
 export default function ArtistUpdate() {
@@ -35,23 +33,25 @@ export default function ArtistUpdate() {
         setArtist(artist);
     }
 
-    // manually handle the API call with this override
-    async function UpdateArtist(url, artist) {
-        await fetch(url, {
-            method: 'PUT',
-            body: JSON.stringify(artist)
-        });
-    }
-    // Call the API and get the Artist by Id
-    const { data, error, isLoading } = useSWR(`http://127.0.0.1:5000/artists/${id}`, fetcher, { suspense: true });
-    
-    if (error) return <div>failed to load</div>
-    if (isLoading) return <div>loading...</div>
+    const [artist, setArtist] = useState();
 
-    // Set a state object for Artist
-    const [artist, setArtist] = useState(data);
-    // Setup the trigger event 
-    const { trigger } = useSWRMutation(`http://127.0.0.1:5000/artists/${id}`, UpdateArtist, { suspense: true });
+    useEffect(() => {
+        helpers.GetArtistById(id).then(res => {
+            if (res.status === 401) {
+                localStorage.removeItem('session-id')
+                localStorage.removeItem('session-userid')
+                navigate("/login");
+            }
+
+            res.json().then(data => {
+                setArtist(data);
+            });
+        });
+    }, []);
+    
+    if (!artist) {
+        return <Typography></Typography>
+    }
 
     return (
         <Container>
@@ -69,10 +69,17 @@ export default function ArtistUpdate() {
                                 <TextField id="standard-basic" sx={{marginBottom: 5}} label="Soundcloud" name='soundcloud' variant="standard" defaultValue={artist.soundcloud} onChange={(e)=>{ handleArtistChange(e) }} />
                             
                                 <Button onClick={() => {
-                                    // Call trigger event passing in thje new artist
-                                    trigger(artist);
-                                    navigate('/artists');
+                                    helpers.GetArtistById(id).then(res => {
+                                        if (res.status === 401) {
+                                            localStorage.removeItem('session-id')
+                                            localStorage.removeItem('session-userid')
+                                            navigate("/login");
+                                        }
 
+                                        res.json().then(data => {
+                                            navigate('/artists');
+                                        });
+                                    });
                                     }}>
                                         Update Artist
                                 </Button>

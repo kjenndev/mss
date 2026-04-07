@@ -13,6 +13,7 @@ class User:
         self.id = None
         self.username = username
         self.password = password
+        self.is_active = False
 
     def GetAllUsers(self):
         db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'mss.db'))
@@ -81,7 +82,9 @@ class User:
         con = sqlite3.connect(db_path)
         cur = con.cursor()
         try:
-            cur.execute(self._create_statement, (self.username, self.__hash(self.password)))
+            print(self.username)
+            print(self.password)
+            cur.execute(self._create_statement, (self.username, self.password))
             self.id = cur.lastrowid
             con.commit()
         except Exception as e:
@@ -94,19 +97,19 @@ class User:
         con = sqlite3.connect(db_path)
         cur = con.cursor()
         try:
-            cur.execute(self._update_statement, (self.username, self.__hash(self.password), self.id))
+            cur.execute(self._update_statement, (self.username, self.self.password, self.id))
             con.commit()
         except Exception as e:
             print("Error occurred while updating user: " + str(e))
         finally:
             con.close()
 
-    def Authenticate(self, username, password):
+    def Authenticate(self):
         db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'mss.db'))
         con = sqlite3.connect(db_path)
         cur = con.cursor()
         try:
-            cur.execute(self._authenticate_statement, (username, self.__hash(password)))
+            cur.execute(self._authenticate_statement, (self.username, self.password))
             row = cur.fetchone()
         except Exception as e:
             print("Error occurred while authenticating user: " + str(e))
@@ -120,7 +123,3 @@ class User:
             return self
         else:
             return None
-        
-    def __hash(self, val):
-        hash_object = hashlib.md5(val.encode())
-        return hash(hash_object.hexdigest())

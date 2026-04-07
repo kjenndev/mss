@@ -14,6 +14,7 @@ import CreateArtist from './components/Artist/Artist.Component.Create'
 import ArtistDetail from './components/Artist/Artist.Component.Detail'
 import ArtistUpdate from './components/Artist/Artist.Component.Update'
 import CreateUser from './components/User/User.Component.Create'
+import Login from './components/Auth/Auth.Component.Login';
 
 // 1. Define page components
 const Home = () => (
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="/artists/create" element={<CreateArtist />} />
         <Route path="/artists/:id/update" element={<ArtistUpdate />} />
         <Route path="/users/create" element={<CreateUser />} />
+        <Route path="/login" element={<Login />} />
       </Routes>
     </BrowserRouter>
   )
