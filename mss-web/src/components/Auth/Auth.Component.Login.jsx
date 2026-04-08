@@ -22,19 +22,23 @@ const darkTheme = createTheme({
 
 // Component Declaration
 export default function Login() {
+    // Clear the current session
+    helpers.ClearSession();
+
     // Setup a state object for User
     const [user, setUser] = useState({username: '', password: ''});
     const navigate = useNavigate();
+    const encoder = new TextEncoder();
 
     // Handle when a textbox value changes
     function handleAuthChange(e) {
+        let _user = user;
         if (e.target.name === 'password'){
-            user.password = md5(e.target.value);
+            _user.password = md5(encoder.encode(e.target.value));
         } else {
-            user[e.target.name] = e.target.value;
+            _user[e.target.name] = e.target.value;
         }
-
-        setUser(user);
+        setUser(_user);
     }
 
     return (
@@ -53,8 +57,9 @@ export default function Login() {
                                         if (response.status === 401) {
                                             navigate("/login");
                                         }
-                                
+                                    
                                         response.json().then(res => {
+                                            console.log('Login successful');
                                             localStorage.setItem('session-id', res.session)
                                             localStorage.setItem('session-userid', res.userid)
                                             navigate('/')

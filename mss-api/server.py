@@ -16,6 +16,7 @@ CORS(app, supports_credentials=True)
 
 SESSION_TYPE = 'redis'
 SESSION_REDIS = redis.Redis(host='localhost', port=6379)
+Session(app)
 
 app.config.from_object(__name__)
 
