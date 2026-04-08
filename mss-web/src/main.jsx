@@ -11,13 +11,8 @@ import ArtistDetail from './components/Artist/Artist.Component.Detail'
 import ArtistUpdate from './components/Artist/Artist.Component.Update'
 import CreateUser from './components/User/User.Component.Create'
 import Login from './components/Auth/Auth.Component.Login'
+import Home from './components/Home.Component.jsx'
 
-// 1. Define page components
-const Home = () => (
-  <div>
-    <h1>Welcome to Midnight Sound Syndicate</h1>
-  </div>
-);
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
