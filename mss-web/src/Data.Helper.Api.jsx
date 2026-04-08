@@ -44,8 +44,40 @@ async function Authenticate(data){
     return response;
 }
 
+function HasSession() {
+    const hasSessionId = ('session-id' in localStorage) && (localStorage.getItem('session-id') !== undefined);
+    const hasSessionUserId = ('session-userid' in localStorage) && (localStorage.getItem('session-userid') !== undefined);
+    
+    if (!hasSessionId) {
+        console.log('No session id found')
+        return false;
+    }
+
+    if (!hasSessionUserId) {
+        console.log('No session user id found')
+        return false;
+    }
+
+    return true;
+}
+
+function GetSessionId() {
+    return localStorage.getItem('session-id');
+}
+
+function GetSessionUserId() {
+    return localStorage.getItem('session-userid');
+}
+
+function ClearSession() {
+    localStorage.removeItem('session-id');
+    localStorage.removeItem('session-userid');
+    
+}
+
 export { 
     GetAllArtists, GetArtistById, CreateArtist, DeleteArtist, 
-    UpdateArtist, CreateUser, GetAllUsers, Authenticate 
+    UpdateArtist, CreateUser, GetAllUsers, Authenticate, HasSession, 
+    GetSessionId, GetSessionUserId, ClearSession
 };
 

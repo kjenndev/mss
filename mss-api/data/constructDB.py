@@ -1,6 +1,10 @@
 import sqlite3
+import hashlib
 
-_scripts = '''
+adminUserName = 'admin'
+adminPassword = hashlib.md5('admin'.encode('utf-8')).hexdigest()
+
+_scripts = f"""
     CREATE TABLE IF NOT EXISTS "Artists" (
 	"id"	INTEGER NOT NULL UNIQUE,
 	"name"	TEXT NOT NULL UNIQUE,
@@ -17,8 +21,11 @@ _scripts = '''
 	"id"	INTEGER NOT NULL UNIQUE,
 	"username"	TEXT NOT NULL UNIQUE,
 	"password"	TEXT NOT NULL,
-	PRIMARY KEY("id" AUTOINCREMENT))
-'''
+	PRIMARY KEY("id" AUTOINCREMENT));
+    
+    INSERT OR IGNORE INTO "Users" ("username", "password") VALUES ( '{adminUserName}', '{adminPassword}')
+"""
+print (_scripts)
 
 def scaffold():
     print("Scaffolding database...")
