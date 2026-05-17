@@ -1,0 +1,25 @@
+.profileIconButton {
+  padding: 0 !important;
+  margin-left: 8px !important;
+  border: 2px solid rgba(255,255,255,0.1) !important;
+}
+
+.navAvatar {
+  width: 32px !important;
+  height: 32px !important;
+  background-color: var(--primary-main) !important;
+  font-size: 1rem !important;
+}
+
+.menuItemButton {
+  width: 100% !important;
+  text-align: left !important;
+  text-transform: uppercase !important;
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 1px !important;
+}
+
+.logoutButton {
+  color: var(--error-main) !important;
+}

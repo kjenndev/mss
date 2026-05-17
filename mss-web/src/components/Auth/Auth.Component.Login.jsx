@@ -1,8 +1,5 @@
-import { useState } from 'react'
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { md5 } from 'js-md5';
-import { useEffect } from 'react';
-
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -13,6 +10,7 @@ import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
 
 import * as helpers from '../../Data.Helper.Api';
+import styles from './Auth.Component.Login.module.css';
 
 const darkTheme = createTheme({
   palette: {
@@ -20,59 +18,60 @@ const darkTheme = createTheme({
   },
 });
 
-// Component Declaration
 export default function Login() {
-    // Clear the current session
-    helpers.ClearSession();
+  const [user, setUser] = useState({ username: '', password: '' });
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-    // Setup a state object for User
-    const [user, setUser] = useState({username: '', password: ''});
-    const navigate = useNavigate();
-    const encoder = new TextEncoder();
+  function handleAuthChange(e) {
+    setUser({ ...user, [e.target.name]: e.target.value });
+  }
 
-    // Handle when a textbox value changes
-    function handleAuthChange(e) {
-        let _user = user;
-        if (e.target.name === 'password'){
-            _user.password = md5(encoder.encode(e.target.value));
-        } else {
-            _user[e.target.name] = e.target.value;
-        }
-        setUser(_user);
+  async function handleLogin() {
+    const response = await helpers.Authenticate(user);
+    if (!response.ok) {
+      setError('Invalid username or password');
+      return;
     }
+    navigate('/');
+  }
 
-    return (
-        <Container>
-            <ThemeProvider theme={darkTheme}>
-                <Box component="form" noValidate autoComplete="off">
-                    <Paper elevation={3} sx={{p: 5}}>
-                        <Box sx={{width: 600}}>
-                            <Stack>
-                                <Typography sx={{marginBottom: 5}} variant='h4'>Login</Typography>
-                                <TextField id="username" sx={{marginBottom: 5}} label="Username" name='username' variant="standard" defaultValue={user.username} onChange={(e)=>{ handleAuthChange(e) }} />
-                                <TextField id="password" sx={{marginBottom: 5}} label="Password" name='password' variant="standard" type='password' defaultValue={user.password} onChange={(e)=>{ handleAuthChange(e) }} />
-                
-                                <Button onClick={() => {
-                                    helpers.Authenticate(user).then(response => {
-                                        if (response.status === 401) {
-                                            navigate("/login");
-                                        }
-                                    
-                                        response.json().then(res => {
-                                            console.log('Login successful');
-                                            localStorage.setItem('session-id', res.session)
-                                            localStorage.setItem('session-userid', res.userid)
-                                            navigate('/')
-                                        });
-                                    });
-                                }}>
-                                    Login
-                                </Button>
-                            </Stack>
-                            </Box>
-                    </Paper>
-                </Box>
-            </ThemeProvider>
-        </Container>
-    )
+  return (
+    <Container className={styles.container}>
+      <ThemeProvider theme={darkTheme}>
+        <Box component="form" noValidate autoComplete="off" className={styles.loginBox}>
+          <Paper elevation={3} className={styles.loginPaper}>
+            <Stack>
+              <Typography className={styles.loginTitle} variant="h4">
+                Login
+              </Typography>
+              <TextField
+                id="username"
+                className={styles.inputField}
+                label="Username"
+                name="username"
+                variant="standard"
+                value={user.username}
+                onChange={handleAuthChange}
+                fullWidth
+              />
+              <TextField
+                id="password"
+                className={styles.inputField}
+                label="Password"
+                name="password"
+                type="password"
+                variant="standard"
+                value={user.password}
+                onChange={handleAuthChange}
+                fullWidth
+              />
+              {error && <Typography color="error" className={styles.errorText}>{error}</Typography>}
+              <Button onClick={handleLogin} variant="contained" className={styles.loginButton}>Login</Button>
+            </Stack>
+          </Paper>
+        </Box>
+      </ThemeProvider>
+    </Container>
+  );
 }

@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import Container from '@mui/material/Container';
+import Grid from '@mui/material/Grid';
+import Card from '@mui/material/Card';
+import Box from '@mui/material/Box';
+import CardContent from '@mui/material/CardContent';
+import CardActions from '@mui/material/CardActions';
+import CardMedia from '@mui/material/CardMedia';
 
 import DeleteArtist from './Artist.Component.Delete';
 import * as helpers from '../../Data.Helper.Api';
+import styles from './Artist.Component.List.module.css';
 
 const darkTheme = createTheme({
   palette: {
@@ -22,74 +22,63 @@ const darkTheme = createTheme({
   },
 });
 
-// Component declaration
 export default function ArtistList() {
-    const [artists, setArtists] = useState([]);
-    const navigate = useNavigate();
+  const [artists, setArtists] = useState([]);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        // Side effect logic here
-        helpers.GetAllArtists().then(response => {
-            if (response.status === 401) {
-                localStorage.removeItem('session-id')
-                localStorage.removeItem('session-userid')
-                navigate("/login");
-            }
-    
-            response.json().then(res => {
-                setArtists(res);
-            });
-        });
-    }, []);
+  useEffect(() => {
+    helpers.GetAllArtists().then(async (response) => {
+      if (!response.ok) {
+        navigate('/login');
+        return;
+      }
+      const data = await response.json();
+      setArtists(data.artists || []);
+    });
+  }, [navigate]);
 
-    return (
-        <Container>
-            <ThemeProvider theme={darkTheme}>
-                <Paper elevation={3} sx={{p: 5}}>
-                    <Typography sx={{marginBottom: 5}} variant='h4'>All Artists</Typography>
-                    <br />  
-                    <TableContainer>
-                        <Table aria-label="simple table">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Name</TableCell>
-                                    <TableCell>Location</TableCell>
-                                    <TableCell>Descruotion</TableCell>
-                                    <TableCell>YouTube</TableCell>
-                                    <TableCell>Twitch</TableCell>
-                                    <TableCell>Mixcloud</TableCell>
-                                    <TableCell>Soundcloud</TableCell>
-                                    <TableCell></TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                            {
-                                artists.map(artist => (
-                                    <TableRow key={artist.name}>
-                                        <TableCell>
-                                            <Button href={`/artists/${artist.id}`}>{artist.name}</Button>
-                                        </TableCell>
-                                        <TableCell>{artist.location}</TableCell>
-                                        <TableCell>{artist.description}</TableCell>
-                                        <TableCell>{artist.youtube}</TableCell>
-                                        <TableCell>{artist.twitch}</TableCell>
-                                        <TableCell>{artist.mixcloud}</TableCell>
-                                        <TableCell>{artist.soundcloud}</TableCell>
-                                        <TableCell>
-                                            <Button size="small" href={`/artists/${artist.id}/update`}>Update</Button>
-                                            <DeleteArtist id={artist.id} onDelete = { id => {
-                                                const newSet = artists.filter(a => a.id != id );
-                                                setArtists(newSet);
-                                            }} /> 
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            } 
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Paper>
-            </ThemeProvider>
-        </Container> 
-    );
+  return (
+    <Container className={styles.container}>
+      <ThemeProvider theme={darkTheme}>
+        <Paper elevation={3} className={styles.headerPaper}>
+          <Typography variant="h4">All Artists</Typography>
+        </Paper>
+
+        <Box className={styles.listWrapper}>
+          <Grid container spacing={3} className={styles.cardGrid}>
+            {artists.map((artist) => (
+              <Grid item xs="auto" key={artist.id}>
+                <Card className={styles.artistCard}>
+                  {artist.profile_picture ? (
+                    <CardMedia
+                      component="img"
+                      image={artist.profile_picture.startsWith('http') ? artist.profile_picture : `http://localhost:4000${artist.profile_picture}`}
+                      alt={artist.name}
+                      className={styles.artistImage}
+                    />
+                  ) : (
+                    <Box className={styles.placeholderImage}>
+                        <Typography variant="h1" color="text.secondary">{artist.name.charAt(0)}</Typography>
+                    </Box>
+                  )}
+                  <CardContent>
+                    <Typography variant="h6" noWrap>{artist.name}</Typography>
+                    <Typography color="text.secondary" noWrap>{artist.location || 'Unknown Location'}</Typography>
+                  </CardContent>
+                  <CardActions>
+                    <Button href={`/artists/${artist.id}`} size="small">View Profile</Button>
+                    {helpers.CanEditArtist(artist.id, artist.user_id) && (
+                      <Button href={`/artists/${artist.id}/update`} size="small">
+                        Edit
+                      </Button>
+                    )}
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      </ThemeProvider>
+    </Container>
+  );
 }

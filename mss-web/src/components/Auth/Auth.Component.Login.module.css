@@ -1,0 +1,33 @@
+.container {
+  display: flex;
+  justify-content: center;
+  margin-top: 64px;
+}
+
+.loginPaper {
+  padding: 40px;
+  border-radius: 16px !important;
+}
+
+.loginBox {
+  width: 100%;
+  max-width: 600px;
+}
+
+.loginTitle {
+  margin-bottom: 40px !important;
+}
+
+.inputField {
+  margin-bottom: 40px !important;
+}
+
+.errorText {
+  margin-bottom: 16px !important;
+}
+
+.loginButton {
+  margin-top: 16px !important;
+  border-radius: 12px !important;
+  padding: 12px !important;
+}

@@ -98,6 +98,12 @@ venv.bak/
 
 # Spyder project settings
 .spyderproject
+
+# Node files
+node_modules/
+uploads/
+.mss.db
+npm-debug.log*
 .spyproject
 
 # Rope project settings

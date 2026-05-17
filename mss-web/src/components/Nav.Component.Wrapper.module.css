@@ -1,0 +1,33 @@
+.navAppBar {
+  background-color: var(--background-paper) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.logoImage {
+  height: 40px;
+  border-radius: 4px;
+}
+
+.logoText {
+  margin-left: 16px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.navLinksContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navButton {
+  text-transform: none !important;
+  font-weight: 600 !important;
+}

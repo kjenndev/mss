@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './App.css'
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -19,23 +19,18 @@ export default function App() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('Route changed to:', location.pathname);
-    // Perform your interception logic here (e.g., analytics)
-    const protectedRoutes = ['/users/create', '/artists/create'];
+    const adminOnlyRoutes = ['/users/create', '/artists/create', '/admin/dashboard'];
+    const isAdmin = helpers.IsAdmin();
+    const hasSession = helpers.HasSession();
 
-    if (protectedRoutes.includes(location.pathname)) {
-      console.log('Accessing protected route:', location.pathname);
-
-      // Check if user is authenticated
-      const hasSession = helpers.HasSession();
-      
+    if (adminOnlyRoutes.includes(location.pathname) && !isAdmin) {
       if (!hasSession) {
-        console.log('User is not authenticated');
         navigate('/login');
+        return;
       }
+      navigate('/');
     }
-
-  }, [location]);
+  }, [location, navigate]);
 
   return (
     <>
