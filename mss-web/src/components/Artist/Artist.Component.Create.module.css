@@ -1,0 +1,25 @@
+.container {
+  margin-top: 32px;
+  margin-bottom: 48px;
+}
+
+.mainPaper {
+  padding: 32px;
+  border-radius: 16px !important;
+  background-color: var(--background-paper) !important;
+}
+
+.sectionHeader {
+  margin-bottom: 8px !important;
+}
+
+.sectionBox {
+  padding-top: 8px;
+}
+
+.formFooter {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}

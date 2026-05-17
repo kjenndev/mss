@@ -1,0 +1,52 @@
+.container {
+  margin-top: 32px;
+  margin-bottom: 48px;
+}
+
+.headerPaper {
+  padding: 32px;
+  margin-bottom: 0;
+  border-radius: 16px 16px 0 0 !important;
+}
+
+.listWrapper {
+  padding: 32px;
+  background-color: var(--background-paper);
+  border-radius: 0 0 16px 16px;
+  margin-bottom: 32px;
+}
+
+.cardGrid {
+    justify-content: center;
+}
+
+.artistCard {
+  width: 300px;
+  max-width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px !important;
+  background-color: var(--overlay-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.artistCard:hover {
+  transform: translateY(-4px);
+  background-color: var(--overlay-hover) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+}
+
+.artistImage {
+  height: 180px;
+  object-fit: cover;
+}
+
+.placeholderImage {
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255,255,255,0.05);
+}

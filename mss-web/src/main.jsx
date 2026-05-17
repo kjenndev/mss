@@ -12,6 +12,8 @@ import ArtistUpdate from './components/Artist/Artist.Component.Update'
 import CreateUser from './components/User/User.Component.Create'
 import Login from './components/Auth/Auth.Component.Login'
 import Home from './components/Home.Component.jsx'
+import AdminDashboard from './components/Admin/Admin.Dashboard.Component'
+import UserProfile from './components/User/User.Component.Profile'
 
 
 createRoot(document.getElementById('root')).render(
@@ -27,6 +29,8 @@ createRoot(document.getElementById('root')).render(
         <Route path="/artists/:id/update" element={<ArtistUpdate key={window.location.pathname} />} />
         <Route path="/users/create" element={<CreateUser key={window.location.pathname} />} />
         <Route path="/login" element={<Login key={window.location.pathname} />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard key={window.location.pathname} />} />
+        <Route path="/account" element={<UserProfile key={window.location.pathname} />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

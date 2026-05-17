@@ -1,0 +1,241 @@
+.container {
+  margin-top: 32px;
+  margin-bottom: 48px;
+}
+
+.sectionPaper {
+  padding: 32px;
+  margin-bottom: 32px;
+  border-radius: 8px;
+  background-color: var(--background-paper);
+}
+
+.carouselSectionPaper {
+  padding: 32px;
+  margin-bottom: 32px;
+  border-radius: 8px;
+  background-color: var(--background-paper);
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.carouselContent {
+  width: 1100px;
+  max-width: 100%;
+}
+
+.placeholderBox {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px 0;
+}
+
+.feedSectionPaper {
+  padding: 32px;
+  border-radius: 8px;
+  background-color: var(--background-paper);
+}
+
+.carouselHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.artistInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.liveIndicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--error-main);
+  padding: 1.6px 8px;
+  border-radius: 4px;
+  animation: pulse 2s infinite;
+}
+
+.offlineIndicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 1.6px 8px;
+  border-radius: 4px;
+}
+
+.iframeWrapper {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  margin-bottom: 16px;
+  background-color: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.twitchIframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.carouselControls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 8px;
+}
+
+.openTwitchButton {
+  background-color: #9146FF !important;
+  border-radius: 8px !important;
+}
+
+.openTwitchButton:hover {
+  background-color: #772ce8 !important;
+}
+
+.feedTitle {
+  font-weight: 700 !important;
+  margin-bottom: 32px !important;
+  padding: 0 16px !important;
+}
+
+.feedCard {
+  width: 300px;
+  max-width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px !important;
+  background-color: var(--overlay-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.feedCard:hover {
+  transform: translateY(-4px);
+  background-color: var(--overlay-hover) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+}
+
+.cardContent {
+  padding: 20px !important;
+  flex-grow: 1;
+}
+
+.artistAvatarRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.platformRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.platformIconTwitch { color: #9146FF; font-size: 16px; }
+.platformIconSoundCloud { color: #FF3300; font-size: 16px; }
+.platformIconMixcloud { color: #52AAD8; font-size: 16px; }
+.platformIconYouTube { color: #FF0000; font-size: 16px; }
+.platformIconDefault { font-size: 16px; }
+
+.cardActions {
+  padding: 16px !important;
+  padding-top: 0 !important;
+  justify-content: flex-end;
+}
+
+.viewButton {
+  border-radius: 12px !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.viewButton:hover {
+  border-color: var(--primary-main) !important;
+  background-color: rgba(144, 202, 249, 0.05) !important;
+}
+
+.galleryPaper {
+  padding: 32px;
+  margin-top: 32px;
+  border-radius: 8px;
+  background-color: var(--background-paper);
+}
+
+.galleryGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.galleryItem {
+  width: 200px;
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #000;
+  position: relative;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.galleryItem:hover img {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.galleryImage {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+  transition: all 0.3s ease-in-out;
+}
+
+.lightboxOverlay {
+  background-color: rgba(0,0,0,0.95) !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+
+.lightboxContent {
+  padding: 0 !important;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.lightboxImage {
+  max-width: 100%;
+  max-height: 90vh;
+  display: block;
+  cursor: zoom-out;
+}
+

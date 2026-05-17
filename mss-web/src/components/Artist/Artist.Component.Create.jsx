@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react'
-import UserDropdown from '../User/User.Helper.DropDown';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -10,88 +8,174 @@ import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
+import Grid from '@mui/material/Grid';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 
+import UserDropdown from '../User/User.Helper.DropDown';
 import * as helpers from '../../Data.Helper.Api';
+import styles from './Artist.Component.Create.module.css';
 
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
+    primary: {
+      main: '#90caf9',
+    },
   },
 });
 
-// Component Declaration
 export default function CreateArtist() {
-    var selectedUserId = -1;
+  const [artist, setArtist] = useState({
+    name: '',
+    location: '',
+    description: '',
+    twitch: '',
+    soundcloud: '',
+    mixcloud: '',
+    youtube: '',
+    user_id: '',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-    const navigate = useNavigate();
+  function handleArtistChange(e) {
+    setArtist({ ...artist, [e.target.name]: e.target.value });
+  }
 
-    // Set a state object for Artist
-    const [artist, setArtist] = useState({
-        id: -1,
-        name: '',
-        location: '',
-        description: '',
-        youtube: '',
-        twitch: '',
-        soundcloud: '',
-        mixcloud: '',
-        userid: -1
-    });
-
-    // handle when the select value changes
-    function handleArtistChange(e) {
-        let _artist = {
-            id: artist.id,
-            name: artist.name,
-            location: artist.location,
-            description: artist.description,
-            youtube: artist.youtube,
-            twitch: artist.twitch,
-            soundcloud: artist.soundcloud,
-            mixcloud: artist.mixcloud,
-            userid: artist.userid
-        };
-   
-        _artist[e.target.name] = e.target.value;
-        setArtist(_artist);
+  async function handleCreate() {
+    if (!artist.name.trim()) {
+      setError('Artist name is required.');
+      return;
     }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await helpers.CreateArtist(artist);
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.error || 'Unable to create artist.');
+        setLoading(false);
+        return;
+      }
+      navigate('/artists');
+    } catch {
+      setError('An unexpected error occurred.');
+      setLoading(false);
+    }
+  }
 
-    return (
-        <Container>
-            <ThemeProvider theme={darkTheme}>
-                <Box component="form" noValidate autoComplete="off">
-                    <Paper elevation={3} sx={{p: 5}}>
-                        <Stack>
-                                <Typography sx={{marginBottom: 5}} variant='h4'>Create New Artist</Typography>
-                                <UserDropdown onUpdate={(userId) => {  selectedUserId = userId; artist.userid = userId; setArtist(artist); }} />
-                                <br />
-                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Artist Name" name='name' variant="standard" defaultValue={artist.name} onChange={(e)=>{ handleArtistChange(e) }} />
-                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Location" name='location' variant="standard" defaultValue={artist.location} onChange={(e)=>{ handleArtistChange(e) }} />
-                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Description" name='description' variant="standard" defaultValue={artist.description} onChange={(e)=>{ handleArtistChange(e) }} />
-                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="YouTube" name='youtube' variant="standard" defaultValue={artist.youtube} onChange={(e)=>{ handleArtistChange(e) }} />
-                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Twitch" name='twitch' variant="standard" defaultValue={artist.twitch} onChange={(e)=>{ handleArtistChange(e) }} />
-                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Mixcloud" name='mixcloud' variant="standard" defaultValue={artist.mixcloud} onChange={(e)=>{ handleArtistChange(e) }} />
-                                <TextField id="standard-basic" sx={{marginBottom: 5}} label="Soundcloud" name='soundcloud' variant="standard" defaultValue={artist.soundcloud} onChange={(e)=>{ handleArtistChange(e) }} />
-                            
-                                <Button onClick={() => {
-                                    helpers.CreateArtist(artist).then(res => {
-                                        if (res.status === 401) {
-                                            localStorage.removeItem('session-id')
-                                            localStorage.removeItem('session-userid')
-                                            navigate("/login");
-                                        } else {
-                                            res.json().then(data => {
-                                            navigate('/artists');
-                                        });
-                                        }
-                                    });
-                                }}>
-                                        Create Artist
-                                </Button>
-                        </Stack>            
-                    </Paper>
-                </Box>
-            </ThemeProvider>
-        </Container>
+  return (
+    <Container maxWidth="md" className={styles.container}>
+      <ThemeProvider theme={darkTheme}>
+        <Paper elevation={4} className={styles.mainPaper}>
+          <Stack spacing={4}>
+            <Box>
+              <Typography variant="h4" gutterBottom>Create New Artist Profile</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Enter the details for the new artist. You can link this profile to an existing user account.
+              </Typography>
+            </Box>
+
+            <Stack spacing={3}>
+              <TextField 
+                fullWidth
+                label="Artist Name" 
+                name="name" 
+                variant="outlined" 
+                value={artist.name} 
+                onChange={handleArtistChange}
+                required
+              />
+              <TextField 
+                fullWidth
+                label="Location" 
+                name="location" 
+                variant="outlined" 
+                value={artist.location} 
+                onChange={handleArtistChange} 
+              />
+              <TextField 
+                fullWidth
+                label="Description" 
+                name="description" 
+                variant="outlined" 
+                multiline 
+                minRows={4} 
+                value={artist.description} 
+                onChange={handleArtistChange} 
+              />
+
+              <Box className={styles.sectionBox}>
+                <Typography variant="h6" className={styles.sectionHeader}>Social & Streaming Links</Typography>
+                
+                <Stack spacing={3}>
+                  <TextField 
+                    fullWidth
+                    label="Twitch Username" 
+                    name="twitch" 
+                    variant="outlined" 
+                    value={artist.twitch} 
+                    onChange={handleArtistChange} 
+                  />
+                  <TextField 
+                    fullWidth
+                    label="SoundCloud URL" 
+                    name="soundcloud" 
+                    variant="outlined" 
+                    value={artist.soundcloud} 
+                    onChange={handleArtistChange} 
+                  />
+                  <TextField 
+                    fullWidth
+                    label="Mixcloud URL" 
+                    name="mixcloud" 
+                    variant="outlined" 
+                    value={artist.mixcloud} 
+                    onChange={handleArtistChange} 
+                  />
+                  <TextField 
+                    fullWidth
+                    label="YouTube URL" 
+                    name="youtube" 
+                    variant="outlined" 
+                    value={artist.youtube} 
+                    onChange={handleArtistChange} 
+                  />
+                </Stack>
+              </Box>
+
+              <Box className={styles.sectionBox}>
+                <Typography variant="h6" className={styles.sectionHeader}>User Management</Typography>
+                <UserDropdown onUpdate={(userId) => setArtist({ ...artist, user_id: userId })} />
+              </Box>
+            </Stack>
+
+            {error && <Alert severity="error">{error}</Alert>}
+
+            <Box className={styles.formFooter}>
+              <Button 
+                variant="outlined" 
+                onClick={() => navigate('/artists')}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="contained" 
+                onClick={handleCreate}
+                disabled={loading}
+                startIcon={loading && <CircularProgress size={20} color="inherit" />}
+              >
+                {loading ? 'Creating...' : 'Create Artist'}
+              </Button>
+            </Box>
+          </Stack>
+        </Paper>
+      </ThemeProvider>
+    </Container>
   );
 }

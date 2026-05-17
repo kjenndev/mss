@@ -1,0 +1,9 @@
+.container {
+  margin-top: 32px;
+  margin-bottom: 48px;
+}
+
+.mainPaper {
+  padding: 32px;
+  border-radius: 16px !important;
+}

@@ -1,17 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { md5 } from 'js-md5';
-
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
 
 import * as helpers from '../../Data.Helper.Api';
+import styles from './User.Component.Create.module.css';
 
 const darkTheme = createTheme({
   palette: {
@@ -19,54 +21,81 @@ const darkTheme = createTheme({
   },
 });
 
-// Component Declaration
 export default function CreateUser() {
-    // Setup a state object for User
-    const [user, setUser] = useState({username: '', password: ''});
-    const navigate = useNavigate();
+  const [user, setUser] = useState({ username: '', password: '', role: 'artist', artist_id: '' });
+  const [artists, setArtists] = useState([]);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-    // Handle when a textbox value changes
-    function handleUserChange(e) {
-        if (e.target.name === 'password'){
-            user.password = md5(e.target.value);
-        } else {
-            user[e.target.name] = e.target.value;
-        }
-        setUser(user);
+  useEffect(() => {
+    helpers.GetAllArtists().then(async (response) => {
+      if (response.ok) {
+        const data = await response.json();
+        setArtists(data.artists || []);
+      }
+    });
+  }, []);
+
+  function handleUserChange(e) {
+    setUser({ ...user, [e.target.name]: e.target.value });
+  }
+
+  async function handleCreateUser() {
+    if (!user.username || !user.password) {
+      setError('Username and password are required.');
+      return;
     }
 
-    return (
-        <Container>
-            <ThemeProvider theme={darkTheme}>
-                <Box component="form" noValidate autoComplete="off">
-                    <Paper elevation={3} sx={{p: 5}}>
-                        <Box sx={{width: 600}}>
-                            <Stack>
-                                <Typography sx={{marginBottom: 5}} variant='h4'>Create New User</Typography>
-                                <TextField id="username" sx={{marginBottom: 5}} label="Username" name='username' variant="standard" defaultValue={user.username} onChange={(e)=>{ handleUserChange(e) }} />
-                                <TextField id="password" sx={{marginBottom: 5}} label="Password" name='password' variant="standard" type='password' defaultValue={user.password} onChange={(e)=>{ handleUserChange(e) }} />
-                
-                                <Button onClick={() => {
-                                    // Call trigger event passing in thje new artist
-                                    helpers.CreateUser(user).then(res => {
-                                        if (res.status === 401) {
-                                            localStorage.removeItem('session-id')
-                                            localStorage.removeItem('session-userid')
-                                            navigate("/login");
-                                        } else {
-                                            res.json().then(data => {
-                                                navigate('/artists');
-                                            });
-                                        }
-                                    });
-                                }}>
-                                        Create User
-                                </Button>
-                            </Stack>
-                            </Box>
-                    </Paper>
-                </Box>
-            </ThemeProvider>
-        </Container>
-    );
+    const userData = { ...user };
+    if (userData.artist_id === '') {
+      delete userData.artist_id;
+    }
+
+    const response = await helpers.CreateUser(userData);
+    if (!response.ok) {
+      const data = await response.json();
+      setError(data.error || 'Unable to create user.');
+      return;
+    }
+
+    navigate('/admin/dashboard');
+  }
+
+  return (
+    <Container className={styles.container}>
+      <ThemeProvider theme={darkTheme}>
+        <Paper elevation={3} className={styles.mainPaper}>
+          <Stack spacing={3}>
+            <Typography variant="h4">Create New User</Typography>
+            <TextField label="Username" name="username" variant="standard" value={user.username} onChange={handleUserChange} fullWidth />
+            <TextField label="Password" name="password" type="password" variant="standard" value={user.password} onChange={handleUserChange} fullWidth />
+            <FormControl variant="standard" fullWidth>
+              <InputLabel id="role-label">Role</InputLabel>
+              <Select labelId="role-label" name="role" value={user.role} onChange={handleUserChange}>
+                <MenuItem value="artist">Artist</MenuItem>
+                <MenuItem value="admin">Admin</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl variant="standard" fullWidth>
+              <InputLabel id="artist-label">Associated Artist (optional)</InputLabel>
+              <Select labelId="artist-label" name="artist_id" value={user.artist_id} onChange={handleUserChange}>
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {artists.map((artist) => (
+                  <MenuItem key={artist.id} value={artist.id}>
+                    {artist.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {error && <Typography color="error">{error}</Typography>}
+            <Button variant="contained" onClick={handleCreateUser}>
+              Create User
+            </Button>
+          </Stack>
+        </Paper>
+      </ThemeProvider>
+    </Container>
+  );
 }
