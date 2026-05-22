@@ -35,6 +35,8 @@ export default function UpdateEvent() {
     location: '',
     ticket_link: '',
     artist_ids: [],
+    flyer_artist_name: '',
+    flyer_artist_url: '',
   });
   const [flyer, setFlyer] = useState(null);
   const [error, setError] = useState('');
@@ -54,6 +56,8 @@ export default function UpdateEvent() {
           location: evt.location || '',
           ticket_link: evt.ticket_link || '',
           artist_ids: evt.artists ? evt.artists.map(a => a.id) : [],
+          flyer_artist_name: evt.flyer_artist_name || '',
+          flyer_artist_url: evt.flyer_artist_url || '',
         });
       } else {
         navigate('/events');
@@ -197,6 +201,28 @@ export default function UpdateEvent() {
                 value={event.ticket_link} 
                 onChange={handleChange} 
               />
+
+              <Box className={styles.sectionBox}>
+                <Typography variant="h6" className={styles.sectionHeader}>Flyer Artist Credit</Typography>
+                <Stack spacing={3}>
+                  <TextField 
+                    fullWidth
+                    label="Flyer Artist Name" 
+                    name="flyer_artist_name" 
+                    variant="outlined" 
+                    value={event.flyer_artist_name} 
+                    onChange={handleChange} 
+                  />
+                  <TextField 
+                    fullWidth
+                    label="Flyer Artist URL" 
+                    name="flyer_artist_url" 
+                    variant="outlined" 
+                    value={event.flyer_artist_url} 
+                    onChange={handleChange} 
+                  />
+                </Stack>
+              </Box>
 
               <Box className={styles.sectionBox}>
                 <Typography variant="h6" className={styles.sectionHeader}>Attached Artists</Typography>

@@ -8,6 +8,7 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { initializeDB, getDb, hashPassword } from './db.js';
 import { startRtmpServer, getActiveStreams, stopRtmpServer, getRtmpStats } from './rtmp.js';
+import 'dotenv/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,7 +44,7 @@ app.use('/media', express.static(mediaFolder, {
 }));
 
 await initializeDB();
-await startRtmpServer();
+// await startRtmpServer(); // Offloaded to streaming-platform
 
 async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -53,14 +54,16 @@ async function authMiddleware(req, res, next) {
 
   const token = authHeader.replace('Bearer ', '');
   const db = await getDb();
-  const session = await db.get('SELECT * FROM sessions WHERE token = ?', token);
+  const session = await db('sessions').where({ token }).first();
   if (!session) {
-    await db.close();
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const user = await db.get('SELECT id, username, role, artist_id, is_disabled FROM users WHERE id = ?', session.user_id);
-  await db.close();
+  const user = await db('users')
+    .select('id', 'username', 'role', 'artist_id', 'is_disabled')
+    .where({ id: session.user_id })
+    .first();
+  
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -84,8 +87,7 @@ function adminOnly(req, res, next) {
 async function canManageArtist(req, res, next) {
   const artistId = Number(req.params.id);
   const db = await getDb();
-  const artist = await db.get('SELECT * FROM artists WHERE id = ?', artistId);
-  await db.close();
+  const artist = await db('artists').where({ id: artistId }).first();
 
   if (!artist) {
     return res.status(404).json({ error: 'Artist not found' });
@@ -109,8 +111,7 @@ async function canManageArtist(req, res, next) {
 async function canManageEvent(req, res, next) {
   const eventId = Number(req.params.id);
   const db = await getDb();
-  const event = await db.get('SELECT * FROM events WHERE id = ?', eventId);
-  await db.close();
+  const event = await db('events').where({ id: eventId }).first();
 
   if (!event) {
     return res.status(404).json({ error: 'Event not found' });
@@ -139,28 +140,27 @@ app.post('/api/auth/login', async (req, res) => {
 
   const db = await getDb();
   const passwordHash = hashPassword(password);
-  const user = await db.get('SELECT id, username, role, artist_id, is_disabled FROM users WHERE username = ? AND password = ?', username, passwordHash);
+  const user = await db('users')
+    .where({ username, password: passwordHash })
+    .first();
+    
   if (!user) {
-    await db.close();
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
   if (user.is_disabled) {
-    await db.close();
     return res.status(403).json({ error: 'Account is disabled' });
   }
 
   const token = uuidv4();
-  await db.run('INSERT INTO sessions (token, user_id) VALUES (?, ?)', token, user.id);
-  await db.close();
+  await db('sessions').insert({ token, user_id: user.id });
 
   res.json({ token, user });
 });
 
 app.post('/api/auth/logout', authMiddleware, async (req, res) => {
   const db = await getDb();
-  await db.run('DELETE FROM sessions WHERE token = ?', req.token);
-  await db.close();
+  await db('sessions').where({ token: req.token }).del();
   res.json({ success: true });
 });
 
@@ -178,31 +178,24 @@ app.put('/api/auth/me', authMiddleware, async (req, res) => {
 
   try {
     if (password) {
-      const hashed = hashPassword(password);
-      await db.run(
-        'UPDATE users SET username = ?, password = ? WHERE id = ?',
-        updateFields.username,
-        hashed,
-        req.user.id
-      );
-    } else {
-      await db.run(
-        'UPDATE users SET username = ? WHERE id = ?',
-        updateFields.username,
-        req.user.id
-      );
+      updateFields.password = hashPassword(password);
     }
 
-    const updatedUser = await db.get('SELECT id, username, role, artist_id FROM users WHERE id = ?', req.user.id);
+    await db('users').where({ id: req.user.id }).update(updateFields);
+
+    const updatedUser = await db('users')
+      .select('id', 'username', 'role', 'artist_id')
+      .where({ id: req.user.id })
+      .first();
+      
     res.json({ user: updatedUser });
   } catch (error) {
-    if (error.message.includes('UNIQUE constraint failed')) {
+    if (error.message.includes('unique constraint') || error.message.includes('UNIQUE constraint')) {
       res.status(409).json({ error: 'Username is already taken' });
     } else {
+      console.error(error);
       res.status(500).json({ error: 'Unable to update profile' });
     }
-  } finally {
-    await db.close();
   }
 });
 
@@ -215,57 +208,65 @@ app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
   const db = await getDb();
   try {
     const hashed = hashPassword(password);
-    const result = await db.run(
-      'INSERT INTO users (username, password, role, artist_id) VALUES (?, ?, ?, ?)',
+    const [userIdObj] = await db('users').insert({
       username,
-      hashed,
+      password: hashed,
       role,
-      artist_id || null,
-    );
-    const user = await db.get('SELECT id, username, role, artist_id, is_disabled FROM users WHERE id = ?', result.lastID);
+      artist_id: artist_id || null,
+    }).returning('id');
+    
+    const userId = typeof userIdObj === 'object' ? userIdObj.id : userIdObj;
+    
+    const user = await db('users')
+      .select('id', 'username', 'role', 'artist_id', 'is_disabled')
+      .where({ id: userId })
+      .first();
+
     res.status(201).json({ user });
   } catch (error) {
-    if (error.message.includes('UNIQUE constraint failed')) {
+    if (error.message.includes('unique constraint') || error.message.includes('UNIQUE constraint')) {
       res.status(409).json({ error: 'Username is already taken' });
     } else {
+      console.error(error);
       res.status(500).json({ error: 'Unable to create user' });
     }
-  } finally {
-    await db.close();
   }
 });
 
 app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
   const db = await getDb();
-  const users = await db.all('SELECT id, username, role, artist_id, is_disabled FROM users ORDER BY username');
+  const users = await db('users')
+    .select('id', 'username', 'role', 'artist_id', 'is_disabled')
+    .orderBy('username');
   
   const usersWithArtists = await Promise.all(users.map(async (u) => {
-    const ownedByUserId = await db.all('SELECT id, name FROM artists WHERE user_id = ?', u.id);
-    const ownedArtists = [...ownedByUserId];
+    const ownedArtists = await db('artists')
+      .select('id', 'name')
+      .where({ user_id: u.id });
     
     if (u.artist_id) {
-      const primaryArtist = await db.get('SELECT id, name FROM artists WHERE id = ?', u.artist_id);
+      const primaryArtist = await db('artists')
+        .select('id', 'name')
+        .where({ id: u.artist_id })
+        .first();
+
       if (primaryArtist && !ownedArtists.find(a => a.id === primaryArtist.id)) {
         ownedArtists.push(primaryArtist);
       }
     }
-    
     return { ...u, ownedArtists };
   }));
-
-  await db.close();
+  
   res.json({ users: usersWithArtists });
 });
 
 app.put('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
   const { username, password, role, artist_id, ownedArtistIds, is_disabled } = req.body || {};
   const userId = req.params.id;
-
   const db = await getDb();
-  const existingUser = await db.get('SELECT * FROM users WHERE id = ?', userId);
   
+  const existingUser = await db('users').where({ id: userId }).first();
   if (!existingUser) {
-    await db.close();
     return res.status(404).json({ error: 'User not found' });
   }
 
@@ -283,48 +284,35 @@ app.put('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
 
   try {
     if (password) {
-      const hashed = hashPassword(password);
-      await db.run(
-        'UPDATE users SET username = ?, password = ?, role = ?, artist_id = ?, is_disabled = ? WHERE id = ?',
-        updateFields.username,
-        hashed,
-        updateFields.role,
-        updateFields.artist_id,
-        updateFields.is_disabled,
-        userId
-      );
-    } else {
-      await db.run(
-        'UPDATE users SET username = ?, role = ?, artist_id = ?, is_disabled = ? WHERE id = ?',
-        updateFields.username,
-        updateFields.role,
-        updateFields.artist_id,
-        updateFields.is_disabled,
-        userId
-      );
+      updateFields.password = hashPassword(password);
     }
 
+    await db('users').where({ id: userId }).update(updateFields);
+
     if (Array.isArray(ownedArtistIds)) {
-      await db.run('UPDATE artists SET user_id = NULL WHERE user_id = ?', userId);
+      await db('artists').where({ user_id: userId }).update({ user_id: null });
       if (ownedArtistIds.length > 0) {
-        const placeholders = ownedArtistIds.map(() => '?').join(',');
-        await db.run(`UPDATE artists SET user_id = ? WHERE id IN (${placeholders})`, userId, ...ownedArtistIds);
+        await db('artists').whereIn('id', ownedArtistIds).update({ user_id: userId });
       }
     }
     
-    const updatedUser = await db.get('SELECT id, username, role, artist_id, is_disabled FROM users WHERE id = ?', userId);
-    const ownedArtists = await db.all('SELECT id, name FROM artists WHERE user_id = ?', userId);
+    const updatedUser = await db('users')
+      .select('id', 'username', 'role', 'artist_id', 'is_disabled')
+      .where({ id: userId })
+      .first();
+
+    const ownedArtists = await db('artists')
+      .select('id', 'name')
+      .where({ user_id: userId });
     
     res.json({ user: { ...updatedUser, ownedArtists } });
   } catch (error) {
-    if (error.message.includes('UNIQUE constraint failed')) {
+    if (error.message.includes('unique constraint') || error.message.includes('UNIQUE constraint')) {
       res.status(409).json({ error: 'Username is already taken' });
     } else {
       console.error('Update User Error:', error);
       res.status(500).json({ error: 'Unable to update user' });
     }
-  } finally {
-    await db.close();
   }
 });
 
@@ -334,46 +322,41 @@ app.delete('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
     return res.status(400).json({ error: 'Cannot delete your own admin account' });
   }
   const db = await getDb();
-  await db.run('DELETE FROM users WHERE id = ?', userId);
-  await db.run('DELETE FROM sessions WHERE user_id = ?', userId);
-  await db.close();
+  await db('sessions').where({ user_id: userId }).del();
+  await db('users').where({ id: userId }).del();
   res.json({ success: true });
 });
 
 app.get('/api/users/me/artists', authMiddleware, async (req, res) => {
   const db = await getDb();
-  const artists = await db.all(
-    'SELECT id, name, profile_picture, slug FROM artists WHERE user_id = ? OR id = ? ORDER BY name',
-    req.user.id,
-    req.user.artist_id
-  );
-  await db.close();
+  const artists = await db('artists')
+    .select('id', 'name', 'profile_picture', 'slug')
+    .where('user_id', req.user.id)
+    .orWhere('id', req.user.artist_id || 0)
+    .orderBy('name');
   res.json({ artists });
 });
 
 app.get('/api/artists', async (req, res) => {
   const db = await getDb();
-  const artists = await db.all(
-    'SELECT id, name, location, description, profile_picture, cover_photo, twitch, soundcloud, mixcloud, youtube, slug, user_id, created_at, updated_at FROM artists ORDER BY name'
-  );
-  await db.close();
+  const artists = await db('artists')
+    .select('id', 'name', 'location', 'description', 'profile_picture', 'cover_photo', 'twitch', 'soundcloud', 'mixcloud', 'youtube', 'slug', 'user_id', 'channel_name', 'created_at', 'updated_at')
+    .orderBy('name');
   res.json({ artists });
 });
 
 app.get('/api/artists/:id', async (req, res) => {
   const db = await getDb();
-  const artist = await db.get(
-    'SELECT id, name, location, description, profile_picture, cover_photo, twitch, soundcloud, mixcloud, youtube, slug, user_id, created_at, updated_at FROM artists WHERE id = ?',
-    req.params.id,
-  );
-  await db.close();
+  const artist = await db('artists')
+    .where({ id: req.params.id })
+    .first();
+    
   if (!artist) {
     return res.status(404).json({ error: 'Artist not found' });
   }
   res.json({ artist });
 });
 
-// Private endpoint for managing artist details (includes stream keys)
 app.get('/api/artists/:id/manage', authMiddleware, canManageArtist, async (req, res) => {
   res.json({ artist: req.artist });
 });
@@ -381,44 +364,44 @@ app.get('/api/artists/:id/manage', authMiddleware, canManageArtist, async (req, 
 app.post('/api/artists/:id/stream-key', authMiddleware, canManageArtist, async (req, res) => {
   const newKey = uuidv4();
   const db = await getDb();
-  await db.run('UPDATE artists SET stream_key = ? WHERE id = ?', newKey, req.params.id);
-  await db.close();
+  await db('artists').where({ id: req.params.id }).update({ stream_key: newKey });
   res.json({ stream_key: newKey });
 });
 
 app.post('/api/artists', authMiddleware, adminOnly, async (req, res) => {
-  const { name, location, description, twitch, soundcloud, mixcloud, youtube, cover_photo, twitch_stream_key, slug, user_id } = req.body || {};
+  const { name, location, description, twitch, soundcloud, mixcloud, youtube, cover_photo, twitch_stream_key, slug, user_id, channel_name } = req.body || {};
   if (!name) {
     return res.status(400).json({ error: 'Artist name is required' });
   }
 
   const db = await getDb();
   try {
-    const result = await db.run(
-      'INSERT INTO artists (name, location, description, twitch, soundcloud, mixcloud, youtube, cover_photo, twitch_stream_key, slug, stream_key, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    const [artistIdObj] = await db('artists').insert({
       name,
-      location || '',
-      description || '',
-      twitch || '',
-      soundcloud || '',
-      mixcloud || '',
-      youtube || '',
-      cover_photo || null,
-      twitch_stream_key || '',
-      slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-      uuidv4(),
-      user_id || null,
-    );
-    const artist = await db.get('SELECT * FROM artists WHERE id = ?', result.lastID);
+      location: location || '',
+      description: description || '',
+      twitch: twitch || '',
+      soundcloud: soundcloud || '',
+      mixcloud: mixcloud || '',
+      youtube: youtube || '',
+      cover_photo: cover_photo || null,
+      twitch_stream_key: twitch_stream_key || '',
+      slug: slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      stream_key: uuidv4(),
+      user_id: user_id || null,
+      channel_name: channel_name || ''
+    }).returning('id');
+    
+    const artistId = typeof artistIdObj === 'object' ? artistIdObj.id : artistIdObj;
+    const artist = await db('artists').where({ id: artistId }).first();
     res.status(201).json({ artist });
   } catch (err) {
-    if (err.message.includes('UNIQUE constraint failed')) {
+    if (err.message.includes('unique constraint') || err.message.includes('UNIQUE constraint')) {
       res.status(409).json({ error: 'Slug is already taken' });
     } else {
+      console.error(err);
       res.status(500).json({ error: 'Unable to create artist' });
     }
-  } finally {
-    await db.close();
   }
 });
 
@@ -439,7 +422,8 @@ app.put('/api/artists/:id', authMiddleware, canManageArtist, async (req, res) =>
     cover_photo: update.cover_photo !== undefined ? update.cover_photo : artist.cover_photo,
     twitch_stream_key: update.twitch_stream_key !== undefined ? update.twitch_stream_key : artist.twitch_stream_key,
     slug: update.slug !== undefined ? update.slug : artist.slug,
-    user_id: artist.user_id,
+    channel_name: update.channel_name !== undefined ? update.channel_name : artist.channel_name,
+    updated_at: db.fn.now()
   };
 
   if (req.user.role === 'admin' && update.user_id !== undefined) {
@@ -447,44 +431,27 @@ app.put('/api/artists/:id', authMiddleware, canManageArtist, async (req, res) =>
   }
 
   try {
-    await db.run(
-      `UPDATE artists SET name = ?, location = ?, description = ?, twitch = ?, soundcloud = ?, mixcloud = ?, youtube = ?, profile_picture = ?, cover_photo = ?, twitch_stream_key = ?, slug = ?, user_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      updateFields.name,
-      updateFields.location,
-      updateFields.description,
-      updateFields.twitch,
-      updateFields.soundcloud,
-      updateFields.mixcloud,
-      updateFields.youtube,
-      updateFields.profile_picture,
-      updateFields.cover_photo,
-      updateFields.twitch_stream_key,
-      updateFields.slug,
-      updateFields.user_id,
-      artist.id,
-    );
-
-    const updatedArtist = await db.get('SELECT * FROM artists WHERE id = ?', artist.id);
+    await db('artists').where({ id: artist.id }).update(updateFields);
+    const updatedArtist = await db('artists').where({ id: artist.id }).first();
     res.json({ artist: updatedArtist });
   } catch (err) {
-    if (err.message.includes('UNIQUE constraint failed')) {
+    if (err.message.includes('unique constraint') || err.message.includes('UNIQUE constraint')) {
       res.status(409).json({ error: 'Slug is already taken' });
     } else {
+      console.error(err);
       res.status(500).json({ error: 'Unable to update artist' });
     }
-  } finally {
-    await db.close();
   }
 });
 
 app.delete('/api/artists/:id', authMiddleware, adminOnly, async (req, res) => {
   const db = await getDb();
-  const artist = await db.get('SELECT * FROM artists WHERE id = ?', req.params.id);
+  const artist = await db('artists').where({ id: req.params.id }).first();
   if (!artist) {
-    await db.close();
     return res.status(404).json({ error: 'Artist not found' });
   }
-  const images = await db.all('SELECT filename FROM artist_images WHERE artist_id = ?', artist.id);
+  
+  const images = await db('artist_images').where({ artist_id: artist.id });
   for (const img of images) {
     const filePath = path.join(__dirname, 'uploads', img.filename);
     try {
@@ -494,9 +461,8 @@ app.delete('/api/artists/:id', authMiddleware, adminOnly, async (req, res) => {
     }
   }
 
-  await db.run('DELETE FROM artists WHERE id = ?', artist.id);
-  await db.run('DELETE FROM artist_images WHERE artist_id = ?', artist.id);
-  await db.close();
+  await db('artists').where({ id: artist.id }).del();
+  await db('artist_images').where({ artist_id: artist.id }).del();
   res.json({ success: true });
 });
 
@@ -506,159 +472,164 @@ app.post('/api/artists/:id/upload', authMiddleware, canManageArtist, upload.sing
   }
   const imageUrl = `/uploads/${req.file.filename}`;
   const db = await getDb();
-  await db.run('INSERT INTO artist_images (artist_id, filename) VALUES (?, ?)', req.artist.id, req.file.filename);
-  await db.run(
-    'UPDATE artists SET profile_picture = ? WHERE id = ? AND COALESCE(profile_picture, "") = ""',
-    imageUrl,
-    req.artist.id,
-  );
-  await db.close();
+  await db('artist_images').insert({ artist_id: req.artist.id, filename: req.file.filename });
+  
+  if (!req.artist.profile_picture) {
+    await db('artists').where({ id: req.artist.id }).update({ profile_picture: imageUrl });
+  }
+  
   res.json({ imageUrl, filename: req.file.filename });
 });
 
 app.get('/api/artists/:id/images', async (req, res) => {
   const db = await getDb();
-  const images = await db.all('SELECT id, filename, created_at FROM artist_images WHERE artist_id = ? ORDER BY created_at DESC', req.params.id);
-  await db.close();
+  const images = await db('artist_images')
+    .where({ artist_id: req.params.id })
+    .orderBy('created_at', 'desc');
   res.json({ images: images.map((image) => ({ id: image.id, url: `/uploads/${image.filename}`, created_at: image.created_at })) });
 });
 
 app.get('/api/images', async (req, res) => {
   const db = await getDb();
-  const images = await db.all('SELECT id, artist_id, filename, created_at FROM artist_images ORDER BY created_at DESC LIMIT 50');
-  await db.close();
+  const images = await db('artist_images')
+    .orderBy('created_at', 'desc')
+    .limit(50);
   res.json({ images: images.map((image) => ({ id: image.id, artist_id: image.artist_id, url: `/uploads/${image.filename}`, created_at: image.created_at })) });
 });
 
 app.delete('/api/artists/:id/images/:imageId', authMiddleware, canManageArtist, async (req, res) => {
   const db = await getDb();
-  const image = await db.get('SELECT * FROM artist_images WHERE id = ? AND artist_id = ?', req.params.imageId, req.artist.id);
+  const image = await db('artist_images')
+    .where({ id: req.params.imageId, artist_id: req.artist.id })
+    .first();
+    
   if (!image) {
-    await db.close();
     return res.status(404).json({ error: 'Image not found' });
   }
-  await db.run('DELETE FROM artist_images WHERE id = ?', image.id);
+  
+  await db('artist_images').where({ id: image.id }).del();
+  
   const filePath = path.join(__dirname, 'uploads', image.filename);
   try {
     await fs.promises.unlink(filePath);
   } catch (err) {
     console.error(`Failed to delete file: ${filePath}`, err);
   }
+  
   if (req.artist.profile_picture === `/uploads/${image.filename}`) {
-    const nextImage = await db.get('SELECT * FROM artist_images WHERE artist_id = ? ORDER BY created_at DESC LIMIT 1', req.artist.id);
+    const nextImage = await db('artist_images')
+      .where({ artist_id: req.artist.id })
+      .orderBy('created_at', 'desc')
+      .first();
     const nextUrl = nextImage ? `/uploads/${nextImage.filename}` : null;
-    await db.run('UPDATE artists SET profile_picture = ? WHERE id = ?', nextUrl, req.artist.id);
+    await db('artists').where({ id: req.artist.id }).update({ profile_picture: nextUrl });
   }
-  await db.close();
   res.json({ success: true });
 });
 
 app.get('/api/events', async (req, res) => {
   const db = await getDb();
-  const events = await db.all('SELECT * FROM events ORDER BY date DESC');
+  const events = await db('events').orderBy('date', 'desc');
   const eventsWithArtists = await Promise.all(events.map(async (event) => {
-    const artists = await db.all(
-      'SELECT a.id, a.name, a.profile_picture, a.slug FROM artists a JOIN event_artists ea ON a.id = ea.artist_id WHERE ea.event_id = ?',
-      event.id
-    );
+    const artists = await db('artists as a')
+      .join('event_artists as ea', 'a.id', 'ea.artist_id')
+      .select('a.id', 'a.name', 'a.profile_picture', 'a.slug')
+      .where('ea.event_id', event.id);
     return { ...event, artists };
   }));
-  await db.close();
   res.json({ events: eventsWithArtists });
 });
 
 app.get('/api/events/:id', async (req, res) => {
   const db = await getDb();
-  const event = await db.get('SELECT * FROM events WHERE id = ?', req.params.id);
+  const event = await db('events').where({ id: req.params.id }).first();
   if (!event) {
-    await db.close();
     return res.status(404).json({ error: 'Event not found' });
   }
-  const artists = await db.all(
-    'SELECT a.id, a.name, a.profile_picture, a.slug FROM artists a JOIN event_artists ea ON a.id = ea.artist_id WHERE ea.event_id = ?',
-    event.id
-  );
-  const images = await db.all(
-    'SELECT ei.id, ei.filename, ei.artist_id, a.name as artist_name, ei.created_at FROM event_images ei LEFT JOIN artists a ON ei.artist_id = a.id WHERE ei.event_id = ? ORDER BY ei.created_at DESC',
-    event.id
-  );
-  await db.close();
+  
+  const artists = await db('artists as a')
+    .join('event_artists as ea', 'a.id', 'ea.artist_id')
+    .select('a.id', 'a.name', 'a.profile_picture', 'a.slug')
+    .where('ea.event_id', event.id);
+    
+  const images = await db('event_images as ei')
+    .leftJoin('artists as a', 'ei.artist_id', 'a.id')
+    .select('ei.id', 'ei.filename', 'ei.artist_id', 'a.name as artist_name', 'ei.created_at')
+    .where('ei.event_id', event.id)
+    .orderBy('ei.created_at', 'desc');
+    
   res.json({ event: { ...event, artists, images: images.map(img => ({ ...img, url: `/uploads/${img.filename}` })) } });
 });
 
 app.post('/api/events', authMiddleware, async (req, res) => {
-  const { title, description, date, location, ticket_link, artist_ids } = req.body || {};
+  const { title, description, date, location, ticket_link, artist_ids, flyer_artist_name, flyer_artist_url } = req.body || {};
   if (!title) {
     return res.status(400).json({ error: 'Title is required' });
   }
 
   const db = await getDb();
   try {
-    const result = await db.run(
-      'INSERT INTO events (title, description, date, location, ticket_link, creator_id) VALUES (?, ?, ?, ?, ?, ?)',
+    const [eventIdObj] = await db('events').insert({
       title,
-      description || '',
-      date || null,
-      location || '',
-      ticket_link || '',
-      req.user.id
-    );
-    const eventId = result.lastID;
+      description: description || '',
+      date: date || null,
+      location: location || '',
+      ticket_link: ticket_link || '',
+      creator_id: req.user.id,
+      flyer_artist_name: flyer_artist_name || '',
+      flyer_artist_url: flyer_artist_url || ''
+    }).returning('id');
+    
+    const eventId = typeof eventIdObj === 'object' ? eventIdObj.id : eventIdObj;
 
     if (Array.isArray(artist_ids) && artist_ids.length > 0) {
-      for (const artistId of artist_ids) {
-        await db.run('INSERT INTO event_artists (event_id, artist_id) VALUES (?, ?)', eventId, artistId);
-      }
+      const eventArtists = artist_ids.map(artistId => ({ event_id: eventId, artist_id: artistId }));
+      await db('event_artists').insert(eventArtists);
     }
 
-    const event = await db.get('SELECT * FROM events WHERE id = ?', eventId);
+    const event = await db('events').where({ id: eventId }).first();
     res.status(201).json({ event });
   } catch (err) {
     console.error('Create Event Error:', err);
     res.status(500).json({ error: 'Unable to create event' });
-  } finally {
-    await db.close();
   }
 });
 
 app.put('/api/events/:id', authMiddleware, canManageEvent, async (req, res) => {
-  const { title, description, date, location, ticket_link, artist_ids } = req.body || {};
+  const { title, description, date, location, ticket_link, artist_ids, flyer_artist_name, flyer_artist_url } = req.body || {};
   const db = await getDb();
   try {
-    await db.run(
-      'UPDATE events SET title = ?, description = ?, date = ?, location = ?, ticket_link = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      title !== undefined ? title : req.event.title,
-      description !== undefined ? description : req.event.description,
-      date !== undefined ? date : req.event.date,
-      location !== undefined ? location : req.event.location,
-      ticket_link !== undefined ? ticket_link : req.event.ticket_link,
-      req.event.id
-    );
+    await db('events').where({ id: req.event.id }).update({
+      title: title !== undefined ? title : req.event.title,
+      description: description !== undefined ? description : req.event.description,
+      date: date !== undefined ? date : req.event.date,
+      location: location !== undefined ? location : req.event.location,
+      ticket_link: ticket_link !== undefined ? ticket_link : req.event.ticket_link,
+      flyer_artist_name: flyer_artist_name !== undefined ? flyer_artist_name : req.event.flyer_artist_name,
+      flyer_artist_url: flyer_artist_url !== undefined ? flyer_artist_url : req.event.flyer_artist_url,
+      updated_at: db.fn.now()
+    });
 
     if (Array.isArray(artist_ids)) {
-      await db.run('DELETE FROM event_artists WHERE event_id = ?', req.event.id);
-      for (const artistId of artist_ids) {
-        await db.run('INSERT INTO event_artists (event_id, artist_id) VALUES (?, ?)', req.event.id, artistId);
+      await db('event_artists').where({ event_id: req.event.id }).del();
+      if (artist_ids.length > 0) {
+        const eventArtists = artist_ids.map(artistId => ({ event_id: req.event.id, artist_id: artistId }));
+        await db('event_artists').insert(eventArtists);
       }
     }
 
-    const updatedEvent = await db.get('SELECT * FROM events WHERE id = ?', req.event.id);
+    const updatedEvent = await db('events').where({ id: req.event.id }).first();
     res.json({ event: updatedEvent });
   } catch (err) {
     console.error('Update Event Error:', err);
     res.status(500).json({ error: 'Unable to update event' });
-  } finally {
-    await db.close();
   }
 });
 
 app.delete('/api/events/:id', authMiddleware, canManageEvent, async (req, res) => {
   const db = await getDb();
   try {
-    await db.run('DELETE FROM events WHERE id = ?', req.event.id);
-    await db.run('DELETE FROM event_artists WHERE event_id = ?', req.event.id);
-    
-    const images = await db.all('SELECT filename FROM event_images WHERE event_id = ?', req.event.id);
+    const images = await db('event_images').where({ event_id: req.event.id });
     for (const img of images) {
       const filePath = path.join(__dirname, 'uploads', img.filename);
       try {
@@ -667,7 +638,6 @@ app.delete('/api/events/:id', authMiddleware, canManageEvent, async (req, res) =
         console.error(`Failed to delete file: ${filePath}`, err);
       }
     }
-    await db.run('DELETE FROM event_images WHERE event_id = ?', req.event.id);
     
     if (req.event.flyer) {
       const flyerPath = path.join(__dirname, 'uploads', path.basename(req.event.flyer));
@@ -678,12 +648,14 @@ app.delete('/api/events/:id', authMiddleware, canManageEvent, async (req, res) =
       }
     }
 
+    await db('events').where({ id: req.event.id }).del();
+    await db('event_artists').where({ event_id: req.event.id }).del();
+    await db('event_images').where({ event_id: req.event.id }).del();
+
     res.json({ success: true });
   } catch (err) {
     console.error('Delete Event Error:', err);
     res.status(500).json({ error: 'Unable to delete event' });
-  } finally {
-    await db.close();
   }
 });
 
@@ -693,8 +665,7 @@ app.post('/api/events/:id/flyer', authMiddleware, canManageEvent, upload.single(
   }
   const flyerUrl = `/uploads/${req.file.filename}`;
   const db = await getDb();
-  await db.run('UPDATE events SET flyer = ? WHERE id = ?', flyerUrl, req.event.id);
-  await db.close();
+  await db('events').where({ id: req.event.id }).update({ flyer: flyerUrl });
   res.json({ flyerUrl });
 });
 
@@ -705,46 +676,52 @@ app.post('/api/events/:id/images', authMiddleware, upload.single('image'), async
   }
 
   const db = await getDb();
-  const event = await db.get('SELECT * FROM events WHERE id = ?', eventId);
+  const event = await db('events').where({ id: eventId }).first();
   if (!event) {
-    await db.close();
     return res.status(404).json({ error: 'Event not found' });
   }
 
-  // Check if user is admin or the creator or one of the artists attached to the event
-  const isArtistInEvent = await db.get('SELECT * FROM event_artists WHERE event_id = ? AND artist_id = ?', eventId, req.user.artist_id);
+  const isArtistInEvent = await db('event_artists').where({ event_id: eventId, artist_id: req.user.artist_id || 0 }).first();
   const isAdmin = req.user.role === 'admin';
   const isCreator = Number(event.creator_id) === Number(req.user.id);
 
   if (isAdmin || isCreator || isArtistInEvent) {
-    await db.run(
-      'INSERT INTO event_images (event_id, artist_id, filename) VALUES (?, ?, ?)',
-      eventId,
-      req.user.artist_id || 0,
-      req.file.filename
-    );
-    await db.close();
+    await db('event_images').insert({
+      event_id: eventId,
+      artist_id: req.user.artist_id || 0,
+      filename: req.file.filename
+    });
     res.json({ imageUrl: `/uploads/${req.file.filename}`, filename: req.file.filename });
   } else {
-    await db.close();
     res.status(403).json({ error: 'Permission required to upload event images' });
   }
 });
 
 app.get('/api/artists/:id/events', async (req, res) => {
   const db = await getDb();
-  const events = await db.all(
-    'SELECT e.* FROM events e JOIN event_artists ea ON e.id = ea.event_id WHERE ea.artist_id = ? ORDER BY e.date DESC',
-    req.params.id
-  );
-  await db.close();
+  const events = await db('events as e')
+    .join('event_artists as ea', 'e.id', 'ea.event_id')
+    .select('e.*')
+    .where('ea.artist_id', req.params.id)
+    .orderBy('e.date', 'desc');
   res.json({ events });
+});
+
+app.post('/api/admin/upload', authMiddleware, adminOnly, upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Image is required' });
+  }
+  const imageUrl = `/uploads/${req.file.filename}`;
+  res.json({ imageUrl, filename: req.file.filename });
 });
 
 app.get('/api/live/twitch', async (req, res) => {
   const db = await getDb();
-  const artists = await db.all('SELECT id, name, twitch, slug FROM artists WHERE twitch IS NOT NULL AND twitch != ""');
-  await db.close();
+  const artists = await db('artists')
+    .select('id', 'name', 'twitch', 'slug')
+    .whereNotNull('twitch')
+    .whereNot('twitch', '');
+    
   const results = artists.map((artist) => {
     return {
       ...artist,
@@ -764,22 +741,101 @@ app.get('/api/streams', async (req, res) => {
   }
 });
 
-app.get('/api/admin/stats', authMiddleware, adminOnly, async (req, res) => {
+app.get('/api/settings', async (req, res) => {
+  const db = await getDb();
+  const settings = await db('system_settings').select('key', 'value', 'description');
+  const settingsMap = {};
+  settings.forEach(s => {
+    settingsMap[s.key] = s.value;
+  });
+  res.json({ settings: settingsMap, raw: settings });
+});
+
+app.put('/api/settings/:key', authMiddleware, adminOnly, async (req, res) => {
+  const { value } = req.body || {};
+  console.log(`[Settings] Updating key: ${req.params.key} with value:`, value);
+  const db = await getDb();
   try {
-    const stats = await getRtmpStats();
-    res.json({ stats });
+    const changes = await db('system_settings').where({ key: req.params.key }).update({ value, updated_at: db.fn.now() });
+    console.log(`[Settings] Rows affected: ${changes}`);
+    const updated = await db('system_settings').where({ key: req.params.key }).first();
+    res.json({ setting: updated });
+  } catch (err) {
+    console.error(`[Settings] Error updating ${req.params.key}:`, err);
+    res.status(500).json({ error: 'Failed to update setting' });
+  }
+});
+
+app.post('/api/settings/batch', authMiddleware, adminOnly, async (req, res) => {
+  const { settings } = req.body || {}; // array of { key, value }
+  if (!Array.isArray(settings)) {
+    return res.status(400).json({ error: 'Settings array required' });
+  }
+
+  const db = await getDb();
+  try {
+    await db.transaction(async trx => {
+      for (const s of settings) {
+        await trx('system_settings')
+          .where({ key: s.key })
+          .update({ value: s.value, updated_at: trx.fn.now() });
+      }
+    });
+    
+    const updated = await db('system_settings').select('key', 'value');
+    const settingsMap = {};
+    updated.forEach(s => {
+      settingsMap[s.key] = s.value;
+    });
+    res.json({ settings: settingsMap });
+  } catch (err) {
+    console.error('[Settings] Batch update error:', err);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+app.get('/api/admin/stats', authMiddleware, adminOnly, async (req, res) => {
+  const db = await getDb();
+  try {
+    const artistsCount = await db('artists').count('* as count').first();
+    const usersCount = await db('users').count('* as count').first();
+    const eventsCount = await db('events').count('* as count').first();
+    
+    const rtmpStats = await getRtmpStats();
+    res.json({ 
+        stats: rtmpStats,
+        counts: {
+            artists: parseInt(artistsCount.count),
+            users: parseInt(usersCount.count),
+            events: parseInt(eventsCount.count)
+        }
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to fetch server stats' });
   }
 });
 
 app.get('/api/feed', async (req, res) => {
   const db = await getDb();
-  const artists = await db.all('SELECT id, name, profile_picture, twitch, soundcloud, mixcloud FROM artists ORDER BY updated_at DESC LIMIT 50');
-  await db.close();
+  const artists = await db('artists')
+    .select('id', 'name', 'profile_picture', 'twitch', 'soundcloud', 'mixcloud', 'channel_name')
+    .orderBy('updated_at', 'desc')
+    .limit(50);
+    
   const feed = [];
   for (const artist of artists) {
-    if (artist.twitch) {
+    if (artist.channel_name) {
+      feed.push({
+        artistId: artist.id,
+        artistName: artist.name,
+        artistImage: artist.profile_picture,
+        title: `Join ${artist.name} in the Chat`,
+        platform: 'Syndicate Live',
+        url: `/watch/${artist.channel_name}`, // Frontend will prepend base URL
+        createdAt: new Date().toISOString(),
+      });
+    } else if (artist.twitch) {
       feed.push({
         artistId: artist.id,
         artistName: artist.name,

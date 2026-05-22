@@ -36,6 +36,9 @@ export default function ArtistDetail() {
   const [images, setImages] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [activeStream, setActiveStream] = useState(null);
+  const [disqusShortname, setDisqusShortname] = useState('midnight-sound-syndicate');
+  const [platformUrl, setPlatformUrl] = useState('http://localhost:5174');
+  const [isStreamPaused, setIsStreamPaused] = useState(false);
 
   const getImageUrl = (path) => {
     if (!path) return '';
@@ -59,6 +62,18 @@ export default function ArtistDetail() {
       }
     });
 
+    helpers.GetSettings().then(async (res) => {
+        if (res.ok) {
+            const data = await res.json();
+            if (data.settings?.disqus_shortname) {
+                setDisqusShortname(data.settings.disqus_shortname);
+            }
+            if (data.settings?.streaming_platform_url) {
+                setPlatformUrl(data.settings.streaming_platform_url);
+            }
+        }
+    });
+
     helpers.GetActiveSyndicateStreams().then(async (response) => {
       if (response.ok) {
         const data = await response.json();
@@ -73,7 +88,6 @@ export default function ArtistDetail() {
     return <Typography>Loading artist...</Typography>;
   }
 
-  const disqusShortname = 'midnight-sound-syndicate';
   const disqusConfig = {
     url: window.location.href,
     identifier: `artist-${artist.id}`,
@@ -125,6 +139,20 @@ export default function ArtistDetail() {
             <Grid item xs={12} md={4} lg={3}>
               <Box className={styles.sidebar}>
                 <Box className={styles.socialLinksRow}>
+                  {artist.channel_name && (
+                    <Tooltip title="Join Chat (Syndicate Live)">
+                      <IconButton 
+                        onClick={() => {
+                            setIsStreamPaused(true);
+                            window.open(`${platformUrl}/watch/${artist.channel_name}`, '_blank');
+                        }}
+                        rel="noopener noreferrer"
+                        className={styles.socialIconTwitch + ' ' + styles.socialIconDefault}
+                      >
+                        <LiveTvIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   {artist.twitch && (
                     <Tooltip title="Twitch">
                       <IconButton 
@@ -230,17 +258,32 @@ export default function ArtistDetail() {
                 <Stack spacing={4}>
                   <Box>
                     <Stack spacing={4}>
-                      {activeStream && (
+                      {activeStream && artist.channel_name && (
                         <Box className={styles.streamBox}>
-                          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                            Syndicate Live
-                          </Typography>
+                          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                Syndicate Live
+                            </Typography>
+                            <Button 
+                                variant="contained" 
+                                size="small"
+                                onClick={() => {
+                                    setIsStreamPaused(true);
+                                    window.open(`${platformUrl}/watch/${artist.channel_name}`, '_blank');
+                                }}
+                                sx={{ borderRadius: '20px', textTransform: 'none', px: 3 }}
+                            >
+                                Join Chat
+                            </Button>
+                          </Box>
                           <SyndicatePlayer 
-                            url={activeStream.playUrl} 
-                            hlsUrl={activeStream.hlsUrl || `http://localhost:4000/media/live/${artist.slug}/index.m3u8`}
+                            channelName={artist.channel_name}
+                            isPaused={isStreamPaused}
+                            onResume={() => setIsStreamPaused(false)}
                           />
                         </Box>
-                      )}                      {artist.soundcloud && (
+                      )}
+                      {artist.soundcloud && (
                         <Box className={styles.streamBox}>
                           <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
                             SoundCloud
@@ -297,10 +340,12 @@ export default function ArtistDetail() {
                     <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
                       Comments
                     </Typography>
-                    <DiscussionEmbed
-                      shortname={disqusShortname}
-                      config={disqusConfig}
-                    />
+                    {disqusShortname && (
+                        <DiscussionEmbed
+                            shortname={disqusShortname}
+                            config={disqusConfig}
+                        />
+                    )}
                   </Box>
                 </Stack>
               </Box>

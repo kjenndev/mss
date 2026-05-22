@@ -35,6 +35,7 @@ export default function CreateArtist() {
     mixcloud: '',
     youtube: '',
     user_id: '',
+    channel_name: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -120,6 +121,15 @@ export default function CreateArtist() {
                     variant="outlined" 
                     value={artist.twitch} 
                     onChange={handleArtistChange} 
+                  />
+                  <TextField 
+                    fullWidth
+                    label="Streaming Platform Channel Name" 
+                    name="channel_name" 
+                    variant="outlined" 
+                    value={artist.channel_name} 
+                    onChange={handleArtistChange} 
+                    placeholder="e.g. kyle-stream"
                   />
                   <TextField 
                     fullWidth

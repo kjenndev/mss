@@ -117,6 +117,11 @@ export default function NavMenu() {
               <Typography variant="button" className={styles.menuItemButton}>Admin Dashboard</Typography>
             </MenuItem>
           )}
+          {isAdmin && (
+            <MenuItem onClick={() => { handleClose(); navigate('/admin/settings'); }}>
+              <Typography variant="button" className={styles.menuItemButton}>System Settings</Typography>
+            </MenuItem>
+          )}
 
           {myArtists.map((artist) => (
             <MenuItem key={artist.id} onClick={() => handleArtistClick(artist.id)}>

@@ -12,7 +12,6 @@ const __dirname = path.dirname(__filename);
 const REDIS_KEY = 'mss:active_streams';
 const activeRelays = new Map(); // artistId -> childProcess
 const activeSessions = new Map(); // id -> sessionInfo
-const recordingsPath = path.join(__dirname, 'recordings');
 
 const rtmpPort = process.env.RTMP_PORT || 1935;
 const httpPort = process.env.HTTP_PORT || 8000;
@@ -25,12 +24,6 @@ const config = {
     gop_cache: true,
     ping: 30,
     ping_timeout: 60,
-    app: {
-        live: {
-            mode: 'record',
-            record_path: recordingsPath,
-        }
-    }
   },
   http: {
     port: Number(httpPort),
@@ -149,10 +142,6 @@ export async function startRtmpServer() {
   }
   fs.mkdirSync(mediaPath, { recursive: true });
 
-  if (!fs.existsSync(recordingsPath)) {
-    fs.mkdirSync(recordingsPath, { recursive: true });
-  }
-
   nmsInstance = new NodeMediaServer(config);
 
   nmsInstance.on('doneConnect', (id, args) => {
@@ -174,8 +163,7 @@ export async function startRtmpServer() {
     const guidKey = parts[2];
 
     const db = await getDb();
-    const artist = await db.get('SELECT * FROM artists WHERE slug = ?', channelSlug);
-    await db.close();
+    const artist = await db('artists').where({ slug: channelSlug }).first();
 
     if (!artist || artist.stream_key !== guidKey) {
       if (id.stop) id.stop();
@@ -190,6 +178,7 @@ export async function startRtmpServer() {
         id: id.id || id,
         artistId: artist.id,
         artistName: artist.name,
+        channelName: artist.channel_name || '',
         twitchUrl: artist.twitch ? `https://www.twitch.tv/${artist.twitch.trim()}` : '',
         startedAt: new Date().toISOString(),
         path: actualPath,
@@ -212,21 +201,6 @@ export async function startRtmpServer() {
 
     const parts = actualPath.split('/').filter(Boolean);
     const channelSlug = parts[1];
-
-    if (session && session.isPublisher && session.artist) {
-        const recordedFilePath = path.join(recordingsPath, actualPath + '.flv');
-        if (fs.existsSync(recordedFilePath)) {
-            const db = await getDb();
-            await db.run(
-                'INSERT INTO recordings (artist_id, slug, path, duration) VALUES (?, ?, ?, ?)',
-                session.artist.id,
-                channelSlug,
-                actualPath + '.flv', // Save the .flv path
-                (Date.now() - session.startedAt) / 1000
-            );
-            await db.close();
-        }
-    }
     
     if (channelSlug && globalRedisClient) {
       const streamInfo = await globalRedisClient.hGetAll(`mss:stream:${channelSlug}`);
@@ -257,14 +231,40 @@ export async function startRtmpServer() {
 }
 
 export async function getActiveStreams() {
-  if (!globalRedisClient) return [];
-  const keys = await globalRedisClient.sMembers(REDIS_KEY);
-  const streams = [];
-  for (const key of keys) {
-    const info = await globalRedisClient.hGetAll(`mss:stream:${key}`);
-    if (info && info.artistName) {
-        streams.push({ streamKey: key, ...info });
-    }
+  if (!globalRedisClient) {
+    globalRedisClient = createClient();
+    await globalRedisClient.connect();
   }
-  return streams;
+  
+  try {
+    // streaming-platform uses 'live_streams' hash where key is channelName
+    const liveStreams = await globalRedisClient.hGetAll('live_streams');
+    const channelNames = Object.keys(liveStreams);
+    
+    if (channelNames.length === 0) return [];
+
+    const db = await getDb();
+    const artists = await db('artists')
+      .whereIn('channel_name', channelNames)
+      .select('id', 'name', 'slug', 'channel_name', 'twitch');
+    
+    const streams = artists.map(artist => {
+      const liveData = JSON.parse(liveStreams[artist.channel_name]);
+      return {
+        artistId: artist.id,
+        artistName: artist.name,
+        channelName: artist.channel_name,
+        streamKey: artist.slug,
+        startedAt: new Date(liveData.startTime).toISOString(),
+        playUrl: `http://localhost:8000/live/${artist.channel_name}.flv`,
+        hlsUrl: `http://localhost:8000/live/${artist.channel_name}/index.m3u8`,
+        twitchUrl: artist.twitch ? `https://www.twitch.tv/${artist.twitch.trim()}` : ''
+      };
+    });
+
+    return streams;
+  } catch (err) {
+    console.error('[RTMP] Error fetching active streams from external platform:', err);
+    return [];
+  }
 }

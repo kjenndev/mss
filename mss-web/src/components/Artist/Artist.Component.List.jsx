@@ -41,7 +41,7 @@ export default function ArtistList() {
     <Container className={styles.container}>
       <ThemeProvider theme={darkTheme}>
         <Paper elevation={3} className={styles.headerPaper}>
-          <Typography variant="h4">All Artists</Typography>
+          <Typography variant="h4">Syndicate Artists</Typography>
         </Paper>
 
         <Box className={styles.listWrapper}>
@@ -66,9 +66,20 @@ export default function ArtistList() {
                     <Typography color="text.secondary" noWrap>{artist.location || 'Unknown Location'}</Typography>
                   </CardContent>
                   <CardActions>
-                    <Button href={`/artists/${artist.id}`} size="small">View Profile</Button>
+                    <Button 
+                      href={`/artists/${artist.id}`} 
+                      size="small" 
+                      variant="outlined"
+                      sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600 }}
+                    >
+                      View Profile
+                    </Button>
                     {helpers.CanEditArtist(artist.id, artist.user_id) && (
-                      <Button href={`/artists/${artist.id}/update`} size="small">
+                      <Button 
+                        href={`/artists/${artist.id}/update`} 
+                        size="small"
+                        sx={{ textTransform: 'none' }}
+                      >
                         Edit
                       </Button>
                     )}

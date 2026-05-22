@@ -75,9 +75,20 @@ export default function EventList() {
                     </CardContent>
 
                     <CardActions style={{ marginTop: 'auto' }}>
-                      <Button onClick={() => navigate(`/events/${event.id}`)} size="small">Details</Button>
+                      <Button 
+                        onClick={() => navigate(`/events/${event.id}`)} 
+                        size="small" 
+                        variant="outlined"
+                        sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600 }}
+                      >
+                        Details
+                      </Button>
                       {helpers.CanEditEvent(event) && (
-                        <Button onClick={() => navigate(`/events/${event.id}/update`)} size="small">
+                        <Button 
+                          onClick={() => navigate(`/events/${event.id}/update`)} 
+                          size="small"
+                          sx={{ textTransform: 'none' }}
+                        >
                           Edit
                         </Button>
                       )}
