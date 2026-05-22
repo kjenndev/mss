@@ -208,24 +208,6 @@ export default function ArtistUpdate() {
     }
   }
 
-  async function handleRegenerateKey() {
-    if (!window.confirm('Warning: This will immediately invalidate your old stream key. You will need to update OBS before you can stream again. Continue?')) {
-        return;
-    }
-
-    try {
-        const res = await helpers.RegenerateStreamKey(id);
-        if (res.ok) {
-            const data = await res.json();
-            setArtist({ ...artist, stream_key: data.stream_key });
-        } else {
-            setError('Failed to regenerate stream key');
-        }
-    } catch {
-        setError('An error occurred while regenerating the key');
-    }
-  }
-
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
@@ -373,6 +355,15 @@ export default function ArtistUpdate() {
                 />
                 <TextField 
                   fullWidth
+                  label="Streaming Platform Channel Name" 
+                  name="channel_name" 
+                  variant="outlined" 
+                  value={artist.channel_name || ''} 
+                  onChange={handleArtistChange} 
+                  placeholder="e.g. kyle-stream"
+                />
+                <TextField 
+                  fullWidth
                   label="SoundCloud URL" 
                   name="soundcloud" 
                   variant="outlined" 
@@ -398,56 +389,6 @@ export default function ArtistUpdate() {
                   onChange={handleArtistChange} 
                   placeholder="https://youtube.com/..."
                 />
-
-                <Box sx={{ pt: 1 }}>
-                  <Typography variant="h6" className={styles.sectionHeader}>Streaming Configuration</Typography>
-                  <Typography variant="caption" color="error" sx={{ mb: 2, display: 'block' }}>
-                    Warning: Your Twitch Stream Key is private. Do not share it.
-                  </Typography>
-                </Box>
-
-                <TextField 
-                  fullWidth
-                  label="Twitch Stream Key" 
-                  name="twitch_stream_key" 
-                  variant="outlined" 
-                  type="password"
-                  value={artist.twitch_stream_key || ''} 
-                  onChange={handleArtistChange} 
-                  placeholder="Paste your Twitch stream key here"
-                />
-
-                <Box sx={{ mt: 2, p: 3, bgcolor: 'rgba(144, 202, 249, 0.05)', borderRadius: 2, border: '1px solid rgba(144, 202, 249, 0.1)' }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                        Syndicate RTMP Connection Details
-                    </Typography>
-                    <Button 
-                        size="small" 
-                        color="warning" 
-                        variant="outlined" 
-                        onClick={handleRegenerateKey}
-                        sx={{ textTransform: 'none', fontWeight: 700 }}
-                    >
-                        Regenerate Key
-                    </Button>
-                  </Stack>
-
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Use these settings in OBS to stream directly to the Syndicate hub and Twitch simultaneously.
-                  </Typography>
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', color: 'text.secondary' }}>Server URL</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', bgcolor: 'rgba(0,0,0,0.3)', p: 1, borderRadius: 1, mb: 2 }}>
-                      rtmp://localhost:1935/live
-                    </Typography>
-                    
-                    <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', color: 'text.secondary' }}>Stream Key</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', bgcolor: 'rgba(0,0,0,0.3)', p: 1, borderRadius: 1, overflowWrap: 'break-word' }}>
-                      {artist.slug}/{artist.stream_key}
-                    </Typography>
-                  </Box>
-                </Box>
 
                 {isAdmin && (
                   <Box className={styles.sectionBox}>

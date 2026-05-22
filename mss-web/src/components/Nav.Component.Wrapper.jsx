@@ -23,9 +23,10 @@ export default function NavWrapper () {
                 </Box>
                 <Box className={styles.navLinksContainer}>
                   <Button color="inherit" href='/' className={styles.navButton}>Home</Button>
+                  <Button color="inherit" href='/about' className={styles.navButton}>About</Button>
                   <Button color="inherit" href='/artists' className={styles.navButton}>Artists</Button>
                   <Button color="inherit" href='/events' className={styles.navButton}>Events</Button>
-                  <Button color="inherit" href='/' className={styles.navButton}>Shop</Button>
+                  <Button color="inherit" href='https://zowiemedia.net/zowieshop/' target="_blank" className={styles.navButton}>Shop</Button>
                   <NavMenu />
                 </Box>
               </Toolbar>

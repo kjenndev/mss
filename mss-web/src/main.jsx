@@ -18,7 +18,10 @@ import EventUpdate from './components/Event/Event.Component.Update'
 import CreateUser from './components/User/User.Component.Create'
 import Login from './components/Auth/Auth.Component.Login'
 import Home from './components/Home.Component.jsx'
+import About from './components/About.Component.jsx'
 import AdminDashboard from './components/Admin/Admin.Dashboard.Component'
+import AdminSettings from './components/Admin/Admin.Settings.Component'
+import AdminAboutEditor from './components/Admin/Admin.About.Component'
 import UserProfile from './components/User/User.Component.Profile'
 
 
@@ -30,6 +33,7 @@ createRoot(document.getElementById('root')).render(
         {/* Routes */}
         <Routes>
           <Route path="/" element={<Home key={window.location.pathname}/>} />
+          <Route path="/about" element={<About key={window.location.pathname}/>} />
           <Route path="/artists" element={<ArtistList key={window.location.pathname} />} />
           <Route path="/artists/:id" element={<ArtistDetail key={window.location.pathname} />} />
           <Route path="/artists/create" element={<CreateArtist key={window.location.pathname} />} />
@@ -41,6 +45,8 @@ createRoot(document.getElementById('root')).render(
           <Route path="/users/create" element={<CreateUser key={window.location.pathname} />} />
           <Route path="/login" element={<Login key={window.location.pathname} />} />
           <Route path="/admin/dashboard" element={<AdminDashboard key={window.location.pathname} />} />
+          <Route path="/admin/settings" element={<AdminSettings key={window.location.pathname} />} />
+          <Route path="/admin/about" element={<AdminAboutEditor key={window.location.pathname} />} />
           <Route path="/account" element={<UserProfile key={window.location.pathname} />} />
         </Routes>
       </BrowserRouter>

@@ -107,6 +107,8 @@ async function UpdateArtist(data) {
     profile_picture: data.profile_picture,
     cover_photo: data.cover_photo,
     twitch_stream_key: data.twitch_stream_key,
+    channel_name: data.channel_name,
+    slug: data.slug,
   };
   return await request(`/artists/${data.id}`, 'PUT', updateData);
 }
@@ -141,10 +143,6 @@ async function GetActiveSyndicateStreams() {
   return await request('/streams', 'GET', null, false);
 }
 
-async function GetLatestRecording() {
-  return await request('/recordings/latest', 'GET', null, false);
-}
-
 async function GetGlobalFeed() {
   return await request('/feed', 'GET', null, false);
 }
@@ -167,6 +165,18 @@ async function DeleteUser(id) {
 
 async function GetServerStats() {
   return await request('/admin/stats', 'GET', null, true);
+}
+
+async function GetSettings() {
+  return await request('/settings', 'GET', null, false);
+}
+
+async function UpdateSetting(key, value) {
+  return await request(`/settings/${key}`, 'PUT', { value });
+}
+
+async function UpdateSettingsBatch(settings) {
+  return await request('/settings/batch', 'POST', { settings });
 }
 
 async function GetAllEvents() {
@@ -199,6 +209,12 @@ async function UploadEventImage(eventId, file) {
   const formData = new FormData();
   formData.append('image', file);
   return await request(`/events/${eventId}/images`, 'POST', formData, true, true);
+}
+
+async function AdminUpload(file) {
+  const formData = new FormData();
+  formData.append('image', file);
+  return await request('/admin/upload', 'POST', formData, true, true);
 }
 
 async function GetArtistEvents(artistId) {
@@ -262,7 +278,6 @@ export {
   GetMyArtists,
   GetArtistById,
   GetArtistManageData,
-  RegenerateStreamKey,
   CreateArtist,
   UpdateArtist,
   DeleteArtist,
@@ -272,13 +287,15 @@ export {
   GetAllImages,
   GetLiveTwitch,
   GetActiveSyndicateStreams,
-  GetLatestRecording,
   GetGlobalFeed,
   CreateUser,
   UpdateUser,
   DeleteUser,
   GetAllUsers,
   GetServerStats,
+  GetSettings,
+  UpdateSetting,
+  UpdateSettingsBatch,
   GetAllEvents,
   GetEventById,
   CreateEvent,
@@ -286,6 +303,7 @@ export {
   DeleteEvent,
   UploadEventFlyer,
   UploadEventImage,
+  AdminUpload,
   GetArtistEvents,
   HasSession,
   GetSessionUser,

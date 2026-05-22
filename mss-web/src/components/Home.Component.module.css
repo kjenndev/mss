@@ -105,12 +105,9 @@
 }
 
 .openTwitchButton {
-  background-color: #9146FF !important;
-  border-radius: 8px !important;
 }
 
 .openTwitchButton:hover {
-  background-color: #772ce8 !important;
 }
 
 .feedTitle {

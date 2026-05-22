@@ -103,6 +103,21 @@ export default function EventDetail() {
                 )}
               </Box>
               
+              {event.flyer_artist_name && (
+                <Box mb={2} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    Flyer Art by: {' '}
+                    {event.flyer_artist_url ? (
+                      <a href={event.flyer_artist_url} target="_blank" rel="noopener noreferrer" style={{ color: '#90caf9', textDecoration: 'none' }}>
+                        {event.flyer_artist_name}
+                      </a>
+                    ) : (
+                      event.flyer_artist_name
+                    )}
+                  </Typography>
+                </Box>
+              )}
+              
               {event.ticket_link && (
                 <Button 
                   fullWidth 
@@ -143,7 +158,7 @@ export default function EventDetail() {
 
                 <Box className={styles.infoSection}>
                   <Typography variant="h6" gutterBottom>Artists</Typography>
-                  <Box display="flex" flexWrap="wrap">
+                  <Box display="flex" flexWrap="wrap" gap={1}>
                     {event.artists.map((artist) => (
                       <Chip
                         key={artist.id}
@@ -181,9 +196,6 @@ export default function EventDetail() {
                       className={styles.eventImage}
                       onClick={() => window.open(`http://localhost:4000${img.url}`, '_blank')}
                     />
-                    <Typography variant="caption" color="text.secondary">
-                      By {img.artist_name || 'User'}
-                    </Typography>
                   </Grid>
                 ))}
               </Grid>

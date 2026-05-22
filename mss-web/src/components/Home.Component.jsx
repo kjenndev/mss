@@ -41,8 +41,10 @@ export default function Home() {
   const [feed, setFeed] = useState([]);
   const [images, setImages] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [settings, setSettings] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isStreamPaused, setIsStreamPaused] = useState(false);
 
   const getImageUrl = (path) => {
     if (!path) return '';
@@ -52,6 +54,7 @@ export default function Home() {
 
   const getPlatformIcon = (platform) => {
     switch (platform) {
+      case 'Syndicate Live':
       case 'Twitch': return <LiveTvIcon className={styles.platformIconTwitch} />;
       case 'SoundCloud': return <CloudIcon className={styles.platformIconSoundCloud} />;
       case 'Mixcloud': return <QueueMusicIcon className={styles.platformIconMixcloud} />;
@@ -71,6 +74,7 @@ export default function Home() {
           const active = (data.streams || []).map(s => ({
             id: s.artistId,
             name: s.artistName,
+            channelName: s.channelName,
             slug: s.streamKey,
             live: true,
             playUrl: s.playUrl,
@@ -95,6 +99,14 @@ export default function Home() {
     helpers.GetGlobalFeed().then((res) => {
       if (res.ok) {
         res.json().then((data) => setFeed(data.feed || []));
+      }
+    });
+
+    // 2.2 Fetch System Settings
+    helpers.GetSettings().then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        setSettings(data.settings || {});
       }
     });
 
@@ -127,6 +139,16 @@ export default function Home() {
       });
   }, []);
 
+  useEffect(() => {
+    setIsStreamPaused(false);
+  }, [currentIndex, live]);
+
+  const handleJoinChat = (channelName) => {
+    setIsStreamPaused(true);
+    const url = `${settings.streaming_platform_url || 'http://localhost:5174'}/watch/${channelName}`;
+    window.open(url, '_blank');
+  };
+
   const currentLive = live.length ? live[currentIndex] : null;
 
   return (
@@ -135,21 +157,16 @@ export default function Home() {
         {/* Branding Section */}
         <Paper elevation={3} className={styles.sectionPaper}>
           <Typography variant="h3" gutterBottom sx={{ fontWeight: 800 }}>
-            Midnight Sound Syndicate
+            {settings.site_title || 'Midnight Sound Syndicate'}
           </Typography>
           <Typography variant="body1" gutterBottom sx={{ color: 'text.secondary', fontSize: '1.1rem' }}>
-            Discover and stay connected
+            {settings.site_description || 'Discover and stay connected'}
           </Typography>
         </Paper>
 
         {/* Twitch Carousel (Primary Section) */}
-        <Paper elevation={3} className={styles.carouselSectionPaper}>
-          {!currentLive ? (
-            <Box className={styles.placeholderBox}>
-              <FiberManualRecordIcon sx={{ fontSize: 64, color: 'error.main', opacity: 0.1, animation: 'pulse 3s infinite' }} />
-              <Typography color="text.primary" variant="h6" sx={{ fontWeight: 700 }}>No one is live on the Syndicate right now.</Typography>
-            </Box>
-          ) : (
+        {live.length > 0 && settings.show_live_section !== '0' && (
+          <Paper elevation={3} className={styles.carouselSectionPaper}>
             <Box className={styles.carouselContent}>
               <Box className={styles.carouselHeader}>
                 <Box className={styles.artistInfo}>
@@ -167,8 +184,9 @@ export default function Home() {
 
               <Box sx={{ mb: 2 }}>
                 <SyndicatePlayer 
-                  url={currentLive.playUrl} 
-                  hlsUrl={currentLive.hlsUrl}
+                  channelName={currentLive.channelName} 
+                  isPaused={isStreamPaused}
+                  onResume={() => setIsStreamPaused(false)}
                 />
               </Box>
 
@@ -194,20 +212,21 @@ export default function Home() {
                   </Button>
                 </Box>
                 
-                {currentLive.twitchUrl && (
+                {currentLive?.channelName && (
                   <Button 
-                    href={currentLive.twitchUrl} 
-                    target="_blank" 
+                    onClick={() => handleJoinChat(currentLive.channelName)}
                     variant="contained"
+                    size="small"
                     className={styles.openTwitchButton}
+                    sx={{ borderRadius: '20px', textTransform: 'none', px: 3 }}
                   >
-                    Open on Twitch
+                    Join Chat
                   </Button>
                 )}
               </Box>
             </Box>
-          )}
-        </Paper>
+          </Paper>
+        )}
 
         {/* Upcoming Events Section */}
         {upcomingEvents.length > 0 && (
@@ -303,14 +322,13 @@ export default function Home() {
                   </CardContent>
                   <CardActions className={styles.cardActions}>
                     <Button 
-                      href={item.url} 
+                      href={item.url.startsWith('/watch/') ? `${settings.streaming_platform_url || 'http://localhost:5174'}${item.url}` : item.url} 
                       target="_blank" 
                       size="small" 
                       variant="outlined"
-                      endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
                       className={styles.viewButton}
                     >
-                      View
+                      {item.platform === 'Syndicate Live' ? 'Join Chat' : 'View'}
                     </Button>
                   </CardActions>
                 </Card>

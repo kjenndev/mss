@@ -33,7 +33,7 @@
 }
 
 .artistChip {
-  margin: 0.5rem;
+  margin: 0.75rem !important;
 }
 
 .imageGrid {
