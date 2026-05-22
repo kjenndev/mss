@@ -10,7 +10,6 @@ export const seed = async function(knex) {
     { key: 'site_title', value: 'Midnight Sound Syndicate', description: 'The name of the website' },
     { key: 'site_description', value: 'Discover and stay connected', description: 'Site tagline or subtitle' },
     { key: 'streaming_platform_url', value: 'http://localhost:5174', description: 'URL of the external streaming platform' },
-    { key: 'disqus_shortname', value: 'midnight-sound-syndicate', description: 'Disqus shortname for comments' },
     { key: 'contact_email', value: 'admin@midnightsoundsyndicate.com', description: 'Contact email for the site' },
     { key: 'social_twitch', value: '', description: 'Main Twitch channel for the Syndicate' },
     { key: 'social_instagram', value: '', description: 'Instagram profile URL' },

@@ -139,6 +139,7 @@ export default function AdminDashboard() {
 
     const updateData = {
       username: editUser.username,
+      display_name: editUser.display_name,
       role: editUser.role,
       artist_id: primaryArtistId,
       ownedArtistIds: editUser.ownedArtistIds || [],
@@ -239,6 +240,7 @@ export default function AdminDashboard() {
                   <TableRow>
                     <TableCell>ID</TableCell>
                     <TableCell>Username</TableCell>
+                    <TableCell>Display Name</TableCell>
                     <TableCell>Role</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Owned Artists</TableCell>
@@ -250,6 +252,7 @@ export default function AdminDashboard() {
                     <TableRow key={user.id} sx={{ opacity: user.is_disabled ? 0.6 : 1 }}>
                       <TableCell>{user.id}</TableCell>
                       <TableCell>{user.username}</TableCell>
+                      <TableCell>{user.display_name}</TableCell>
                       <TableCell sx={{ textTransform: 'capitalize' }}>{user.role}</TableCell>
                       <TableCell>
                         {user.is_disabled ? (
@@ -372,6 +375,13 @@ export default function AdminDashboard() {
                 fullWidth
                 value={editUser?.username || ''}
                 onChange={(e) => setEditUser({ ...editUser, username: e.target.value })}
+              />
+              <MuiTextField
+                label="Display Name"
+                fullWidth
+                value={editUser?.display_name || ''}
+                onChange={(e) => setEditUser({ ...editUser, display_name: e.target.value })}
+                placeholder="Name shown in comments"
               />
               <MuiTextField
                 label="New Password (leave blank to keep)"

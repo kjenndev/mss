@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import InputLabel from '@mui/material/InputLabel';
-import FormControl from '@mui/material/FormControl';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import * as helpers from '../../Data.Helper.Api';
 import styles from './User.Component.Create.module.css';
@@ -18,81 +21,127 @@ import styles from './User.Component.Create.module.css';
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
+    primary: {
+      main: '#90caf9',
+    },
   },
 });
 
 export default function CreateUser() {
-  const [user, setUser] = useState({ username: '', password: '', role: 'artist', artist_id: '' });
-  const [artists, setArtists] = useState([]);
+  const [user, setUser] = useState({ 
+    username: '', 
+    display_name: '',
+    password: '', 
+    role: 'artist' 
+  });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    helpers.GetAllArtists().then(async (response) => {
-      if (response.ok) {
-        const data = await response.json();
-        setArtists(data.artists || []);
-      }
-    });
-  }, []);
 
   function handleUserChange(e) {
     setUser({ ...user, [e.target.name]: e.target.value });
   }
 
-  async function handleCreateUser() {
-    if (!user.username || !user.password) {
+  async function handleCreate() {
+    if (!user.username.trim() || !user.password.trim()) {
       setError('Username and password are required.');
       return;
     }
-
-    const userData = { ...user };
-    if (userData.artist_id === '') {
-      delete userData.artist_id;
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await helpers.CreateUser(user);
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.error || 'Unable to create user.');
+        setLoading(false);
+        return;
+      }
+      navigate('/admin/dashboard');
+    } catch {
+      setError('An unexpected error occurred.');
+      setLoading(false);
     }
-
-    const response = await helpers.CreateUser(userData);
-    if (!response.ok) {
-      const data = await response.json();
-      setError(data.error || 'Unable to create user.');
-      return;
-    }
-
-    navigate('/admin/dashboard');
   }
 
   return (
-    <Container className={styles.container}>
+    <Container maxWidth="sm" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        <Paper elevation={3} className={styles.mainPaper}>
-          <Stack spacing={3}>
-            <Typography variant="h4">Create New User</Typography>
-            <TextField label="Username" name="username" variant="standard" value={user.username} onChange={handleUserChange} fullWidth />
-            <TextField label="Password" name="password" type="password" variant="standard" value={user.password} onChange={handleUserChange} fullWidth />
-            <FormControl variant="standard" fullWidth>
-              <InputLabel id="role-label">Role</InputLabel>
-              <Select labelId="role-label" name="role" value={user.role} onChange={handleUserChange}>
-                <MenuItem value="artist">Artist</MenuItem>
-                <MenuItem value="admin">Admin</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl variant="standard" fullWidth>
-              <InputLabel id="artist-label">Associated Artist (optional)</InputLabel>
-              <Select labelId="artist-label" name="artist_id" value={user.artist_id} onChange={handleUserChange}>
-                <MenuItem value="">
-                  <em>None</em>
-                </MenuItem>
-                {artists.map((artist) => (
-                  <MenuItem key={artist.id} value={artist.id}>
-                    {artist.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            {error && <Typography color="error">{error}</Typography>}
-            <Button variant="contained" onClick={handleCreateUser}>
-              Create User
-            </Button>
+        <Paper elevation={4} sx={{ p: 4, borderRadius: 2 }}>
+          <Stack spacing={4}>
+            <Box>
+              <Typography variant="h4" gutterBottom>Create New User</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Manually create a new user account.
+              </Typography>
+            </Box>
+
+            <Stack spacing={3}>
+              <TextField 
+                fullWidth
+                label="Username" 
+                name="username" 
+                variant="outlined" 
+                value={user.username} 
+                onChange={handleUserChange}
+                required
+              />
+              <TextField 
+                fullWidth
+                label="Display Name" 
+                name="display_name" 
+                variant="outlined" 
+                value={user.display_name} 
+                onChange={handleUserChange}
+                placeholder="Name shown in comments"
+              />
+              <TextField 
+                fullWidth
+                label="Password" 
+                name="password" 
+                type="password"
+                variant="outlined" 
+                value={user.password} 
+                onChange={handleUserChange}
+                required
+              />
+              <FormControl fullWidth variant="outlined">
+                <InputLabel id="role-label">User Role</InputLabel>
+                <Select
+                  labelId="role-label"
+                  name="role"
+                  value={user.role}
+                  onChange={handleUserChange}
+                  label="User Role"
+                >
+                  <MenuItem value="artist">Artist</MenuItem>
+                  <MenuItem value="admin">Administrator</MenuItem>
+                  <MenuItem value="user">Standard User</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+
+            {error && <Alert severity="error">{error}</Alert>}
+
+            <Box display="flex" justifyContent="flex-end" gap={2}>
+              <Button 
+                variant="outlined" 
+                onClick={() => navigate('/admin/dashboard')}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="contained" 
+                onClick={handleCreate}
+                disabled={loading}
+                startIcon={loading && <CircularProgress size={20} color="inherit" />}
+              >
+                {loading ? 'Creating...' : 'Create User'}
+              </Button>
+            </Box>
           </Stack>
         </Paper>
       </ThemeProvider>

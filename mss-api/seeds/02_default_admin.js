@@ -11,7 +11,8 @@ export const seed = async function(knex) {
     await knex('users').insert({
       username: 'admin',
       password: passwordHash,
-      role: 'admin'
+      role: 'admin',
+      display_name: 'Administrator'
     });
     console.log('Created default admin user: admin / admin');
   }

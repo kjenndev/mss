@@ -87,10 +87,6 @@ async function GetArtistManageData(id) {
   return await request(`/artists/${id}/manage`, 'GET', null, true);
 }
 
-async function RegenerateStreamKey(id) {
-  return await request(`/artists/${id}/stream-key`, 'POST', null, true);
-}
-
 async function CreateArtist(data) {
   return await request('/artists', 'POST', data);
 }
@@ -106,7 +102,6 @@ async function UpdateArtist(data) {
     youtube: data.youtube,
     profile_picture: data.profile_picture,
     cover_photo: data.cover_photo,
-    twitch_stream_key: data.twitch_stream_key,
     channel_name: data.channel_name,
     slug: data.slug,
   };
@@ -221,6 +216,19 @@ async function GetArtistEvents(artistId) {
   return await request(`/artists/${artistId}/events`, 'GET', null, false);
 }
 
+async function GetComments(params) {
+  const query = new URLSearchParams(params).toString();
+  return await request(`/comments?${query}`, 'GET', null, false);
+}
+
+async function PostComment(data) {
+  return await request('/comments', 'POST', data);
+}
+
+async function DeleteComment(id) {
+  return await request(`/comments/${id}`, 'DELETE');
+}
+
 function HasSession() {
   return Boolean(localStorage.getItem('mss-token'));
 }
@@ -305,6 +313,9 @@ export {
   UploadEventImage,
   AdminUpload,
   GetArtistEvents,
+  GetComments,
+  PostComment,
+  DeleteComment,
   HasSession,
   GetSessionUser,
   GetSessionRole,

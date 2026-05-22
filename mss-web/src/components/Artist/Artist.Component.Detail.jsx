@@ -17,10 +17,10 @@ import YouTubeIcon from '@mui/icons-material/YouTube';
 import CloudIcon from '@mui/icons-material/Cloud';
 import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import LiveTvIcon from '@mui/icons-material/LiveTv';
-import { DiscussionEmbed } from 'disqus-react';
 
 import * as helpers from '../../Data.Helper.Api';
 import SyndicatePlayer from '../Stream/Syndicate.Player.Component';
+import CommentSection from '../Comments/CommentSection';
 import styles from './Artist.Component.Detail.module.css';
 
 const darkTheme = createTheme({
@@ -36,7 +36,6 @@ export default function ArtistDetail() {
   const [images, setImages] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [activeStream, setActiveStream] = useState(null);
-  const [disqusShortname, setDisqusShortname] = useState('midnight-sound-syndicate');
   const [platformUrl, setPlatformUrl] = useState('http://localhost:5174');
   const [isStreamPaused, setIsStreamPaused] = useState(false);
 
@@ -65,9 +64,6 @@ export default function ArtistDetail() {
     helpers.GetSettings().then(async (res) => {
         if (res.ok) {
             const data = await res.json();
-            if (data.settings?.disqus_shortname) {
-                setDisqusShortname(data.settings.disqus_shortname);
-            }
             if (data.settings?.streaming_platform_url) {
                 setPlatformUrl(data.settings.streaming_platform_url);
             }
@@ -87,12 +83,6 @@ export default function ArtistDetail() {
   if (!artist) {
     return <Typography>Loading artist...</Typography>;
   }
-
-  const disqusConfig = {
-    url: window.location.href,
-    identifier: `artist-${artist.id}`,
-    title: artist.name,
-  };
 
   return (
     <Container maxWidth="lg" className={styles.container}>
@@ -337,15 +327,7 @@ export default function ArtistDetail() {
                   </Box>
 
                   <Box sx={{ mt: 6 }}>
-                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                      Comments
-                    </Typography>
-                    {disqusShortname && (
-                        <DiscussionEmbed
-                            shortname={disqusShortname}
-                            config={disqusConfig}
-                        />
-                    )}
+                    <CommentSection artistId={artist.id} />
                   </Box>
                 </Stack>
               </Box>
