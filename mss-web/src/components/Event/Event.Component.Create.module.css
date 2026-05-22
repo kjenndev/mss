@@ -1,0 +1,32 @@
+.container {
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+
+.mainPaper {
+  padding: 3rem;
+  background-color: rgba(30, 30, 30, 0.7) !important;
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.sectionBox {
+  padding: 2rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sectionHeader {
+  margin-bottom: 1.5rem !important;
+  color: #90caf9;
+  font-weight: 500;
+}
+
+.formFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1rem;
+}

@@ -39,6 +39,7 @@
   padding: 32px;
   border-radius: 8px;
   background-color: var(--background-paper);
+  margin-bottom: 32px;
 }
 
 .carouselHeader {
@@ -237,5 +238,58 @@
   max-height: 90vh;
   display: block;
   cursor: zoom-out;
+}
+
+.eventCard {
+  width: 300px;
+  max-width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px !important;
+  background-color: var(--overlay-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  transition: all 0.2s ease-in-out !important;
+  overflow: hidden;
+}
+
+.eventCard:hover {
+  transform: translateY(-4px);
+  background-color: var(--overlay-hover) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+}
+
+.eventFlyerWrapper {
+  height: 300px;
+  width: 100%;
+  overflow: hidden;
+  cursor: pointer;
+  background-color: #000;
+}
+
+.eventFlyer {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease-in-out;
+}
+
+.eventFlyerWrapper:hover .eventFlyer {
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
+.eventPlaceholder {
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255,255,255,0.05);
+  cursor: pointer;
+}
+
+.eventCardContent {
+  padding: 16px !important;
+  flex-grow: 1;
 }
 

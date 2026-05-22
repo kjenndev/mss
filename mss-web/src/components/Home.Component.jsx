@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -35,9 +36,11 @@ const darkTheme = createTheme({
 });
 
 export default function Home() {
+  const navigate = useNavigate();
   const [live, setLive] = useState([]);
   const [feed, setFeed] = useState([]);
   const [images, setImages] = useState([]);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -92,6 +95,19 @@ export default function Home() {
     helpers.GetGlobalFeed().then((res) => {
       if (res.ok) {
         res.json().then((data) => setFeed(data.feed || []));
+      }
+    });
+
+    // 2.5 Fetch Upcoming Events
+    helpers.GetAllEvents().then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        const now = new Date();
+        const upcoming = (data.events || [])
+          .filter(e => e.date && new Date(e.date) > now)
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .slice(0, 6);
+        setUpcomingEvents(upcoming);
       }
     });
 
@@ -192,6 +208,65 @@ export default function Home() {
             </Box>
           )}
         </Paper>
+
+        {/* Upcoming Events Section */}
+        {upcomingEvents.length > 0 && (
+          <Paper elevation={3} className={styles.feedSectionPaper}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                Upcoming Events
+              </Typography>
+              <Button onClick={() => navigate('/events')} size="small" variant="text" endIcon={<NavigateNextIcon />}>
+                All Events
+              </Button>
+            </Box>
+            <Grid container spacing={3} justifyContent="center">
+              {upcomingEvents.map((event) => (
+                <Grid item xs="auto" key={`event-${event.id}`}>
+                  <Card className={styles.eventCard}>
+                    {event.flyer ? (
+                      <Box className={styles.eventFlyerWrapper} onClick={() => navigate(`/events/${event.id}`)}>
+                        <img 
+                          src={getImageUrl(event.flyer)} 
+                          alt={event.title} 
+                          className={styles.eventFlyer}
+                        />
+                      </Box>
+                    ) : (
+                      <Box 
+                        className={styles.eventPlaceholder} 
+                        onClick={() => navigate(`/events/${event.id}`)}
+                      >
+                        <Typography variant="h5" color="text.secondary">NO FLYER</Typography>
+                      </Box>
+                    )}
+                    <CardContent className={styles.eventCardContent}>
+                      <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>
+                        {event.title}
+                      </Typography>
+                      <Typography variant="caption" color="primary" display="block" sx={{ fontWeight: 600 }}>
+                        {new Date(event.date).toLocaleDateString([], { dateStyle: 'medium' })} @ {new Date(event.date).toLocaleTimeString([], { timeStyle: 'short' })}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        {event.location || 'Location TBD'}
+                      </Typography>
+                    </CardContent>
+                    <CardActions className={styles.cardActions}>
+                      <Button 
+                        onClick={() => navigate(`/events/${event.id}`)}
+                        size="small" 
+                        variant="outlined"
+                        className={styles.viewButton}
+                      >
+                        Details
+                      </Button>
+                    </CardActions>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
+        )}
 
         {/* Latest Content Feed */}
         <Paper elevation={3} className={styles.feedSectionPaper}>

@@ -169,6 +169,42 @@ async function GetServerStats() {
   return await request('/admin/stats', 'GET', null, true);
 }
 
+async function GetAllEvents() {
+  return await request('/events', 'GET', null, false);
+}
+
+async function GetEventById(id) {
+  return await request(`/events/${id}`, 'GET', null, false);
+}
+
+async function CreateEvent(data) {
+  return await request('/events', 'POST', data);
+}
+
+async function UpdateEvent(id, data) {
+  return await request(`/events/${id}`, 'PUT', data);
+}
+
+async function DeleteEvent(id) {
+  return await request(`/events/${id}`, 'DELETE');
+}
+
+async function UploadEventFlyer(eventId, file) {
+  const formData = new FormData();
+  formData.append('flyer', file);
+  return await request(`/events/${eventId}/flyer`, 'POST', formData, true, true);
+}
+
+async function UploadEventImage(eventId, file) {
+  const formData = new FormData();
+  formData.append('image', file);
+  return await request(`/events/${eventId}/images`, 'POST', formData, true, true);
+}
+
+async function GetArtistEvents(artistId) {
+  return await request(`/artists/${artistId}/events`, 'GET', null, false);
+}
+
 function HasSession() {
   return Boolean(localStorage.getItem('mss-token'));
 }
@@ -211,6 +247,11 @@ function CanEditArtist(artistId, artistOwnerId = null) {
 
   return isTheArtist || isOwner;
 }
+function CanEditEvent(event) {
+  if (IsAdmin()) return true;
+  const userId = GetSessionUserId();
+  return userId !== null && event && Number(event.creator_id) === Number(userId);
+}
 
 export {
   Authenticate,
@@ -238,12 +279,23 @@ export {
   DeleteUser,
   GetAllUsers,
   GetServerStats,
+  GetAllEvents,
+  GetEventById,
+  CreateEvent,
+  UpdateEvent,
+  DeleteEvent,
+  UploadEventFlyer,
+  UploadEventImage,
+  GetArtistEvents,
   HasSession,
   GetSessionUser,
   GetSessionRole,
+  GetSessionUserId,
   GetSessionArtistId,
   IsAdmin,
   CanEditArtist,
+  CanEditEvent,
   clearSession,
 };
+
 

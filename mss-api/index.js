@@ -106,6 +106,27 @@ async function canManageArtist(req, res, next) {
   }
 }
 
+async function canManageEvent(req, res, next) {
+  const eventId = Number(req.params.id);
+  const db = await getDb();
+  const event = await db.get('SELECT * FROM events WHERE id = ?', eventId);
+  await db.close();
+
+  if (!event) {
+    return res.status(404).json({ error: 'Event not found' });
+  }
+
+  const isAdmin = req.user.role === 'admin';
+  const isCreator = Number(event.creator_id) === Number(req.user.id);
+
+  if (isAdmin || isCreator) {
+    req.event = event;
+    next();
+  } else {
+    res.status(403).json({ error: 'Management permission required' });
+  }
+}
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
@@ -530,6 +551,194 @@ app.delete('/api/artists/:id/images/:imageId', authMiddleware, canManageArtist, 
   }
   await db.close();
   res.json({ success: true });
+});
+
+app.get('/api/events', async (req, res) => {
+  const db = await getDb();
+  const events = await db.all('SELECT * FROM events ORDER BY date DESC');
+  const eventsWithArtists = await Promise.all(events.map(async (event) => {
+    const artists = await db.all(
+      'SELECT a.id, a.name, a.profile_picture, a.slug FROM artists a JOIN event_artists ea ON a.id = ea.artist_id WHERE ea.event_id = ?',
+      event.id
+    );
+    return { ...event, artists };
+  }));
+  await db.close();
+  res.json({ events: eventsWithArtists });
+});
+
+app.get('/api/events/:id', async (req, res) => {
+  const db = await getDb();
+  const event = await db.get('SELECT * FROM events WHERE id = ?', req.params.id);
+  if (!event) {
+    await db.close();
+    return res.status(404).json({ error: 'Event not found' });
+  }
+  const artists = await db.all(
+    'SELECT a.id, a.name, a.profile_picture, a.slug FROM artists a JOIN event_artists ea ON a.id = ea.artist_id WHERE ea.event_id = ?',
+    event.id
+  );
+  const images = await db.all(
+    'SELECT ei.id, ei.filename, ei.artist_id, a.name as artist_name, ei.created_at FROM event_images ei LEFT JOIN artists a ON ei.artist_id = a.id WHERE ei.event_id = ? ORDER BY ei.created_at DESC',
+    event.id
+  );
+  await db.close();
+  res.json({ event: { ...event, artists, images: images.map(img => ({ ...img, url: `/uploads/${img.filename}` })) } });
+});
+
+app.post('/api/events', authMiddleware, async (req, res) => {
+  const { title, description, date, location, ticket_link, artist_ids } = req.body || {};
+  if (!title) {
+    return res.status(400).json({ error: 'Title is required' });
+  }
+
+  const db = await getDb();
+  try {
+    const result = await db.run(
+      'INSERT INTO events (title, description, date, location, ticket_link, creator_id) VALUES (?, ?, ?, ?, ?, ?)',
+      title,
+      description || '',
+      date || null,
+      location || '',
+      ticket_link || '',
+      req.user.id
+    );
+    const eventId = result.lastID;
+
+    if (Array.isArray(artist_ids) && artist_ids.length > 0) {
+      for (const artistId of artist_ids) {
+        await db.run('INSERT INTO event_artists (event_id, artist_id) VALUES (?, ?)', eventId, artistId);
+      }
+    }
+
+    const event = await db.get('SELECT * FROM events WHERE id = ?', eventId);
+    res.status(201).json({ event });
+  } catch (err) {
+    console.error('Create Event Error:', err);
+    res.status(500).json({ error: 'Unable to create event' });
+  } finally {
+    await db.close();
+  }
+});
+
+app.put('/api/events/:id', authMiddleware, canManageEvent, async (req, res) => {
+  const { title, description, date, location, ticket_link, artist_ids } = req.body || {};
+  const db = await getDb();
+  try {
+    await db.run(
+      'UPDATE events SET title = ?, description = ?, date = ?, location = ?, ticket_link = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      title !== undefined ? title : req.event.title,
+      description !== undefined ? description : req.event.description,
+      date !== undefined ? date : req.event.date,
+      location !== undefined ? location : req.event.location,
+      ticket_link !== undefined ? ticket_link : req.event.ticket_link,
+      req.event.id
+    );
+
+    if (Array.isArray(artist_ids)) {
+      await db.run('DELETE FROM event_artists WHERE event_id = ?', req.event.id);
+      for (const artistId of artist_ids) {
+        await db.run('INSERT INTO event_artists (event_id, artist_id) VALUES (?, ?)', req.event.id, artistId);
+      }
+    }
+
+    const updatedEvent = await db.get('SELECT * FROM events WHERE id = ?', req.event.id);
+    res.json({ event: updatedEvent });
+  } catch (err) {
+    console.error('Update Event Error:', err);
+    res.status(500).json({ error: 'Unable to update event' });
+  } finally {
+    await db.close();
+  }
+});
+
+app.delete('/api/events/:id', authMiddleware, canManageEvent, async (req, res) => {
+  const db = await getDb();
+  try {
+    await db.run('DELETE FROM events WHERE id = ?', req.event.id);
+    await db.run('DELETE FROM event_artists WHERE event_id = ?', req.event.id);
+    
+    const images = await db.all('SELECT filename FROM event_images WHERE event_id = ?', req.event.id);
+    for (const img of images) {
+      const filePath = path.join(__dirname, 'uploads', img.filename);
+      try {
+        await fs.promises.unlink(filePath);
+      } catch (err) {
+        console.error(`Failed to delete file: ${filePath}`, err);
+      }
+    }
+    await db.run('DELETE FROM event_images WHERE event_id = ?', req.event.id);
+    
+    if (req.event.flyer) {
+      const flyerPath = path.join(__dirname, 'uploads', path.basename(req.event.flyer));
+      try {
+        await fs.promises.unlink(flyerPath);
+      } catch (err) {
+        console.error(`Failed to delete flyer: ${flyerPath}`, err);
+      }
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete Event Error:', err);
+    res.status(500).json({ error: 'Unable to delete event' });
+  } finally {
+    await db.close();
+  }
+});
+
+app.post('/api/events/:id/flyer', authMiddleware, canManageEvent, upload.single('flyer'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Flyer image is required' });
+  }
+  const flyerUrl = `/uploads/${req.file.filename}`;
+  const db = await getDb();
+  await db.run('UPDATE events SET flyer = ? WHERE id = ?', flyerUrl, req.event.id);
+  await db.close();
+  res.json({ flyerUrl });
+});
+
+app.post('/api/events/:id/images', authMiddleware, upload.single('image'), async (req, res) => {
+  const eventId = req.params.id;
+  if (!req.file) {
+    return res.status(400).json({ error: 'Image is required' });
+  }
+
+  const db = await getDb();
+  const event = await db.get('SELECT * FROM events WHERE id = ?', eventId);
+  if (!event) {
+    await db.close();
+    return res.status(404).json({ error: 'Event not found' });
+  }
+
+  // Check if user is admin or the creator or one of the artists attached to the event
+  const isArtistInEvent = await db.get('SELECT * FROM event_artists WHERE event_id = ? AND artist_id = ?', eventId, req.user.artist_id);
+  const isAdmin = req.user.role === 'admin';
+  const isCreator = Number(event.creator_id) === Number(req.user.id);
+
+  if (isAdmin || isCreator || isArtistInEvent) {
+    await db.run(
+      'INSERT INTO event_images (event_id, artist_id, filename) VALUES (?, ?, ?)',
+      eventId,
+      req.user.artist_id || 0,
+      req.file.filename
+    );
+    await db.close();
+    res.json({ imageUrl: `/uploads/${req.file.filename}`, filename: req.file.filename });
+  } else {
+    await db.close();
+    res.status(403).json({ error: 'Permission required to upload event images' });
+  }
+});
+
+app.get('/api/artists/:id/events', async (req, res) => {
+  const db = await getDb();
+  const events = await db.all(
+    'SELECT e.* FROM events e JOIN event_artists ea ON e.id = ea.event_id WHERE ea.artist_id = ? ORDER BY e.date DESC',
+    req.params.id
+  );
+  await db.close();
+  res.json({ events });
 });
 
 app.get('/api/live/twitch', async (req, res) => {
