@@ -24,7 +24,7 @@ const darkTheme = createTheme({
 });
 
 export default function UserProfile() {
-  const [user, setUser] = useState({ username: '', password: '', confirmPassword: '' });
+  const [user, setUser] = useState({ username: '', display_name: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,12 @@ export default function UserProfile() {
         const res = await helpers.GetCurrentUser();
         if (res.ok) {
           const data = await res.json();
-          setUser({ username: data.user.username, password: '', confirmPassword: '' });
+          setUser({ 
+            username: data.user.username, 
+            display_name: data.user.display_name || '', 
+            password: '', 
+            confirmPassword: '' 
+          });
         } else {
           navigate('/login');
         }
@@ -74,7 +79,10 @@ export default function UserProfile() {
     }
 
     try {
-      const updateData = { username: user.username };
+      const updateData = { 
+        username: user.username,
+        display_name: user.display_name
+      };
       if (user.password) {
         updateData.password = user.password;
       }
@@ -111,7 +119,7 @@ export default function UserProfile() {
         <Paper elevation={4} className={styles.profilePaper}>
           <Typography variant="h4" className={styles.title}>Account Settings</Typography>
           
-          <Stack spacing={1}>
+          <Stack spacing={3}>
             <TextField
               label="Username"
               name="username"
@@ -120,6 +128,17 @@ export default function UserProfile() {
               fullWidth
               className={styles.inputField}
               variant="outlined"
+            />
+
+            <TextField
+              label="Display Name"
+              name="display_name"
+              value={user.display_name}
+              onChange={handleChange}
+              fullWidth
+              className={styles.inputField}
+              variant="outlined"
+              helperText="This is the name that will show with your comments."
             />
             
             <TextField

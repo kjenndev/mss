@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { initializeDB, getDb, hashPassword } from './db.js';
-import { startRtmpServer, getActiveStreams, stopRtmpServer, getRtmpStats } from './rtmp.js';
+import { getActiveStreams, stopDiscovery, getStreamStats } from './streams.js';
 import 'dotenv/config';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,7 +44,7 @@ app.use('/media', express.static(mediaFolder, {
 }));
 
 await initializeDB();
-// await startRtmpServer(); // Offloaded to streaming-platform
+// Streaming discovery is initialized on demand via getRedis()
 
 async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -60,7 +60,7 @@ async function authMiddleware(req, res, next) {
   }
 
   const user = await db('users')
-    .select('id', 'username', 'role', 'artist_id', 'is_disabled')
+    .select('id', 'username', 'role', 'artist_id', 'is_disabled', 'display_name')
     .where({ id: session.user_id })
     .first();
   
@@ -169,11 +169,12 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
 });
 
 app.put('/api/auth/me', authMiddleware, async (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password, display_name } = req.body || {};
   const db = await getDb();
 
   const updateFields = {
     username: username !== undefined ? username : req.user.username,
+    display_name: display_name !== undefined ? display_name : req.user.display_name,
   };
 
   try {
@@ -184,7 +185,7 @@ app.put('/api/auth/me', authMiddleware, async (req, res) => {
     await db('users').where({ id: req.user.id }).update(updateFields);
 
     const updatedUser = await db('users')
-      .select('id', 'username', 'role', 'artist_id')
+      .select('id', 'username', 'role', 'artist_id', 'display_name')
       .where({ id: req.user.id })
       .first();
       
@@ -200,7 +201,7 @@ app.put('/api/auth/me', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
-  const { username, password, role = 'artist', artist_id } = req.body || {};
+  const { username, password, role = 'artist', artist_id, display_name } = req.body || {};
   if (!username || !password) {
     return res.status(400).json({ error: 'username and password are required' });
   }
@@ -213,12 +214,13 @@ app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
       password: hashed,
       role,
       artist_id: artist_id || null,
+      display_name: display_name || username
     }).returning('id');
     
     const userId = typeof userIdObj === 'object' ? userIdObj.id : userIdObj;
     
     const user = await db('users')
-      .select('id', 'username', 'role', 'artist_id', 'is_disabled')
+      .select('id', 'username', 'role', 'artist_id', 'is_disabled', 'display_name')
       .where({ id: userId })
       .first();
 
@@ -236,7 +238,7 @@ app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
 app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
   const db = await getDb();
   const users = await db('users')
-    .select('id', 'username', 'role', 'artist_id', 'is_disabled')
+    .select('id', 'username', 'role', 'artist_id', 'is_disabled', 'display_name')
     .orderBy('username');
   
   const usersWithArtists = await Promise.all(users.map(async (u) => {
@@ -261,7 +263,7 @@ app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
 });
 
 app.put('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
-  const { username, password, role, artist_id, ownedArtistIds, is_disabled } = req.body || {};
+  const { username, password, role, artist_id, ownedArtistIds, is_disabled, display_name } = req.body || {};
   const userId = req.params.id;
   const db = await getDb();
   
@@ -279,7 +281,8 @@ app.put('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
     username: username !== undefined ? username : existingUser.username,
     role: finalRole,
     artist_id: artist_id !== undefined ? (artist_id || null) : existingUser.artist_id,
-    is_disabled: is_disabled !== undefined ? (is_disabled ? 1 : 0) : existingUser.is_disabled
+    is_disabled: is_disabled !== undefined ? (is_disabled ? 1 : 0) : existingUser.is_disabled,
+    display_name: display_name !== undefined ? display_name : existingUser.display_name
   };
 
   try {
@@ -297,7 +300,7 @@ app.put('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
     }
     
     const updatedUser = await db('users')
-      .select('id', 'username', 'role', 'artist_id', 'is_disabled')
+      .select('id', 'username', 'role', 'artist_id', 'is_disabled', 'display_name')
       .where({ id: userId })
       .first();
 
@@ -361,15 +364,8 @@ app.get('/api/artists/:id/manage', authMiddleware, canManageArtist, async (req, 
   res.json({ artist: req.artist });
 });
 
-app.post('/api/artists/:id/stream-key', authMiddleware, canManageArtist, async (req, res) => {
-  const newKey = uuidv4();
-  const db = await getDb();
-  await db('artists').where({ id: req.params.id }).update({ stream_key: newKey });
-  res.json({ stream_key: newKey });
-});
-
 app.post('/api/artists', authMiddleware, adminOnly, async (req, res) => {
-  const { name, location, description, twitch, soundcloud, mixcloud, youtube, cover_photo, twitch_stream_key, slug, user_id, channel_name } = req.body || {};
+  const { name, location, description, twitch, soundcloud, mixcloud, youtube, cover_photo, slug, user_id, channel_name } = req.body || {};
   if (!name) {
     return res.status(400).json({ error: 'Artist name is required' });
   }
@@ -385,9 +381,7 @@ app.post('/api/artists', authMiddleware, adminOnly, async (req, res) => {
       mixcloud: mixcloud || '',
       youtube: youtube || '',
       cover_photo: cover_photo || null,
-      twitch_stream_key: twitch_stream_key || '',
       slug: slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-      stream_key: uuidv4(),
       user_id: user_id || null,
       channel_name: channel_name || ''
     }).returning('id');
@@ -420,7 +414,6 @@ app.put('/api/artists/:id', authMiddleware, canManageArtist, async (req, res) =>
     youtube: update.youtube !== undefined ? update.youtube : artist.youtube,
     profile_picture: update.profile_picture !== undefined ? update.profile_picture : artist.profile_picture,
     cover_photo: update.cover_photo !== undefined ? update.cover_photo : artist.cover_photo,
-    twitch_stream_key: update.twitch_stream_key !== undefined ? update.twitch_stream_key : artist.twitch_stream_key,
     slug: update.slug !== undefined ? update.slug : artist.slug,
     channel_name: update.channel_name !== undefined ? update.channel_name : artist.channel_name,
     updated_at: db.fn.now()
@@ -801,9 +794,9 @@ app.get('/api/admin/stats', authMiddleware, adminOnly, async (req, res) => {
     const usersCount = await db('users').count('* as count').first();
     const eventsCount = await db('events').count('* as count').first();
     
-    const rtmpStats = await getRtmpStats();
+    const streamStats = await getStreamStats();
     res.json({ 
-        stats: rtmpStats,
+        stats: streamStats,
         counts: {
             artists: parseInt(artistsCount.count),
             users: parseInt(usersCount.count),
@@ -813,6 +806,81 @@ app.get('/api/admin/stats', authMiddleware, adminOnly, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to fetch server stats' });
+  }
+});
+
+app.get('/api/comments', async (req, res) => {
+  const { artist_id, event_id } = req.query;
+  const db = await getDb();
+  
+  try {
+    let query = db('comments')
+      .select('*')
+      .orderBy('created_at', 'asc');
+
+    if (artist_id) {
+      query = query.where('artist_id', artist_id);
+    } else if (event_id) {
+      query = query.where('event_id', event_id);
+    } else {
+      return res.status(400).json({ error: 'artist_id or event_id required' });
+    }
+
+    const comments = await query;
+    res.json({ comments });
+  } catch (err) {
+    console.error('[Comments] Fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch comments' });
+  }
+});
+
+app.post('/api/comments', async (req, res) => {
+  const { content, artist_id, event_id, parent_id, author_name } = req.body || {};
+  if (!content) {
+    return res.status(400).json({ error: 'Comment content is required' });
+  }
+  if (!author_name) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+
+  const db = await getDb();
+  try {
+    const [commentIdObj] = await db('comments').insert({
+      content,
+      user_id: null, // Force no association
+      author_name,
+      artist_id: artist_id || null,
+      event_id: event_id || null,
+      parent_id: parent_id || null,
+    }).returning('id');
+
+    const commentId = typeof commentIdObj === 'object' ? commentIdObj.id : commentIdObj;
+    const comment = await db('comments').where('id', commentId).first();
+
+    res.status(201).json({ comment });
+  } catch (err) {
+    console.error('[Comments] Create error:', err);
+    res.status(500).json({ error: 'Failed to post comment' });
+  }
+});
+
+app.delete('/api/comments/:id', authMiddleware, async (req, res) => {
+  const db = await getDb();
+  try {
+    const comment = await db('comments').where({ id: req.params.id }).first();
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    if (req.user.role !== 'admin' && Number(comment.user_id) !== Number(req.user.id)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    await db('comments').where({ id: req.params.id }).del();
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Comments] Delete error:', err);
+    res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
 
@@ -879,7 +947,7 @@ const server = app.listen(apiPort, () => {
 async function shutdown() {
   console.log('\nShutting down server...');
   server.close(async () => {
-    await stopRtmpServer();
+    await stopDiscovery();
     process.exit(0);
   });
   setTimeout(() => {

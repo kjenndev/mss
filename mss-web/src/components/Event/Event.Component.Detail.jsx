@@ -14,6 +14,7 @@ import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import * as helpers from '../../Data.Helper.Api';
+import CommentSection from '../Comments/CommentSection';
 import styles from './Event.Component.Detail.module.css';
 
 const darkTheme = createTheme({
@@ -231,6 +232,10 @@ export default function EventDetail() {
                 </label>
               </Box>
             )}
+          </Box>
+
+          <Box mt={6}>
+            <CommentSection eventId={event.id} />
           </Box>
         </Paper>
       </ThemeProvider>
