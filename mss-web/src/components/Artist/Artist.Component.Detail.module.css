@@ -1,207 +1,45 @@
 .container {
-  margin-top: 0;
-  margin-bottom: 48px;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-@media (min-width: 600px) {
-  .container {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-}
-
-.coverHeader {
-  width: 100%;
-  position: relative;
-  background-color: #1a1a1a;
-  background-size: cover;
-  background-position: center;
-  overflow: visible;
+  margin-top: 28px;
   margin-bottom: 64px;
+  font-family: "Segoe UI", system-ui, sans-serif;
 }
-
-@media (min-width: 0px) { .coverHeader { height: 200px; margin-bottom: 64px; border-radius: 0; } }
-@media (min-width: 600px) { .coverHeader { height: 300px; margin-bottom: 80px; border-radius: 0 0 16px 16px; } }
-@media (min-width: 900px) { .coverHeader { height: 400px; } }
-
-.profileHeaderCard {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 1000px;
-  border-radius: 24px !important;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  background-color: var(--background-paper) !important;
-}
-
-@media (min-width: 0px) { 
-  .profileHeaderCard { 
-    bottom: -60px; 
-    padding: 16px 24px 24px 24px;
-  } 
-}
-@media (min-width: 600px) { 
-  .profileHeaderCard { 
-    bottom: -80px; 
-    padding: 32px 40px; 
-    flex-direction: row; 
-    align-items: flex-end;
-  } 
-}
-
-.avatar {
-  background-color: var(--primary-main) !important;
-  border: 6px solid var(--background-paper);
-  box-shadow: 0px 8px 24px rgba(0,0,0,0.5);
-}
-
-@media (min-width: 0px) { 
-  .avatar { 
-
-    margin-top: -65px;
-  } 
-}
-@media (min-width: 600px) { 
-  .avatar { 
-    margin-top: -150px;
-  } 
-}
-@media (min-width: 600px) { 
-  .headerInfo { 
-    text-align: left; 
-    padding-bottom: 8px;
-  } 
-}
-
-.editButton {
-  border-radius: 16px !important;
-  padding-left: 32px !important;
-  padding-right: 32px !important;
-}
-
-.contentWrapper {
-  padding: 16px;
-  margin-top: 32px;
-}
-
-@media (min-width: 600px) { .contentWrapper { padding: 32px; margin-top: 48px; } }
-
-.sidebar {
-  width: fit-content;
-}
-
-@media (min-width: 0px) { .sidebar { margin-left: auto; margin-right: auto; } }
-@media (min-width: 900px) { .sidebar { margin-left: 0; margin-right: 0; } }
-
-.mainArea {
-  padding: 32px;
-  border-radius: 16px;
-  background-color: var(--background-paper);
-  box-shadow: 0px 3px 5px -1px rgba(0,0,0,0.2), 0px 6px 10px 0px rgba(0,0,0,0.14), 0px 1px 18px 0px rgba(0,0,0,0.12);
-  width: 700px;
-  max-width: 100%;
-}
-
-.socialLinksRow {
-  display: flex;
-  justify-content: flex-start;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-
-.socialIconTwitch { color: #9146FF !important; }
-.socialIconSoundCloud { color: #FF3300 !important; }
-.socialIconMixcloud { color: #52AAD8 !important; }
-.socialIconYouTube { color: #FF0000 !important; }
-.socialIconDefault { padding: 8px !important; }
-
-.aboutBox {
-  margin-bottom: 32px;
-  padding-left: 8px;
-  max-width: 320px;
-}
-
-.bioText {
-  white-space: pre-line;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-.sectionLabel {
-  display: block !important;
-  margin-bottom: 16px !important;
-  font-weight: 700 !important;
-  color: var(--text-secondary) !important;
-  letter-spacing: 1.2px !important;
-  text-align: left !important;
-  padding-left: 8px !important;
-}
-
-.galleryGrid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  width: 320px;
-  justify-content: center;
-}
-
-.galleryItem {
-  width: 100px;
-  height: 100px;
-  border-radius: 4px;
-  overflow: hidden;
-  background-color: #000;
-  position: relative;
-  cursor: pointer;
-}
-
-.galleryItem:hover img {
-  opacity: 0.8;
-  transform: scale(1.05);
-}
-
-.galleryImage {
-  height: 100%;
-  width: 100%;
-  object-fit: cover;
-  display: block;
-  transition: all 0.2s ease-in-out;
-}
-
-.streamBox {
-  width: 100%;
-}
-
-.streamIframe {
-  border: none;
-  border-radius: 8px;
-  background-color: #000;
-}
-
-.lightboxOverlay {
-  background-color: rgba(0,0,0,0.9) !important;
-  box-shadow: none !important;
-  overflow: hidden !important;
-}
-
-.lightboxContent {
-  padding: 0 !important;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-}
-
-.lightboxImage {
-  max-width: 100%;
-  max-height: 90vh;
-  display: block;
-  cursor: zoom-out;
+.container :global(.MuiTypography-root), .container :global(.MuiButton-root) { font-family: inherit; }
+.breadcrumb { color: #aaa; font-size: 12px; margin-bottom: 32px; overflow-wrap: anywhere; }
+.breadcrumb a { color: #90caf9; text-decoration: none; }
+.contentWrapper, .sidebar, .mainArea { min-width: 0; width: 100%; }
+.container .eyebrow { color: #90caf9; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
+.container .artistName { font-size: clamp(48px, 6.5vw, 92px); font-weight: 750; line-height: 1; letter-spacing: -3px; margin: 20px 0 16px; overflow-wrap: anywhere; }
+.artistName span { color: #90caf9; }
+.container .location { margin-bottom: 22px; font-size: 14px; }
+.portrait, .portraitFallback { display: block; width: 100%; aspect-ratio: 1.08; object-fit: cover; border-radius: 4px; background: #1e1e1e; }
+.portraitFallback { display: flex; flex-direction: column; justify-content: center; align-items: center; color: #aaa; border: 1px solid #393939; box-sizing: border-box; }
+.portraitFallback > span { font-size: 76px; color: #90caf9; }
+.container .editButton { margin-top: 16px; min-height: 44px; }
+.aboutBox { margin-top: 28px; }
+.container .sectionLabel { display: block; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #aaa; margin-bottom: 14px; }
+.container .bioText { white-space: pre-line; color: #b5b5bd; line-height: 1.7; margin-top: 12px; overflow-wrap: anywhere; }
+.socialLinksRow { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 28px; }
+.container .socialIconDefault { color: #90caf9; min-width: 44px; min-height: 44px; }
+.galleryGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.galleryGrid > p { grid-column: 1 / -1; }
+.galleryItem { width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden; background: #1e1e1e; border: 1px solid #393939; padding: 0; cursor: pointer; min-height: 44px; }
+.galleryItem:hover { border-color: #90caf9; }
+.galleryItem:focus-visible { outline: 2px solid #90caf9; outline-offset: 3px; }
+.galleryImage { height: 100%; width: 100%; object-fit: cover; display: block; }
+.coverPhoto { display: block; width: 100%; height: 300px; object-fit: cover; object-position: center; background: #1e1e1e; margin-bottom: 32px; border-radius: 4px; }
+.editorial { border-bottom: 1px solid #414141; padding-bottom: 26px; }
+.container .collectionTitle { font-size: clamp(28px, 3vw, 36px); font-weight: 650; line-height: 1.2; letter-spacing: -0.8px; margin: 12px 0; }
+.container .collectionCopy { color: #b5b5bd; line-height: 1.7; margin-bottom: 22px; overflow-wrap: anywhere; }
+.editorial button { min-height: 44px; text-transform: none; }
+.streamBox { width: 100%; min-width: 0; }
+.streamBox > :global(.MuiBox-root) { flex-wrap: wrap; gap: 12px; }
+.streamIframe { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: none; border-radius: 5px; background: #000; }
+.discussion { border-top: 1px solid #363636; padding-top: 24px; }
+.lightboxOverlay { background-color: rgba(0,0,0,0.9) !important; box-shadow: none !important; overflow: hidden !important; }
+.lightboxContent { padding: 0 !important; display: flex; align-items: center; justify-content: center; min-height: 200px; }
+.lightboxImage { max-width: 100%; max-height: 90vh; display: block; cursor: zoom-out; }
+@media (max-width: 899px) {
+  .container { margin-top: 22px; }
+  .container .artistName { font-size: clamp(48px, 12vw, 70px); letter-spacing: -2px; }
+  .portrait, .portraitFallback { max-height: 420px; }
 }

@@ -1,3 +1,4 @@
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useState, useEffect } from 'react';
 import { Box, Button, Typography, Alert } from '@mui/material';
 import * as helpers from '../../Data.Helper.Api';
@@ -19,7 +20,7 @@ export default function SyndicatePlayer({ channelName, isPaused = false, onResum
     return () => { active = false; };
   }, [attempt, channelName]);
   if (!channelName) return null;
-  if (error) return <Alert severity="error">{error}<Button onClick={() => { setError(''); setAttempt(n => n + 1); }}>Retry</Button></Alert>;
+  if (error) return <Alert severity="error">{error}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => { setError(''); setAttempt(n => n + 1); }}>Retry</Button></Alert>;
   if (!platformUrl) return <Typography role="status">Loading platform configuration...</Typography>;
   return <Box>
     <Typography variant="body2">Full platform player. A separate platform join is required; MSS login is not shared.</Typography>

@@ -1,62 +1,46 @@
 .container {
-  padding-top: 4rem;
+  padding-top: 2rem;
   padding-bottom: 4rem;
 }
-
-.mainPaper {
-  padding: 3rem;
-  background-color: rgba(30, 30, 30, 0.7) !important;
-  backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-}
-
-.flyerContainer {
-  width: 100%;
-  overflow: hidden;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-  display: flex;
-  justify-content: center;
-  background-color: #000;
-}
-
-.flyerImage {
-  width: 100%;
-  height: auto;
-  display: block;
-  object-fit: contain;
-}
-
-.infoSection {
-  margin-bottom: 2rem;
-}
-
-.artistChip {
-  margin: 0.75rem !important;
-}
-
-.imageGrid {
-  margin-top: 2rem;
-}
-
-.eventImage {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.eventImage:hover {
-  transform: scale(1.05);
-}
-
-.uploadBox {
-  margin-top: 3rem;
-  padding: 2rem;
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  text-align: center;
+.detail { color: #f5f5f5; }
+.breadcrumb { color: #aaa; font-size: .8125rem; margin-bottom: 1.75rem; overflow-wrap: anywhere; }
+.breadcrumb a, .credit a { color: #90caf9; text-decoration: none; }
+.hero { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 3.5rem; align-items: start; }
+.flyerColumn, .summary, .lower > section { min-width: 0; }
+.flyerContainer { width: 100%; aspect-ratio: 4 / 5; background: #191c1e; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.flyerImage { display: block; width: 100%; height: 100%; object-fit: contain; }
+.credit { font-size: .6875rem; line-height: 1.6; color: #999; margin: .75rem 0 0; overflow-wrap: anywhere; }
+.eyebrow { color: #90caf9; text-transform: uppercase; letter-spacing: 2px; font-size: .6875rem; margin: 0; line-height: 1.6; }
+.title { font-size: clamp(2.875rem, 5.4vw, 4rem); line-height: 1.03; letter-spacing: -2px; margin: 1rem 0 1.375rem; overflow-wrap: anywhere; }
+.title span { color: #90caf9; }
+.facts { display: flex; flex-wrap: wrap; gap: 1.5rem 2rem; border-block: 1px solid #333; padding: 1.25rem 0; margin: 0; }
+.facts > div { min-width: 0; }
+.facts dt { color: #999; font-size: .6875rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: .5625rem; }
+.facts dd { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.actions { display: flex; gap: .75rem; flex-wrap: wrap; margin: 1.5rem 0; }
+.actions a, .actions button, .uploadBox > label { min-height: 44px; }
+.infoSection { margin-top: 2.25rem; }
+.detail h2 { font-size: 1.5rem; font-weight: 600; letter-spacing: -.5px; margin: 0 0 1.25rem; }
+.artists { display: flex; flex-wrap: wrap; gap: .75rem; }
+.artistLink { display: flex; align-items: center; gap: .75rem; min-height: 52px; padding-right: 1.125rem; color: #eee; text-decoration: none; max-width: 100%; overflow-wrap: anywhere; }
+.artistLink:hover, .breadcrumb a:hover, .credit a:hover { text-decoration: underline; }
+.artistLink > div { width: 44px; height: 44px; }
+.description { color: #bbb; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.lower { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 3.5rem; margin-top: 3rem; border-top: 1px solid #333; padding-top: 1.875rem; }
+.imageGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .625rem; }
+.eventImage { display: block; width: 100%; height: 116px; object-fit: cover; border-radius: 4px; }
+.imageGrid a { border-radius: 4px; }
+.empty, .uploadBox p { color: #aaa; line-height: 1.7; }
+.uploadBox { margin-top: 1.5rem; }
+.uploadBox h3 { font-size: 1rem; font-weight: 500; margin: 0; }
+.uploadBox p { font-size: .875rem; margin: .5rem 0 1rem; }
+.fileInput { clip: rect(0 0 0 0); clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; position: absolute; white-space: nowrap; }
+.detail a:focus-visible, .detail button:focus-visible, .uploadBox > label:focus-within { outline: 2px solid #90caf9; outline-offset: 4px; }
+@media (max-width: 760px) {
+  .container { padding-top: 1.5rem; padding-bottom: 3rem; }
+  .hero, .lower { grid-template-columns: minmax(0, 1fr); gap: 1.75rem; }
+  .lower { margin-top: 2rem; }
+  .title { font-size: 2.875rem; }
+  .imageGrid { gap: .375rem; }
+  .eventImage { height: 90px; }
 }

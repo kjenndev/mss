@@ -1,3 +1,5 @@
+import SaveIcon from '@mui/icons-material/Save';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { getImageUrl } from '../../config';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -250,7 +252,7 @@ function ArtistEditor() {
   if (!artist) {
     return (
       <Container className={styles.container}>
-        <Alert severity="error">{error || 'Artist not found'}<Button onClick={() => { setLoading(true); setError(''); setAttempt(n => n + 1); }}>Retry</Button></Alert>
+        <Alert severity="error">{error || 'Artist not found'}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => { setLoading(true); setError(''); setAttempt(n => n + 1); }}>Retry</Button></Alert>
       </Container>
     );
   }
@@ -462,7 +464,7 @@ function ArtistEditor() {
                   variant="contained"
                   onClick={handleUpdate}
                   disabled={saving}
-                  startIcon={saving && <CircularProgress size={20} color="inherit" />}
+                  startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon aria-hidden="true" />}
                   className={styles.saveButton}
                 >
                   {saving ? 'Saving...' : 'Save Changes'}

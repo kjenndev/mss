@@ -1,3 +1,4 @@
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useState, useEffect } from 'react';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -98,7 +99,7 @@ export default function AdminSettings() {
           </Typography>
 
           {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-          {error === 'Failed to load settings' && <Button onClick={fetchSettings}>Retry</Button>}
+          {error === 'Failed to load settings' && <Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={fetchSettings}>Retry</Button>}
           {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
           <Stack spacing={4}>

@@ -1,3 +1,7 @@
+import SaveIcon from '@mui/icons-material/Save';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
@@ -159,7 +163,7 @@ function EventEditor() {
   }
 
   if (forbidden) return <Alert severity="error">You are not authorized to edit this event.</Alert>;
-  if (loadError) return <Alert severity="error">{loadError}<Button onClick={() => { setLoading(true); setLoadError(''); setAttempt(n => n + 1); }}>Retry</Button></Alert>;
+  if (loadError) return <Alert severity="error">{loadError}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => { setLoading(true); setLoadError(''); setAttempt(n => n + 1); }}>Retry</Button></Alert>;
   if (loading) {
     return (
       <Container className={styles.container}>
@@ -182,7 +186,7 @@ function EventEditor() {
                   Update the details for this event.
                 </Typography>
               </Box>
-              <Button color="error" onClick={handleDelete}>Delete Event</Button>
+              <Button startIcon={<DeleteIcon aria-hidden="true" />} color="error" onClick={handleDelete}>Delete Event</Button>
             </Box>
 
             <Stack spacing={3}>
@@ -265,7 +269,7 @@ function EventEditor() {
                   onChange={handleFlyerChange}
                 />
                 <label htmlFor="flyer-upload">
-                  <Button variant="outlined" component="span">
+                  <Button startIcon={<CloudUploadIcon aria-hidden="true" />} variant="outlined" component="span">
                     {flyer ? flyer.name : 'Change Flyer Image'}
                   </Button>
                 </label>
@@ -287,7 +291,7 @@ function EventEditor() {
                 variant="contained"
                 onClick={handleUpdate}
                 disabled={saving}
-                startIcon={saving && <CircularProgress size={20} color="inherit" />}
+                startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon aria-hidden="true" />}
               >
                 {saving ? 'Updating...' : 'Update Event'}
               </Button>

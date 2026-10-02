@@ -43,3 +43,7 @@ npm audit --omit=dev
 ```
 
 Backend regression tests must not modify the live development database. Native database upgrade/CRUD verification uses a uniquely named disposable PostgreSQL database. See `../docs/audit-hardening.md` for verified results and remaining limitations.
+
+## Artist media library
+
+`GET /api/media-library` aggregates public SoundCloud/Mixcloud metadata from linked artist profiles without changing `/api/feed`. See [MEDIA_LIBRARY.md](MEDIA_LIBRARY.md) for credentials, API contract, safety budgets, cache semantics, verification, and large-catalog limitations.

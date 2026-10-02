@@ -1,15 +1,17 @@
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import EditIcon from '@mui/icons-material/Edit';
 import Alert from '@mui/material/Alert';
 import { poll } from '../../poll';
 import { getImageUrl, watchUrl } from '../../config';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import Paper from '@mui/material/Paper';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import Typography from '@mui/material/Typography';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
-import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Dialog from '@mui/material/Dialog';
@@ -22,6 +24,8 @@ import QueueMusicIcon from '@mui/icons-material/QueueMusic';
 import LiveTvIcon from '@mui/icons-material/LiveTv';
 
 import * as helpers from '../../Data.Helper.Api';
+import MediaLibrary from '../Media/MediaLibrary';
+import { useMediaPlayer } from '../Media/MediaPlayerContext';
 import SyndicatePlayer from '../Stream/Syndicate.Player.Component';
 import CommentSection from '../Comments/CommentSection';
 import styles from './Artist.Component.Detail.module.css';
@@ -34,12 +38,17 @@ const darkTheme = createTheme({
 
 export default function ArtistDetail() {
   const { id } = useParams();
+  return <ArtistDetailContent key={id} id={id} />;
+}
+function ArtistDetailContent({ id }) {
+  const mediaPlayer = useMediaPlayer();
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [streamError, setStreamError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const [artist, setArtist] = useState(null);
   const [images, setImages] = useState([]);
+  const [failedPortrait, setFailedPortrait] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [activeStream, setActiveStream] = useState(null);
   const [platformUrl, setPlatformUrl] = useState('');
@@ -68,7 +77,7 @@ export default function ArtistDetail() {
     return () => { active = false; stop(); };
   }, [id, attempt]);
 
-  if (error) return <Alert severity="error">{error}<Button onClick={() => setAttempt(n => n + 1)}>Retry</Button></Alert>;
+  if (error) return <Alert severity="error">{error}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => setAttempt(n => n + 1)}>Retry</Button></Alert>;
   if (!artist) {
     return <Typography>Loading artist...</Typography>;
   }
@@ -76,49 +85,26 @@ export default function ArtistDetail() {
   return (
     <Container maxWidth="lg" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        {/* Cover Photo Header */}
-        <Box
-          className={styles.coverHeader}
-          sx={{ backgroundImage: artist.cover_photo ? `url(${getImageUrl(artist.cover_photo)})` : 'none' }}
-        >
-          {/* Profile Header Card (Overlapping) */}
-          <Paper elevation={4} className={styles.profileHeaderCard}>
-            <Avatar sx={{ width: 150, height: 150 }}
-              src={getImageUrl(artist.profile_picture)}
-              alt={artist.name}
-              className={styles.avatar}
-            >
-              {!artist.profile_picture && artist.name?.charAt(0)}
-            </Avatar>
-
-            <Box className={styles.headerInfo}>
-              <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.75rem', sm: '2.5rem' } }}>
-                {artist.name}
-              </Typography>
-              <Typography color="text.secondary" sx={{ mt: 0.5, fontWeight: 500 }}>
-                {artist.location || 'Location not set'}
-              </Typography>
-            </Box>
-
-            {helpers.CanEditArtist(id, artist.user_id) && (
-              <Button
-                variant="contained"
-                onClick={() => navigate(`/artists/${id}/update`)}
-                className={styles.editButton}
-              >
-                Edit Profile
-              </Button>
-            )}
-          </Paper>
-        </Box>
-
+        <Box className={styles.breadcrumb}><a href="/artists">Artists</a><span aria-hidden="true"> / </span>{artist.name}</Box>
+        {artist.cover_photo && <img className={styles.coverPhoto} src={getImageUrl(artist.cover_photo)} alt={`${artist.name} cover`} />}
         <Box className={styles.contentWrapper}>
           {streamError && <Alert severity="warning">{streamError}</Alert>}
           {artist.channel_name && !watchUrl(platformUrl, artist.channel_name) && <Alert severity="warning">Streaming platform is not configured.</Alert>}
-          <Grid container spacing={4} alignItems="flex-start">
+          <Grid container spacing={{ xs: 4, md: 6 }} alignItems="flex-start">
             {/* Sidebar Column: Gallery, Socials, Bio */}
-            <Grid size={{ xs: 12, md: 4, lg: 3 }}>
+            <Grid size={{ xs: 12, md: 4, lg: 4 }}>
               <Box className={styles.sidebar}>
+                <Typography className={styles.eyebrow}>Midnight Sound Syndicate</Typography>
+                <Typography component="h1" className={styles.artistName}>{artist.name}<span aria-hidden="true">.</span></Typography>
+                <Typography color="text.secondary" className={styles.location}>{artist.location || 'Location not set'}</Typography>
+                {artist.profile_picture && failedPortrait !== artist.profile_picture ? <img onError={() => setFailedPortrait(artist.profile_picture)} className={styles.portrait} src={getImageUrl(artist.profile_picture)} alt={artist.name} /> : <Box className={styles.portraitFallback}><span aria-hidden="true">{artist.name?.charAt(0)}</span><Typography>No artist photo yet</Typography></Box>}
+                {helpers.CanEditArtist(id, artist.user_id) && <Button startIcon={<EditIcon aria-hidden="true" />} variant="outlined" onClick={() => navigate(`/artists/${id}/update`)} className={styles.editButton}>Edit Profile</Button>}
+                <Box className={styles.aboutBox}>
+                  <Typography className={styles.sectionLabel}>Behind the sound</Typography>
+                  <Typography component="h2" variant="h6">About {artist.name}</Typography>
+                  <Typography className={styles.bioText}>{artist.description || 'No biography available.'}</Typography>
+                </Box>
+
                 <Box className={styles.socialLinksRow}>
                   {watchUrl(platformUrl, artist.channel_name) && (
                     <Tooltip title="Open platform player (Syndicate Live)">
@@ -186,19 +172,13 @@ export default function ArtistDetail() {
                       </IconButton>
                     </Tooltip>
                   )}
-                  {!artist.twitch && !artist.soundcloud && !artist.mixcloud && !artist.youtube && (
+                  {!artist.twitch && !artist.soundcloud && !artist.mixcloud && !artist.youtube && !watchUrl(platformUrl, artist.channel_name) && (
                     <Typography variant="body2" color="text.secondary" sx={{ pl: 1 }}>No links available</Typography>
                   )}
                 </Box>
 
-                <Box className={styles.aboutBox}>
-                  <Typography variant="body2" className={styles.bioText}>
-                    {artist.description || "No biography available."}
-                  </Typography>
-                </Box>
-
                 <Typography variant="overline" className={styles.sectionLabel}>
-                  Gallery
+                  In the frame · Gallery
                 </Typography>
                 <Box className={styles.galleryGrid}>
                   {(() => {
@@ -215,8 +195,11 @@ export default function ArtistDetail() {
                       );
                     }
 
-                    return filteredImages.map((image) => (
+                    return filteredImages.map((image, index) => (
                       <Box
+                        component="button"
+                        type="button"
+                        aria-label={`Open gallery photo ${index + 1}`}
                         key={image.url}
                         onClick={() => setSelectedImage(image.url)}
                         className={styles.galleryItem}
@@ -234,18 +217,27 @@ export default function ArtistDetail() {
             </Grid>
 
             {/* Main Column: Streams & Comments (Positioned to the Right) */}
-            <Grid size={{ xs: 10, md: 8, lg: 9 }}>
+            <Grid size={{ xs: 12, md: 8, lg: 8 }}>
               <Box className={styles.mainArea}>
                 <Stack spacing={4}>
+                  <MediaLibrary artistId={id} renderIntro={({ canListen, listenToLatest }) => (
+                    <Box className={styles.editorial}>
+                      <Typography className={styles.eyebrow}>The artist collection</Typography>
+                      <Typography component="h2" className={styles.collectionTitle}>A space for the sound.</Typography>
+                      <Typography className={styles.collectionCopy}>Tracks and mixes, together.<br />Explore {artist.name}’s uploads across SoundCloud and Mixcloud.</Typography>
+                      <Button variant="contained" startIcon={<PlayArrowIcon aria-hidden="true" />} disabled={!canListen} onClick={listenToLatest}>Listen to latest</Button>
+                    </Box>
+                  )} />
                   <Box>
                     <Stack spacing={4}>
+                      {mediaPlayer?.item ? ((artist.youtube || (activeStream && watchUrl(platformUrl, artist.channel_name))) ? <Box><Typography>Artist video is paused while you listen to the library.</Typography><Button onClick={mediaPlayer.close}>Switch to artist video</Button></Box> : null) : <>
                       {activeStream && watchUrl(platformUrl, artist.channel_name) && (
                         <Box className={styles.streamBox}>
                           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                             <Typography variant="h6" sx={{ fontWeight: 600 }}>
                                 Syndicate Live
                             </Typography>
-                            <Button
+                            <Button startIcon={<OpenInNewIcon aria-hidden="true" />}
                                 variant="contained"
                                 size="small"
                                 onClick={() => {
@@ -264,39 +256,6 @@ export default function ArtistDetail() {
                           />
                         </Box>
                       )}
-                      {artist.soundcloud && (
-                        <Box className={styles.streamBox}>
-                          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                            SoundCloud
-                          </Typography>
-                          <iframe
-                            width="100%"
-                            height="450"
-                            scrolling="no"
-                            frameBorder="no"
-                            allow="autoplay"
-                            src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(artist.soundcloud)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true&visual=false`}
-                            className={styles.streamIframe}
-                          />
-                        </Box>
-                      )}
-
-                      {artist.mixcloud && (
-                        <Box className={styles.streamBox}>
-                          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                            Mixcloud
-                          </Typography>
-                          <iframe
-                            width="100%"
-                            height="120"
-                            src={`https://www.mixcloud.com/widget/iframe/?hide_cover=1&light=1&feed=${encodeURIComponent(artist.mixcloud)}`}
-                            frameBorder="0"
-                            allow="autoplay"
-                            className={styles.streamIframe}
-                          />
-                        </Box>
-                      )}
-
                       {artist.youtube && (
                         <Box className={styles.streamBox}>
                           <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
@@ -314,10 +273,11 @@ export default function ArtistDetail() {
                           />
                         </Box>
                       )}
+                      </>}
                     </Stack>
                   </Box>
 
-                  <Box sx={{ mt: 6 }}>
+                  <Box className={styles.discussion}>
                     <CommentSection artistId={artist.id} />
                   </Box>
                 </Stack>
@@ -330,7 +290,7 @@ export default function ArtistDetail() {
           open={Boolean(selectedImage)}
           onClose={() => setSelectedImage(null)}
           maxWidth="lg"
-          PaperProps={{ className: styles.lightboxOverlay }}
+          slotProps={{ paper: { className: styles.lightboxOverlay, 'aria-label': 'Artist gallery' } }}
         >
           <DialogContent className={styles.lightboxContent}>
             <img

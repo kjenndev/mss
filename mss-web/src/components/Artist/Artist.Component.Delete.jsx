@@ -1,3 +1,4 @@
+import DeleteIcon from '@mui/icons-material/Delete';
 import Button from '@mui/material/Button';
 import * as helpers from '../../Data.Helper.Api';
 import { useNavigate } from 'react-router-dom';
@@ -19,7 +20,7 @@ export default function DeleteArtist(props) {
   }
 
   return (
-    <Button size="small" color="error" onClick={() => handler(props.id)}>
+    <Button startIcon={<DeleteIcon aria-hidden="true" />} size="small" color="error" onClick={() => handler(props.id)}>
       Delete
     </Button>
   );

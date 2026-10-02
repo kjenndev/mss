@@ -1,3 +1,4 @@
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
@@ -191,7 +192,7 @@ export default function CreateEvent() {
                   onChange={handleFlyerChange}
                 />
                 <label htmlFor="flyer-upload">
-                  <Button variant="outlined" component="span">
+                  <Button startIcon={<CloudUploadIcon aria-hidden="true" />} variant="outlined" component="span">
                     {flyer ? flyer.name : 'Choose Flyer Image'}
                   </Button>
                 </label>
@@ -214,7 +215,7 @@ export default function CreateEvent() {
                 variant="contained"
                 onClick={handleCreate}
                 disabled={loading}
-                startIcon={loading && <CircularProgress size={20} color="inherit" />}
+                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CloudUploadIcon aria-hidden="true" />}
               >
                 {loading ? 'Saving...' : createdId ? 'Retry flyer upload' : 'Create Event'}
               </Button>

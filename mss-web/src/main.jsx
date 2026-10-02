@@ -5,6 +5,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 
 import './index.css'
+import { MediaPlayerProvider } from './components/Media/MediaPlayerProvider';
+import MediaNavigation from './components/Media/MediaNavigation';
 import App from './App.jsx'
 import RouteGuard from './RouteGuard.jsx'
 
@@ -30,6 +32,7 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <BrowserRouter>
+        <MediaNavigation><MediaPlayerProvider>
         <App />
         {/* Routes */}
         <Routes>
@@ -50,6 +53,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/admin/about" element={<RouteGuard admin><AdminAboutEditor /></RouteGuard>} />
           <Route path="/account" element={<RouteGuard><UserProfile /></RouteGuard>} />
         </Routes>
+        </MediaPlayerProvider></MediaNavigation>
       </BrowserRouter>
     </LocalizationProvider>
   </StrictMode>,

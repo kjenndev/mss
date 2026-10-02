@@ -2,12 +2,40 @@
 import {it,expect,vi,beforeEach,afterEach} from 'vitest';
 import {render,screen,cleanup,fireEvent,act} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
+import { MediaPlayerProvider } from './components/Media/MediaPlayerProvider';
 import Home from './components/Home.Component';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
 vi.mock('./components/Stream/Syndicate.Player.Component',()=>({default:({isPaused})=><div>{isPaused?'Paused':'Playing'}</div>}));
 beforeEach(()=>{cleanup();vi.resetAllMocks();});
 afterEach(()=>{cleanup();vi.useRealTimers();vi.restoreAllMocks();});
+it('places library below video before events and releases video playback while audio is selected',async()=>{
+ mockHome();
+ api.GetMediaLibrary.mockResolvedValue({ok:true,json:async()=>({items:[{id:'a',provider:'mixcloud',title:'Library show',artistName:'DJ',url:'https://www.mixcloud.com/dj/show/'}],total:1,nextOffset:null,sources:[],complete:true,cache:{}})});
+ render(<MemoryRouter><MediaPlayerProvider><Home/></MediaPlayerProvider></MemoryRouter>);
+ const video=screen.getByTitle('Featured Syndicate video');
+ const library=screen.getByRole('region',{name:'Artist library'});
+ expect(video.compareDocumentPosition(library) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ const events=screen.getByRole('region',{name:'Coming up'});
+ const gallery=screen.getByRole('region',{name:'In the frame'});
+ expect(library.parentElement).toBe(events.parentElement);
+ expect(library.compareDocumentPosition(events) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ expect(events.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ expect(screen.queryByRole('region',{name:'Latest content'})).toBeNull();
+ expect(api.GetGlobalFeed).not.toHaveBeenCalled();
+ fireEvent.click(await screen.findByRole('button',{name:'Play Library show'}));
+ expect(video.isConnected).toBe(false);
+ expect(screen.getByRole('region',{name:'Syndicate screen'})).toBeTruthy();
+ expect(screen.getByRole('heading',{name:'DK Bean'})).toBeTruthy();
+ expect(screen.getByText('Video disabled')).toBeTruthy();
+ expect(screen.getByTestId('PauseIcon').getAttribute('aria-hidden')).toBe('true');
+ expect(screen.getByRole('button',{name:'Return to video'}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+ expect(screen.getByRole('link',{name:/Watch on YouTube/}).closest('[inert]')).toBeTruthy();
+ expect(screen.getByTitle('Mixcloud player')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Return to video'}));
+ expect(screen.queryByTitle('Mixcloud player')).toBeNull();
+ expect(screen.getByTitle('Featured Syndicate video')).toBeTruthy();
+});
 const videoTitle = 'Featured Syndicate video';
 function mockHome({streams = [], settings = {}} = {}) {
  api.GetActiveSyndicateStreams.mockResolvedValue({ok:true,json:async()=>({streams})});
@@ -22,11 +50,7 @@ it('shows a responsive click-to-play YouTube fallback when no streams are live',
  expect(iframe.getAttribute('src')).toBe('https://www.youtube-nocookie.com/embed/z6aXbSXNiHE');
  expect(iframe.getAttribute('allow') || '').not.toContain('autoplay');
  expect(iframe.hasAttribute('allowfullscreen')).toBe(true);
- expect(iframe.className).toContain('twitchIframe');
- expect(iframe.parentElement.className).toContain('iframeWrapper');
- const section = iframe.closest('.MuiPaper-root');
- expect(section.className).toContain('carouselSectionPaper');
- expect(getComputedStyle(section).minHeight).toBe('0px');
+ expect(screen.getByRole('region',{name:'Syndicate screen'}).contains(iframe)).toBe(true);
  expect(screen.queryByText('LIVE')).toBeNull();
  expect(screen.queryByRole('button',{name:'Next'})).toBeNull();
 });
@@ -43,8 +67,8 @@ it('keeps the selected channel paused across fresh polling arrays',async()=>{
 it('shows unavailable discovery and load failures instead of false empty content',async()=>{
  for(const method of ['GetActiveSyndicateStreams','GetSettings','GetGlobalFeed','GetAllEvents','GetAllImages']) api[method].mockResolvedValue({ok:false});
  render(<MemoryRouter><Home/></MemoryRouter>);
- expect(await screen.findByText(/Live status unavailable/)).toBeTruthy();
- expect(await screen.findByRole('button',{name:'Retry content'})).toBeTruthy();
+ expect(await screen.findByText(/Live status unavailable\. Retrying automatically\./)).toBeTruthy();
+ expect((await screen.findByRole('button',{name:'Retry content'})).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
  expect(screen.queryByText(/No photos have been uploaded/)).toBeNull();
 });
 
@@ -71,7 +95,7 @@ it('switches from fallback to live and back as polling updates',async()=>{
  expect(screen.queryByTitle(videoTitle)).toBeNull();
  expect(screen.getByText('Artist')).toBeTruthy();
  expect(screen.getByText('Playing')).toBeTruthy();
- expect(screen.getByText('LIVE')).toBeTruthy();
+ expect(screen.getByText('Syndicate Live · On air')).toBeTruthy();
  api.GetActiveSyndicateStreams.mockResolvedValue({ok:true,json:async()=>({streams:[]})});
  await act(async()=>{await vi.advanceTimersByTimeAsync(10000);});
  expect(screen.getByTitle(videoTitle)).toBeTruthy();
@@ -96,10 +120,135 @@ it('retains an honest unavailable alert alongside the fallback and recovers on p
  api.GetActiveSyndicateStreams.mockResolvedValue({ok:false});
  render(<MemoryRouter><Home/></MemoryRouter>);
  await act(async()=>{await vi.advanceTimersByTimeAsync(1);});
- expect(screen.getByText(/Live status unavailable/)).toBeTruthy();
+ expect(screen.getByText(/Live status unavailable\. Retrying automatically\./)).toBeTruthy();
  expect(screen.getByTitle(videoTitle)).toBeTruthy();
  api.GetActiveSyndicateStreams.mockResolvedValue({ok:true,json:async()=>({streams:[]})});
  await act(async()=>{await vi.advanceTimersByTimeAsync(10000);});
- expect(screen.queryByText(/Live status unavailable/)).toBeNull();
+ expect(screen.queryByText(/Live status unavailable\. Retrying automatically\./)).toBeNull();
  expect(screen.getByTitle(videoTitle)).toBeTruthy();
+});
+
+it('presents Cinema replay metadata and honest empty discovery sections',async()=>{
+ mockHome(); render(<MemoryRouter><Home/></MemoryRouter>);
+ expect(await screen.findByRole('heading',{name:'DK Bean'})).toBeTruthy();
+ expect(screen.getByText('Groovematics · July 4, 2021')).toBeTruthy();
+ expect(screen.getByRole('link',{name:/Watch on YouTube/}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+ expect(screen.getByRole('link',{name:/Watch on YouTube/}).getAttribute('href')).toBe('https://www.youtube.com/watch?v=z6aXbSXNiHE');
+ for (const name of ['Artist library','Coming up','In the frame']) expect(screen.getByRole('region',{name})).toBeTruthy();
+ expect(await screen.findByText('No upcoming events announced.')).toBeTruthy();
+ expect(screen.queryByText('Latest content')).toBeNull();
+ expect(screen.getByText('No photos have been uploaded to the Syndicate yet.')).toBeTruthy();
+ expect(screen.getByRole('link',{name:'All events'}).getAttribute('href')).toBe('/events');
+});
+
+it('limits gallery preview and exposes every photo with an accessible inline toggle and lightbox',async()=>{
+ mockHome(); api.GetAllImages.mockResolvedValue({ok:true,json:async()=>({images:Array.from({length:5},(_,i)=>({id:i,url:`/uploads/test-${i}.jpg`}))})});
+ render(<MemoryRouter><Home/></MemoryRouter>); await act(async()=>{});
+ expect(screen.getAllByRole('button',{name:/Open photo/})).toHaveLength(2);
+ const toggle=screen.getByRole('button',{name:'View all photos'});
+ expect(toggle.getAttribute('aria-expanded')).toBe('false');
+ expect(toggle.querySelector('[data-testid="ExpandMoreIcon"]')).toBeTruthy();
+ fireEvent.click(toggle); expect(screen.getAllByRole('button',{name:/Open photo/})).toHaveLength(5);
+ expect(toggle.getAttribute('aria-expanded')).toBe('true');
+ expect(toggle.querySelector('[data-testid="ExpandLessIcon"]')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Open photo 5'}));
+ expect(screen.getByRole('dialog',{name:'Gallery photo'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Close photo'}));
+ await act(async()=>{});
+});
+
+it('distinguishes pending discovery from empty content and retries failed content',async()=>{
+ mockHome(); let resolve; api.GetAllEvents.mockReturnValue(new Promise(r=>{resolve=r;}));
+ api.GetActiveSyndicateStreams.mockReturnValue(new Promise(()=>{}));
+ render(<MemoryRouter><Home/></MemoryRouter>);
+ expect(screen.queryByText('Checking live status…')).toBeNull();
+ expect(screen.getByText('Loading events…')).toBeTruthy();
+ expect(screen.getByText('Loading photos…')).toBeTruthy();
+ expect(screen.queryByText('No upcoming events announced.')).toBeNull();
+ await act(async()=>resolve({ok:false}));
+ expect(screen.getByText('Events unavailable.')).toBeTruthy();
+ expect(screen.getByText('Gallery unavailable.')).toBeTruthy();
+ api.GetAllEvents.mockResolvedValue({ok:true,json:async()=>({events:[]})});
+ fireEvent.click(screen.getByRole('button',{name:'Retry content'}));
+ expect(await screen.findByText('No upcoming events announced.')).toBeTruthy();
+ expect(screen.queryByRole('button',{name:'Retry content'})).toBeNull();
+});
+
+it('keeps carousel numbering and controls valid when the stream list shrinks',async()=>{
+ vi.useFakeTimers(); mockHome({streams:[1,2,3].map(i=>({artistId:i,artistName:`Artist ${i}`,channelName:`channel${i}`}))});
+ render(<MemoryRouter><Home/></MemoryRouter>); await act(async()=>{await vi.advanceTimersByTimeAsync(1);});
+ fireEvent.click(screen.getByRole('button',{name:'Next'})); fireEvent.click(screen.getByRole('button',{name:'Next'}));
+ expect(screen.getByRole('heading',{name:'Artist 3'})).toBeTruthy();
+ api.GetActiveSyndicateStreams.mockResolvedValue({ok:true,json:async()=>({streams:[{artistId:1,artistName:'Artist 1',channelName:'channel1'}]})});
+ await act(async()=>{await vi.advanceTimersByTimeAsync(10000);});
+ expect(screen.getByText('Stream 1 of 1')).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Next'}).disabled).toBe(true);
+ expect(screen.getByRole('heading',{name:'Artist 1'})).toBeTruthy();
+ expect(screen.queryByText('Groovematics · July 4, 2021')).toBeNull();
+});
+
+it('omits the title and no-live banner above the player',async()=>{
+ mockHome(); render(<MemoryRouter><Home/></MemoryRouter>);
+ await act(async()=>{});
+ expect(screen.queryByText('Syndicate screen')).toBeNull();
+ expect(screen.queryByText('No live streams · Enjoy a replay')).toBeNull();
+ expect(screen.getByTitle(videoTitle)).toBeTruthy();
+});
+
+it('keeps live video details visible but inert during library selection',async()=>{
+ mockHome({streams:[{artistId:1,artistName:'Live DJ',channelName:'live'}],settings:{streaming_platform_url:'https://platform.test'}});
+ api.GetMediaLibrary.mockResolvedValue({ok:true,json:async()=>({items:[{id:'a',provider:'mixcloud',title:'Library show',url:'https://www.mixcloud.com/dj/show/'}],total:1,nextOffset:null,sources:[],complete:true,cache:{}})});
+ render(<MemoryRouter><MediaPlayerProvider><Home/></MediaPlayerProvider></MemoryRouter>);
+ await screen.findByText('Playing');
+ fireEvent.click(await screen.findByRole('button',{name:'Play Library show'}));
+ expect(screen.queryByText('Playing')).toBeNull();
+ expect(screen.getByRole('heading',{name:'Live DJ'})).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Open platform player'}).closest('[inert]')).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Open platform player'}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+ expect(screen.getByText('Video disabled')).toBeTruthy();
+ expect(screen.getByTestId('PauseIcon').getAttribute('aria-hidden')).toBe('true');
+ expect(screen.getByRole('button',{name:'Return to video'}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Return to video'}));
+ expect(screen.getByText('Playing')).toBeTruthy();
+ expect(screen.queryByTitle('Mixcloud player')).toBeNull();
+});
+
+it('uses labeled icon-only carousel and lightbox controls with touch targets',async()=>{
+ mockHome({streams:[1,2].map(id=>({artistId:id,artistName:`Artist ${id}`,channelName:`channel${id}`}))});
+ api.GetAllImages.mockResolvedValue({ok:true,json:async()=>({images:[{id:1,url:'/uploads/fixture.jpg'}]})});
+ render(<MemoryRouter><Home/></MemoryRouter>);
+ await screen.findByRole('heading',{name:'Artist 1'});
+ for(const name of ['Prev','Next']) assertIconOnly(screen.getByRole('button',{name}),name);
+ fireEvent.click(await screen.findByRole('button',{name:'Open photo 1'}));
+ assertIconOnly(screen.getByRole('button',{name:'Close photo'}),'Close photo');
+});
+function assertIconOnly(button,name) {
+ expect(button.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+ expect(button.textContent).toBe('');
+ expect(button.getAttribute('aria-label')).toBe(name);
+ expect(button.getAttribute('title')).toBe(name);
+ expect(parseFloat(getComputedStyle(button).minWidth)).toBeGreaterThanOrEqual(44);
+ expect(parseFloat(getComputedStyle(button).minHeight)).toBeGreaterThanOrEqual(44);
+}
+
+it('shows the upcoming event flyer as part of its event link and removes broken images',async()=>{
+ mockHome();
+ api.GetAllEvents.mockResolvedValue({ok:true,json:async()=>({events:[{id:41,title:'Flyer event',date:'2099-01-01T12:00:00Z',flyer:'/uploads/flyer.png',location:'Venue'}]})});
+ render(<MemoryRouter><Home/></MemoryRouter>);
+ const image=await screen.findByRole('img',{name:'Flyer for Flyer event'});
+ expect(image.getAttribute('src')).toBe('/uploads/flyer.png');
+ expect(image.closest('a').getAttribute('href')).toBe('/events/41');
+ expect(image.getAttribute('loading')).toBe('lazy');
+ expect(image.previousElementSibling.tagName).toBe('TIME');
+ expect(image.nextElementSibling.textContent).toContain('Flyer event');
+ expect(image.parentElement).toBe(image.closest('a'));
+ fireEvent.error(image);
+ expect(screen.queryByRole('img',{name:'Flyer for Flyer event'})).toBeNull();
+ expect(screen.getByText('Flyer event')).toBeTruthy();
+});
+it.each([null,'javascript:alert(1)',{},'//unsafe.test/flyer.png'])('keeps event details without unsafe or missing flyers (%j)',async flyer=>{
+ mockHome();api.GetAllEvents.mockResolvedValue({ok:true,json:async()=>({events:[{id:42,title:'No flyer event',date:'2099-01-01T12:00:00Z',flyer}]})});
+ render(<MemoryRouter><Home/></MemoryRouter>);
+ expect(await screen.findByText('No flyer event')).toBeTruthy();
+ expect(screen.queryByRole('img',{name:'Flyer for No flyer event'})).toBeNull();
 });
