@@ -108,17 +108,22 @@ export default function Home() {
       <ThemeProvider theme={darkTheme}>
         {streamError && <Alert severity="warning">{streamError}</Alert>}
         {contentError && <Alert severity="error">{contentError}<Button onClick={() => setAttempt(n => n + 1)}>Retry content</Button></Alert>}
-        {/* Branding Section */}
-        <Paper elevation={3} className={styles.sectionPaper}>
-          <Typography variant="h3" gutterBottom sx={{ fontWeight: 800 }}>
-            {settings.site_title || 'Midnight Sound Syndicate'}
-          </Typography>
-          <Typography variant="body1" gutterBottom sx={{ color: 'text.secondary', fontSize: '1.1rem' }}>
-            {settings.site_description || 'Discover and stay connected'}
-          </Typography>
-        </Paper>
-
-        {/* Twitch Carousel (Primary Section) */}
+        {/* Streams Section */}
+        {live.length === 0 && settings.show_live_section !== '0' && (
+          <Paper elevation={3} className={styles.carouselSectionPaper} sx={{ minHeight: 0 }}>
+            <Box className={styles.carouselContent}>
+              <Box className={styles.iframeWrapper}>
+                <iframe
+                  title="Featured Syndicate video"
+                  src="https://www.youtube-nocookie.com/embed/z6aXbSXNiHE"
+                  className={styles.twitchIframe}
+                  allow="encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                />
+              </Box>
+            </Box>
+          </Paper>
+        )}
         {live.length > 0 && settings.show_live_section !== '0' && (
           <Paper elevation={3} className={styles.carouselSectionPaper}>
             <Box className={styles.carouselContent}>
