@@ -1,3 +1,4 @@
+import SaveIcon from '@mui/icons-material/Save';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
@@ -188,7 +189,7 @@ export default function UserProfile() {
                 onClick={handleSave}
                 disabled={saving}
                 className={styles.saveButton}
-                startIcon={saving && <CircularProgress size={20} color="inherit" />}
+                startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon aria-hidden="true" />}
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </Button>

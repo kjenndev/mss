@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { initializeDB, getDb, hashPassword, verifyPassword } from './db.js';
 import { getActiveStreams, stopDiscovery, getStreamStats } from './streams.js';
 import 'dotenv/config';
+import { getMediaLibrary } from './media-library.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1052,6 +1053,18 @@ app.delete('/api/comments/:id', authMiddleware, async (req, res) => {
 
     res.status(500).json({ error: 'Failed to delete comment' });
   }
+});
+
+app.get('/api/media-library', async (req, res) => {
+  const query = req.query || {};
+  const integer = (value, fallback) => value === undefined ? fallback : typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value) && Number.isSafeInteger(Number(value)) ? Number(value) : NaN;
+  const offset = integer(query.offset, 0), limit = integer(query.limit, 50);
+  const artistId = integer(query.artistId, undefined);
+  if (query.artistId !== undefined && (!Number.isSafeInteger(artistId) || artistId < 1)) return res.status(400).json({ error: 'Use a positive integer artistId' });
+  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(limit) || limit < 1 || limit > 200) return res.status(400).json({ error: 'Use a nonnegative offset and limit from 1 to 200' });
+  const db = req.db || await getDb();
+  const artists = await db('artists').select('id', 'name', 'profile_picture', 'soundcloud', 'mixcloud').orderBy('id');
+  res.json(await getMediaLibrary(artists, { offset, limit, artistId }));
 });
 
 app.get('/api/feed', async (req, res) => {

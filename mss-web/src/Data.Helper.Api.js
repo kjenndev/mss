@@ -147,6 +147,10 @@ async function GetActiveSyndicateStreams() {
   return await request('/streams', 'GET', null, false);
 }
 
+export async function GetMediaLibrary(offset = 0, artistId) {
+  return await request(`/media-library?offset=${encodeURIComponent(offset)}&limit=50${artistId === undefined ? '' : `&artistId=${encodeURIComponent(artistId)}`}`, 'GET', null, false);
+}
+
 async function GetGlobalFeed() {
   return await request('/feed', 'GET', null, false);
 }

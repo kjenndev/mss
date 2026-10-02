@@ -1,52 +1,52 @@
 .container {
-  margin-top: 32px;
-  margin-bottom: 48px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px 40px 60px;
+  color: #f5f5f5;
+}
+.lead { margin: 36px 0 28px; }
+.eyebrow { color: #90caf9; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
+.lead h1 { font-size: 58px; letter-spacing: -2px; margin: 10px 0 15px; line-height: 1.04; }
+.lead h1 span { color: #90caf9; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 24px; }
+.artist { min-width: 0; }
+.portrait { height: 210px; border-radius: 5px; background: #23272b; display: flex; align-items: center; justify-content: center; overflow: hidden; color: #a0afbd; }
+.portrait > span { font-size: 80px; letter-spacing: -4px; font-weight: 300; }
+.portrait img { width: 100%; height: 100%; object-fit: cover; }
+.artist:nth-child(2n) .portrait { background: #292624; color: #b9aba0; }
+.artist:nth-child(3n) .portrait { background: #24292a; color: #a4bdbe; }
+.info { padding-top: 17px; }
+.info h2 { font-size: 23px; letter-spacing: -.6px; margin: 0 0 8px; overflow-wrap: anywhere; }
+.location { font-size: 12px; color: #aaa; margin: 0; overflow-wrap: anywhere; }
+.bottom { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 12px; border-top: 1px solid #343434; margin-top: 16px; }
+.action { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; font-size: 13px; color: #90caf9; text-decoration: none; }
+.action:hover { text-decoration: underline; }
+.container a:focus-visible { outline: 2px solid #90caf9; outline-offset: 3px; border-radius: 3px; }
+@media (max-width: 900px) {
+  .container { padding: 22px 24px 40px; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 18px; }
+  .lead h1 { font-size: 45px; }
+}
+@media (max-width: 520px) {
+  .container { padding: 20px 20px 40px; }
+  .lead { margin-top: 20px; }
+  .lead h1 { font-size: 40px; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .portrait { height: 240px; }
 }
 
-.headerPaper {
-  padding: 32px;
-  margin-bottom: 0;
-  border-radius: 16px 16px 0 0 !important;
+.tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 18px 0 24px; border-bottom: 1px solid #333; margin-bottom: 26px; }
+.tools input, .tools select { box-sizing: border-box; font: inherit; color: inherit; background: #1b1b1b; border: 1px solid #444; border-radius: 4px; min-height: 44px; padding: 0 14px; }
+.tools .search { flex: 1; max-width: 460px; min-width: 0; background: #171717; }
+.tools :focus-visible { outline: 2px solid #90caf9; outline-offset: 2px; }
+.count { margin-left: auto; font-size: 12px; color: #aaa; }
+.empty { padding: 32px 0; color: #aaa; }
+@media (max-width: 640px) {
+  .tools .search { flex-basis: 100%; max-width: none; }
+  .count { margin-left: auto; }
 }
 
-.listWrapper {
-  padding: 32px;
-  background-color: var(--background-paper);
-  border-radius: 0 0 16px 16px;
-  margin-bottom: 32px;
-}
-
-.cardGrid {
-    justify-content: center;
-}
-
-.artistCard {
-  width: 300px;
-  max-width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  border-radius: 16px !important;
-  background-color: var(--overlay-bg) !important;
-  border: 1px solid var(--border-color) !important;
-  transition: all 0.2s ease-in-out !important;
-}
-
-.artistCard:hover {
-  transform: translateY(-4px);
-  background-color: var(--overlay-hover) !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
-}
-
-.artistImage {
-  height: 180px;
-  object-fit: cover;
-}
-
-.placeholderImage {
-    height: 180px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: rgba(255,255,255,0.05);
-}
+.providers { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; }
+.providers:empty { display: none; }
+.providers a { display: inline-flex; align-items: center; min-height: 44px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #aaa; text-decoration: none; }
+.providers a:hover { color: #90caf9; text-decoration: underline; }

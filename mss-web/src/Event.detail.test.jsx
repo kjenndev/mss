@@ -9,6 +9,6 @@ it('displays failed gallery uploads and permits retry',async()=>{
  api.GetEventById.mockResolvedValue({ok:true,json:async()=>({event:{id:1,title:'Event',artists:[],images:[]}})});api.IsAdmin.mockReturnValue(true);
  api.UploadEventImage.mockResolvedValue({ok:false});
  const {container}=render(<MemoryRouter initialEntries={['/events/1']}><Routes><Route path="/events/:id" element={<Detail/>}/></Routes></MemoryRouter>);
- await screen.findByText('Event');fireEvent.change(container.querySelector('input[type=file]'),{target:{files:[new File(['x'],'a.png')]}});
+ await screen.findByRole('heading', { level: 1, name: 'Event' });fireEvent.change(container.querySelector('input[type=file]'),{target:{files:[new File(['x'],'a.png')]}});
  expect(await screen.findByText(/upload failed/i)).toBeTruthy();
 });

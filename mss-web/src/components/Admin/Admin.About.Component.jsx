@@ -1,3 +1,4 @@
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { sanitizeRichText } from '../../sanitize';
 import { getImageUrl } from '../../config';
 import { useState, useEffect } from 'react';
@@ -120,7 +121,7 @@ export default function AdminAboutEditor() {
     );
   }
 
-  if (loadError) return <Alert severity="error">{loadError}<Button onClick={() => setAttempt(value => value + 1)}>Retry</Button></Alert>;
+  if (loadError) return <Alert severity="error">{loadError}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => setAttempt(value => value + 1)}>Retry</Button></Alert>;
 
   const quillModules = {
     toolbar: [

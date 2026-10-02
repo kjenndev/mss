@@ -1,3 +1,4 @@
+import SaveIcon from '@mui/icons-material/Save';
 import { getImageUrl } from '../../config';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -216,7 +217,7 @@ export default function AdminDashboard() {
                     </CardContent>
                     <CardActions>
                       <Button href={`/artists/${artist.id}`}>View</Button>
-                      <Button href={`/artists/${artist.id}/update`} size="small">Edit</Button>
+                      <Button startIcon={<EditIcon aria-hidden="true" />} href={`/artists/${artist.id}/update`} size="small">Edit</Button>
                       <DeleteArtist
                         id={artist.id}
                         onDelete={(id) => {
@@ -272,10 +273,10 @@ export default function AdminDashboard() {
                           : 'None'}
                       </TableCell>
                       <TableCell align="right">
-                        <IconButton onClick={() => handleEditUserClick(user)} color="primary">
+                        <IconButton aria-label="Edit user" title="Edit user" sx={{ minWidth: 44, minHeight: 44 }} onClick={() => handleEditUserClick(user)} color="primary">
                           <EditIcon />
                         </IconButton>
-                        <IconButton onClick={() => handleUserDelete(user.id)} color="error">
+                        <IconButton aria-label="Delete user" title="Delete user" sx={{ minWidth: 44, minHeight: 44 }} onClick={() => handleUserDelete(user.id)} color="error">
                           <DeleteIcon />
                         </IconButton>
                       </TableCell>
@@ -450,7 +451,7 @@ export default function AdminDashboard() {
           </DialogContent>
           <DialogActions sx={{ p: 3 }}>
             <Button onClick={() => setEditUser(null)}>Cancel</Button>
-            <Button onClick={handleUserEditSave} variant="contained">Save Changes</Button>
+            <Button startIcon={<SaveIcon aria-hidden="true" />} onClick={handleUserEditSave} variant="contained">Save Changes</Button>
           </DialogActions>
         </Dialog>
       </ThemeProvider>

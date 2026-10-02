@@ -55,3 +55,11 @@ it('comment cursor requests retain zero and omit absent query fields',async()=>{
  await api.GetComments({event_id:3,offset:100,limit:100});
  expect(new URL(fetch.mock.calls[1][0],'http://localhost').searchParams.get('offset')).toBe('100');
 });
+
+it('requests optional artist scope without changing homepage pagination',async()=>{
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true}));
+ await api.GetMediaLibrary(50,2);
+ expect(Object.fromEntries(new URL(fetch.mock.calls[0][0],'http://localhost').searchParams)).toEqual({offset:'50',limit:'50',artistId:'2'});
+ await api.GetMediaLibrary();
+ expect(Object.fromEntries(new URL(fetch.mock.calls[1][0],'http://localhost').searchParams)).toEqual({offset:'0',limit:'50'});
+});

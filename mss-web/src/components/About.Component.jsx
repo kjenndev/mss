@@ -1,24 +1,15 @@
+import RefreshIcon from '@mui/icons-material/Refresh';
+import EditIcon from '@mui/icons-material/Edit';
+import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 import Alert from '@mui/material/Alert';
-import { sanitizeRichText } from '../sanitize';
-import { getImageUrl } from '../config';
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
-import EditIcon from '@mui/icons-material/Edit';
-
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { sanitizeRichText } from '../sanitize';
+import { getImageUrl } from '../config';
 import * as helpers from '../Data.Helper.Api';
-
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
-  },
-});
+import styles from './About.Component.module.css';
 
 export default function About() {
   const navigate = useNavigate();
@@ -26,92 +17,52 @@ export default function About() {
   const [attempt, setAttempt] = useState(0);
   const [content, setContent] = useState('');
   const [coverPhoto, setCoverPhoto] = useState('');
+  const [failedCover, setFailedCover] = useState('');
   const [loading, setLoading] = useState(true);
   const isAdmin = helpers.IsAdmin();
 
-
   useEffect(() => {
+    let active = true;
     helpers.GetSettings().then(async (res) => {
-        if (!res.ok) throw new Error();
-        if (res.ok) {
-            const data = await res.json();
-            setContent(data.settings?.about_content || '');
-            setCoverPhoto(data.settings?.about_cover_photo || '');
-        }
-        setError('');
-    }).catch(() => setError('Unable to load About content.')).finally(() => setLoading(false));
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (!active) return;
+      if (!data.settings || typeof data.settings !== 'object' || Array.isArray(data.settings)) throw new Error();
+      for (const key of ['about_content', 'about_cover_photo']) {
+        if (data.settings[key] != null && typeof data.settings[key] !== 'string') throw new Error();
+      }
+      setContent(data.settings?.about_content || '');
+      setCoverPhoto(data.settings?.about_cover_photo || '');
+      setError('');
+    }).catch(() => { if (active) setError('Unable to load About content.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [attempt]);
 
-  if (error) return <Alert severity="error">{error}<Button onClick={() => setAttempt(n => n + 1)}>Retry</Button></Alert>;
-  if (loading) {
-    return (
-      <Container sx={{ mt: 8, textAlign: 'center' }}>
-        <CircularProgress />
-      </Container>
-    );
-  }
+  if (error) return <Alert severity="error">{error}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => { setError(''); setLoading(true); setAttempt(n => n + 1); }}>Retry</Button></Alert>;
+  if (loading) return <div className={styles.loading}><CircularProgress aria-label="Loading About content" /></div>;
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
-      <ThemeProvider theme={darkTheme}>
-        {coverPhoto && (
-            <Box
-                sx={{
-                    width: '100%',
-                    height: { xs: '200px', md: '400px' },
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    mb: 4,
-                    backgroundImage: `url(${getImageUrl(coverPhoto)})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                    border: '1px solid rgba(255,255,255,0.1)'
-                }}
-            />
-        )}
-
-        <Paper
-            elevation={3}
-            sx={{
-                p: { xs: 3, md: 6 },
-                borderRadius: '16px',
-                bgcolor: 'rgba(30,30,30,0.7)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255,255,255,0.1)'
-            }}
-        >
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-            <Typography variant="h3" sx={{ fontWeight: 800 }}>
-                About MSS
-            </Typography>
-            {isAdmin && (
-                <Button
-                    variant="outlined"
-                    startIcon={<EditIcon />}
-                    onClick={() => navigate('/admin/about')}
-                    sx={{ borderRadius: '20px', textTransform: 'none' }}
-                >
-                    Edit Page
-                </Button>
-            )}
-          </Box>
-
-          <Box
-            className="about-content"
-            sx={{
-                color: 'text.primary',
-                lineHeight: 1.8,
-                fontSize: '1.1rem',
-                '& h1, & h2, & h3': { color: 'primary.main', mt: 4, mb: 2 },
-                '& p': { mb: 2 },
-                '& ul, & ol': { mb: 2, pl: 4 },
-                '& img': { maxWidth: '100%', borderRadius: '8px', my: 2 }
-            }}
-            dangerouslySetInnerHTML={{ __html: sanitizeRichText(content) }}
-          />
-        </Paper>
-      </ThemeProvider>
-    </Container>
+    <div className={styles.container}>
+      <div className={styles.toolbar}>
+        <nav aria-label="Breadcrumb"><Link to="/">Home</Link><span aria-hidden="true"> / </span><span>About</span></nav>
+        {isAdmin && <Button variant="outlined" startIcon={<EditIcon aria-hidden="true" />} onClick={() => navigate('/admin/about')}>Edit Page</Button>}
+      </div>
+      <div className={styles.identity}>
+        <aside className={styles.identityColumn}>
+          <p className={styles.eyebrow}>Midnight Sound Syndicate</p>
+          <h1 className={styles.title}>About <br />MSS<span aria-hidden="true">.</span></h1>
+          {coverPhoto && failedCover !== coverPhoto && <img onError={() => setFailedCover(coverPhoto)} className={styles.cover} src={getImageUrl(coverPhoto)} alt="Midnight Sound Syndicate cover" />}
+          <p className={styles.stamp}>Music / Artists / Community</p>
+        </aside>
+        <section aria-label="About content" className={styles.story}>
+          {content.trim() ? <div className={`about-content ${styles.richText}`} dangerouslySetInnerHTML={{ __html: sanitizeRichText(content) }} /> : <p className={styles.empty}>About content has not been added yet.</p>}
+          <div className={styles.explore}>
+            <Link to="/artists">Meet the artists <ArrowOutwardIcon aria-hidden="true" /></Link>
+            <Link to="/events">Explore events <ArrowOutwardIcon aria-hidden="true" /></Link>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }

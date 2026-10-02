@@ -1,3 +1,5 @@
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -164,7 +166,7 @@ function CommentThread({ artistId, eventId }) {
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-      {loadError ? <Alert severity="error">{loadError}<Button onClick={() => fetchComments()}>Retry comments</Button></Alert> : loading ? (
+      {loadError ? <Alert severity="error">{loadError}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => fetchComments()}>Retry comments</Button></Alert> : loading ? (
         <Box textAlign="center" py={4}><CircularProgress /></Box>
       ) : (
         <Stack spacing={3}>
@@ -205,7 +207,7 @@ function CommentThread({ artistId, eventId }) {
               <Divider sx={{ mt: 3, opacity: 0.05 }} />
             </Box>
           ))}
-          {nextCursor !== null && <Button onClick={() => fetchComments(nextCursor)}>Load more comments</Button>}
+          {nextCursor !== null && <Button startIcon={<ExpandMoreIcon aria-hidden="true" />} onClick={() => fetchComments(nextCursor)}>Load more comments</Button>}
           {comments.length === 0 && (
             <Typography variant="body1" color="text.secondary" textAlign="center" py={4}>
               No comments yet. Be the first to say something!
