@@ -1,3 +1,6 @@
+import Alert from '@mui/material/Alert';
+import { sanitizeRichText } from '../sanitize';
+import { getImageUrl } from '../config';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
@@ -10,7 +13,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import EditIcon from '@mui/icons-material/Edit';
 
 import * as helpers from '../Data.Helper.Api';
-import styles from './Home.Component.module.css'; // Reuse container and header styles
 
 const darkTheme = createTheme({
   palette: {
@@ -20,33 +22,27 @@ const darkTheme = createTheme({
 
 export default function About() {
   const navigate = useNavigate();
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [content, setContent] = useState('');
   const [coverPhoto, setCoverPhoto] = useState('');
   const [loading, setLoading] = useState(true);
-  const [apiUrl, setApiUrl] = useState('http://localhost:4000');
   const isAdmin = helpers.IsAdmin();
 
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    const separator = path.includes('?') ? '&' : '?';
-    return `${apiUrl}${path}${separator}t=${new Date().getTime()}`;
-  };
 
   useEffect(() => {
     helpers.GetSettings().then(async (res) => {
+        if (!res.ok) throw new Error();
         if (res.ok) {
             const data = await res.json();
             setContent(data.settings?.about_content || '');
             setCoverPhoto(data.settings?.about_cover_photo || '');
-            if (data.settings?.api_base_url) {
-                setApiUrl(data.settings.api_base_url);
-            }
         }
-        setLoading(false);
-    });
-  }, []);
+        setError('');
+    }).catch(() => setError('Unable to load About content.')).finally(() => setLoading(false));
+  }, [attempt]);
 
+  if (error) return <Alert severity="error">{error}<Button onClick={() => setAttempt(n => n + 1)}>Retry</Button></Alert>;
   if (loading) {
     return (
       <Container sx={{ mt: 8, textAlign: 'center' }}>
@@ -59,12 +55,12 @@ export default function About() {
     <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
       <ThemeProvider theme={darkTheme}>
         {coverPhoto && (
-            <Box 
-                sx={{ 
-                    width: '100%', 
-                    height: { xs: '200px', md: '400px' }, 
-                    borderRadius: '16px', 
-                    overflow: 'hidden', 
+            <Box
+                sx={{
+                    width: '100%',
+                    height: { xs: '200px', md: '400px' },
+                    borderRadius: '16px',
+                    overflow: 'hidden',
                     mb: 4,
                     backgroundImage: `url(${getImageUrl(coverPhoto)})`,
                     backgroundSize: 'cover',
@@ -74,13 +70,13 @@ export default function About() {
                 }}
             />
         )}
-        
-        <Paper 
-            elevation={3} 
-            sx={{ 
-                p: { xs: 3, md: 6 }, 
-                borderRadius: '16px', 
-                bgcolor: 'rgba(30,30,30,0.7)', 
+
+        <Paper
+            elevation={3}
+            sx={{
+                p: { xs: 3, md: 6 },
+                borderRadius: '16px',
+                bgcolor: 'rgba(30,30,30,0.7)',
                 backdropFilter: 'blur(10px)',
                 border: '1px solid rgba(255,255,255,0.1)'
             }}
@@ -90,8 +86,8 @@ export default function About() {
                 About MSS
             </Typography>
             {isAdmin && (
-                <Button 
-                    variant="outlined" 
+                <Button
+                    variant="outlined"
                     startIcon={<EditIcon />}
                     onClick={() => navigate('/admin/about')}
                     sx={{ borderRadius: '20px', textTransform: 'none' }}
@@ -100,10 +96,10 @@ export default function About() {
                 </Button>
             )}
           </Box>
-          
-          <Box 
+
+          <Box
             className="about-content"
-            sx={{ 
+            sx={{
                 color: 'text.primary',
                 lineHeight: 1.8,
                 fontSize: '1.1rem',
@@ -112,7 +108,7 @@ export default function About() {
                 '& ul, & ol': { mb: 2, pl: 4 },
                 '& img': { maxWidth: '100%', borderRadius: '8px', my: 2 }
             }}
-            dangerouslySetInnerHTML={{ __html: content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeRichText(content) }}
           />
         </Paper>
       </ThemeProvider>

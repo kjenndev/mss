@@ -1,3 +1,6 @@
+import Alert from '@mui/material/Alert';
+import { poll } from '../../poll';
+import { getImageUrl, watchUrl } from '../../config';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Paper from '@mui/material/Paper';
@@ -32,54 +35,40 @@ const darkTheme = createTheme({
 export default function ArtistDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [error, setError] = useState('');
+  const [streamError, setStreamError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [artist, setArtist] = useState(null);
   const [images, setImages] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [activeStream, setActiveStream] = useState(null);
-  const [platformUrl, setPlatformUrl] = useState('http://localhost:5174');
+  const [platformUrl, setPlatformUrl] = useState('');
   const [isStreamPaused, setIsStreamPaused] = useState(false);
 
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return `http://localhost:4000${path}`;
-  };
 
   useEffect(() => {
-    helpers.GetArtistById(id).then(async (response) => {
-      if (!response.ok) {
-        navigate('/artists');
-        return;
+    let active = true;
+    setError('');
+    Promise.all([helpers.GetArtistById(id), helpers.GetArtistImages(id), helpers.GetSettings()]).then(async ([artistRes, imagesRes, settingsRes]) => {
+      if (!artistRes.ok || !imagesRes.ok || !settingsRes.ok) throw new Error('Unable to load artist data.');
+      const [artistData, imagesData, settingsData] = await Promise.all([artistRes.json(), imagesRes.json(), settingsRes.json()]);
+      if (active) {
+        setArtist(artistData.artist); setImages(imagesData.images || []);
+        setPlatformUrl(settingsData.settings?.streaming_platform_url || '');
       }
-      const data = await response.json();
-      setArtist(data.artist);
-    });
-    helpers.GetArtistImages(id).then(async (response) => {
-      if (response.ok) {
+    }).catch(() => { if (active) setError('Unable to load artist data.'); });
+    const stop = poll(async () => {
+      try {
+        const response = await helpers.GetActiveSyndicateStreams();
+        if (!response.ok) throw new Error();
         const data = await response.json();
-        setImages(data.images || []);
-      }
+        if (active) { setActiveStream((data.streams || []).find(s => Number(s.artistId) === Number(id)) || null); setStreamError(''); }
+      } catch { if (active) { setActiveStream(null); setStreamError('Live status unavailable. Retrying automatically.'); } }
     });
+    return () => { active = false; stop(); };
+  }, [id, attempt]);
 
-    helpers.GetSettings().then(async (res) => {
-        if (res.ok) {
-            const data = await res.json();
-            if (data.settings?.streaming_platform_url) {
-                setPlatformUrl(data.settings.streaming_platform_url);
-            }
-        }
-    });
-
-    helpers.GetActiveSyndicateStreams().then(async (response) => {
-      if (response.ok) {
-        const data = await response.json();
-        const active = data.streams || [];
-        const found = active.find(s => Number(s.artistId) === Number(id));
-        setActiveStream(found || null);
-      }
-    });
-  }, [id, navigate]);
-
+  if (error) return <Alert severity="error">{error}<Button onClick={() => setAttempt(n => n + 1)}>Retry</Button></Alert>;
   if (!artist) {
     return <Typography>Loading artist...</Typography>;
   }
@@ -88,7 +77,7 @@ export default function ArtistDetail() {
     <Container maxWidth="lg" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
         {/* Cover Photo Header */}
-        <Box 
+        <Box
           className={styles.coverHeader}
           sx={{ backgroundImage: artist.cover_photo ? `url(${getImageUrl(artist.cover_photo)})` : 'none' }}
         >
@@ -112,8 +101,8 @@ export default function ArtistDetail() {
             </Box>
 
             {helpers.CanEditArtist(id, artist.user_id) && (
-              <Button 
-                variant="contained" 
+              <Button
+                variant="contained"
                 onClick={() => navigate(`/artists/${id}/update`)}
                 className={styles.editButton}
               >
@@ -124,17 +113,19 @@ export default function ArtistDetail() {
         </Box>
 
         <Box className={styles.contentWrapper}>
+          {streamError && <Alert severity="warning">{streamError}</Alert>}
+          {artist.channel_name && !watchUrl(platformUrl, artist.channel_name) && <Alert severity="warning">Streaming platform is not configured.</Alert>}
           <Grid container spacing={4} alignItems="flex-start">
             {/* Sidebar Column: Gallery, Socials, Bio */}
-            <Grid item xs={12} md={4} lg={3}>
+            <Grid size={{ xs: 12, md: 4, lg: 3 }}>
               <Box className={styles.sidebar}>
                 <Box className={styles.socialLinksRow}>
-                  {artist.channel_name && (
-                    <Tooltip title="Join Chat (Syndicate Live)">
-                      <IconButton 
+                  {watchUrl(platformUrl, artist.channel_name) && (
+                    <Tooltip title="Open platform player (Syndicate Live)">
+                      <IconButton
                         onClick={() => {
                             setIsStreamPaused(true);
-                            window.open(`${platformUrl}/watch/${artist.channel_name}`, '_blank');
+                            window.open(watchUrl(platformUrl, artist.channel_name), '_blank', 'noopener,noreferrer');
                         }}
                         rel="noopener noreferrer"
                         className={styles.socialIconTwitch + ' ' + styles.socialIconDefault}
@@ -145,10 +136,10 @@ export default function ArtistDetail() {
                   )}
                   {artist.twitch && (
                     <Tooltip title="Twitch">
-                      <IconButton 
-                        component="a" 
-                        href={`https://twitch.tv/${artist.twitch}`} 
-                        target="_blank" 
+                      <IconButton
+                        component="a"
+                        href={`https://twitch.tv/${artist.twitch}`}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className={styles.socialIconTwitch + ' ' + styles.socialIconDefault}
                       >
@@ -158,10 +149,10 @@ export default function ArtistDetail() {
                   )}
                   {artist.soundcloud && (
                     <Tooltip title="SoundCloud">
-                      <IconButton 
-                        component="a" 
-                        href={artist.soundcloud} 
-                        target="_blank" 
+                      <IconButton
+                        component="a"
+                        href={artist.soundcloud}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className={styles.socialIconSoundCloud + ' ' + styles.socialIconDefault}
                       >
@@ -171,10 +162,10 @@ export default function ArtistDetail() {
                   )}
                   {artist.mixcloud && (
                     <Tooltip title="Mixcloud">
-                      <IconButton 
-                        component="a" 
-                        href={artist.mixcloud} 
-                        target="_blank" 
+                      <IconButton
+                        component="a"
+                        href={artist.mixcloud}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className={styles.socialIconMixcloud + ' ' + styles.socialIconDefault}
                       >
@@ -184,10 +175,10 @@ export default function ArtistDetail() {
                   )}
                   {artist.youtube && (
                     <Tooltip title="YouTube">
-                      <IconButton 
-                        component="a" 
-                        href={artist.youtube} 
-                        target="_blank" 
+                      <IconButton
+                        component="a"
+                        href={artist.youtube}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className={styles.socialIconYouTube + ' ' + styles.socialIconDefault}
                       >
@@ -211,8 +202,8 @@ export default function ArtistDetail() {
                 </Typography>
                 <Box className={styles.galleryGrid}>
                   {(() => {
-                    const filteredImages = images.filter(image => 
-                      image.url !== artist.profile_picture && 
+                    const filteredImages = images.filter(image =>
+                      image.url !== artist.profile_picture &&
                       image.url !== artist.cover_photo
                     );
 
@@ -225,7 +216,7 @@ export default function ArtistDetail() {
                     }
 
                     return filteredImages.map((image) => (
-                      <Box 
+                      <Box
                         key={image.url}
                         onClick={() => setSelectedImage(image.url)}
                         className={styles.galleryItem}
@@ -243,30 +234,30 @@ export default function ArtistDetail() {
             </Grid>
 
             {/* Main Column: Streams & Comments (Positioned to the Right) */}
-            <Grid item xs={10} md={8} lg={9}>
+            <Grid size={{ xs: 10, md: 8, lg: 9 }}>
               <Box className={styles.mainArea}>
                 <Stack spacing={4}>
                   <Box>
                     <Stack spacing={4}>
-                      {activeStream && artist.channel_name && (
+                      {activeStream && watchUrl(platformUrl, artist.channel_name) && (
                         <Box className={styles.streamBox}>
                           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                             <Typography variant="h6" sx={{ fontWeight: 600 }}>
                                 Syndicate Live
                             </Typography>
-                            <Button 
-                                variant="contained" 
+                            <Button
+                                variant="contained"
                                 size="small"
                                 onClick={() => {
                                     setIsStreamPaused(true);
-                                    window.open(`${platformUrl}/watch/${artist.channel_name}`, '_blank');
+                                    window.open(watchUrl(platformUrl, artist.channel_name), '_blank', 'noopener,noreferrer');
                                 }}
                                 sx={{ borderRadius: '20px', textTransform: 'none', px: 3 }}
                             >
-                                Join Chat
+                                Open platform player
                             </Button>
                           </Box>
-                          <SyndicatePlayer 
+                          <SyndicatePlayer
                             channelName={artist.channel_name}
                             isPaused={isStreamPaused}
                             onResume={() => setIsStreamPaused(false)}
@@ -342,9 +333,9 @@ export default function ArtistDetail() {
           PaperProps={{ className: styles.lightboxOverlay }}
         >
           <DialogContent className={styles.lightboxContent}>
-            <img 
-              src={selectedImage ? getImageUrl(selectedImage) : ''} 
-              alt="Gallery Lightbox" 
+            <img
+              src={selectedImage ? getImageUrl(selectedImage) : ''}
+              alt="Gallery Lightbox"
               className={styles.lightboxImage}
               onClick={() => setSelectedImage(null)}
             />

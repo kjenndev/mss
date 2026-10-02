@@ -35,14 +35,21 @@ export default function AdminSettings() {
   }, []);
 
   async function fetchSettings() {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    setSettings([]);
     try {
       const response = await helpers.GetSettings();
-      if (response.ok) {
-        const data = await response.json();
-        setSettings(data.raw || []);
-      }
-    } catch (err) {
-      console.error(err);
+      if (!response.ok) throw new Error('Settings request failed');
+      const data = await response.json();
+      if (!Array.isArray(data.raw) || !data.raw.every(setting =>
+        setting && typeof setting.key === 'string' && setting.key.trim() &&
+        (setting.value === null || typeof setting.value === 'string') &&
+        (setting.description == null || typeof setting.description === 'string')
+      )) throw new Error('Invalid settings');
+      setSettings(data.raw.map(setting => ({ ...setting, value: setting.value ?? '' })));
+    } catch {
       setError('Failed to load settings');
     } finally {
       setLoading(false);
@@ -54,6 +61,7 @@ export default function AdminSettings() {
   };
 
   const handleSave = async (key, value) => {
+    if (loading || saving !== null || !settings.some(setting => setting.key === key)) return;
     setSaving(key);
     setError('');
     setSuccess('');
@@ -90,6 +98,7 @@ export default function AdminSettings() {
           </Typography>
 
           {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+          {error === 'Failed to load settings' && <Button onClick={fetchSettings}>Retry</Button>}
           {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
           <Stack spacing={4}>

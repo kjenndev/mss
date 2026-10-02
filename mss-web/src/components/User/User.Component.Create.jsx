@@ -48,6 +48,11 @@ export default function CreateUser() {
       return;
     }
     
+    if (user.password.length < 12 || user.password.length > 1024) {
+      setError('Password must be between 12 and 1024 characters');
+      return;
+    }
+
     setLoading(true);
     setError('');
     
@@ -102,6 +107,7 @@ export default function CreateUser() {
                 label="Password" 
                 name="password" 
                 type="password"
+                helperText="Use 12–1024 characters."
                 variant="outlined" 
                 value={user.password} 
                 onChange={handleUserChange}

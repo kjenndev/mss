@@ -6,6 +6,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 
 import './index.css'
 import App from './App.jsx'
+import RouteGuard from './RouteGuard.jsx'
 
 import ArtistList from './components/Artist/Artist.Component.List'
 import CreateArtist from './components/Artist/Artist.Component.Create'
@@ -36,18 +37,18 @@ createRoot(document.getElementById('root')).render(
           <Route path="/about" element={<About key={window.location.pathname}/>} />
           <Route path="/artists" element={<ArtistList key={window.location.pathname} />} />
           <Route path="/artists/:id" element={<ArtistDetail key={window.location.pathname} />} />
-          <Route path="/artists/create" element={<CreateArtist key={window.location.pathname} />} />
-          <Route path="/artists/:id/update" element={<ArtistUpdate key={window.location.pathname} />} />
+          <Route path="/artists/create" element={<RouteGuard admin><CreateArtist /></RouteGuard>} />
+          <Route path="/artists/:id/update" element={<RouteGuard><ArtistUpdate /></RouteGuard>} />
           <Route path="/events" element={<EventList key={window.location.pathname} />} />
-          <Route path="/events/create" element={<CreateEvent key={window.location.pathname} />} />
+          <Route path="/events/create" element={<RouteGuard><CreateEvent /></RouteGuard>} />
           <Route path="/events/:id" element={<EventDetail key={window.location.pathname} />} />
-          <Route path="/events/:id/update" element={<EventUpdate key={window.location.pathname} />} />
-          <Route path="/users/create" element={<CreateUser key={window.location.pathname} />} />
+          <Route path="/events/:id/update" element={<RouteGuard><EventUpdate /></RouteGuard>} />
+          <Route path="/users/create" element={<RouteGuard admin><CreateUser /></RouteGuard>} />
           <Route path="/login" element={<Login key={window.location.pathname} />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard key={window.location.pathname} />} />
-          <Route path="/admin/settings" element={<AdminSettings key={window.location.pathname} />} />
-          <Route path="/admin/about" element={<AdminAboutEditor key={window.location.pathname} />} />
-          <Route path="/account" element={<UserProfile key={window.location.pathname} />} />
+          <Route path="/admin/dashboard" element={<RouteGuard admin><AdminDashboard /></RouteGuard>} />
+          <Route path="/admin/settings" element={<RouteGuard admin><AdminSettings /></RouteGuard>} />
+          <Route path="/admin/about" element={<RouteGuard admin><AdminAboutEditor /></RouteGuard>} />
+          <Route path="/account" element={<RouteGuard><UserProfile /></RouteGuard>} />
         </Routes>
       </BrowserRouter>
     </LocalizationProvider>

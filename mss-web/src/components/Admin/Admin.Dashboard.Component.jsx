@@ -1,3 +1,4 @@
+import { getImageUrl } from '../../config';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
@@ -101,7 +102,7 @@ export default function AdminDashboard() {
     }
 
     refreshData();
-    
+
     // Polling for stats when tab is active
     let interval;
     if (tab === 2) {
@@ -114,7 +115,7 @@ export default function AdminDashboard() {
         });
       }, 1000);
     }
-    
+
     return () => clearInterval(interval);
   }, [navigate, refreshData, tab]);
 
@@ -132,9 +133,13 @@ export default function AdminDashboard() {
 
   const handleUserEditSave = async () => {
     setError('');
+    if (editUser.password && (editUser.password.length < 12 || editUser.password.length > 1024)) {
+      setError('Password must be between 12 and 1024 characters');
+      return;
+    }
     // Use the first artist in the list as the primary artist_id for legacy support
-    const primaryArtistId = editUser.ownedArtistIds && editUser.ownedArtistIds.length > 0 
-      ? Number(editUser.ownedArtistIds[0]) 
+    const primaryArtistId = editUser.ownedArtistIds && editUser.ownedArtistIds.length > 0
+      ? Number(editUser.ownedArtistIds[0])
       : null;
 
     const updateData = {
@@ -145,7 +150,7 @@ export default function AdminDashboard() {
       ownedArtistIds: editUser.ownedArtistIds || [],
       is_disabled: editUser.is_disabled ? 1 : 0
     };
-    
+
     if (editUser.password) {
       updateData.password = editUser.password;
     }
@@ -194,12 +199,12 @@ export default function AdminDashboard() {
 
             <Grid container spacing={3}>
               {artists.map((artist) => (
-                <Grid item xs={12} md={6} key={artist.id}>
+                <Grid size={{ xs: 12, md: 6 }} key={artist.id}>
                   <Card className={styles.artistCard}>
                     {artist.profile_picture && (
                       <CardMedia
                         component="img"
-                        image={artist.profile_picture.startsWith('http') ? artist.profile_picture : `http://localhost:4000${artist.profile_picture}`}
+                        image={getImageUrl(artist.profile_picture)}
                         alt={artist.name}
                         className={styles.artistImage}
                       />
@@ -262,8 +267,8 @@ export default function AdminDashboard() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {user.ownedArtists && Array.isArray(user.ownedArtists) && user.ownedArtists.length > 0 
-                          ? user.ownedArtists.map(a => a.name).join(', ') 
+                        {user.ownedArtists && Array.isArray(user.ownedArtists) && user.ownedArtists.length > 0
+                          ? user.ownedArtists.map(a => a.name).join(', ')
                           : 'None'}
                       </TableCell>
                       <TableCell align="right">
@@ -285,7 +290,7 @@ export default function AdminDashboard() {
         {tab === 2 && (
           <Box sx={{ mt: 2 }}>
             <Grid container spacing={3}>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ height: '100%', bgcolor: 'rgba(144, 202, 249, 0.05)' }}>
                   <CardContent>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
@@ -305,7 +310,7 @@ export default function AdminDashboard() {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ height: '100%', bgcolor: 'rgba(76, 175, 80, 0.05)' }}>
                   <CardContent>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
@@ -322,7 +327,7 @@ export default function AdminDashboard() {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ height: '100%', bgcolor: 'rgba(156, 39, 176, 0.05)' }}>
                   <CardContent>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
@@ -339,7 +344,7 @@ export default function AdminDashboard() {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ height: '100%', bgcolor: 'rgba(255, 152, 0, 0.05)' }}>
                   <CardContent>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
@@ -353,7 +358,7 @@ export default function AdminDashboard() {
                 </Card>
               </Grid>
 
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <Paper sx={{ p: 3, bgcolor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
                   <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Detailed Diagnostics</Typography>
                   <pre style={{ margin: 0, fontSize: '0.85rem', color: '#90caf9', overflowX: 'auto' }}>
@@ -385,6 +390,7 @@ export default function AdminDashboard() {
               />
               <MuiTextField
                 label="New Password (leave blank to keep)"
+                helperText="Use 12–1024 characters, or leave blank to keep the current password."
                 type="password"
                 fullWidth
                 onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
@@ -430,9 +436,9 @@ export default function AdminDashboard() {
 
               <FormControlLabel
                 control={
-                  <Switch 
-                    checked={Boolean(editUser?.is_disabled)} 
-                    onChange={(e) => setEditUser({ ...editUser, is_disabled: e.target.checked ? 1 : 0 })} 
+                  <Switch
+                    checked={Boolean(editUser?.is_disabled)}
+                    onChange={(e) => setEditUser({ ...editUser, is_disabled: e.target.checked ? 1 : 0 })}
                     color="error"
                   />
                 }

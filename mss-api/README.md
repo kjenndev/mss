@@ -1,81 +1,45 @@
-# Midnight Sound Syndicate - API
+# MSS API
 
-This is the backend server for the Midnight Sound Syndicate platform. It handles artist and user management, image uploads, and the real-time RTMP streaming server for live broadcasts.
+Express API for Midnight Sound Syndicate artist profiles, events, comments, site settings and discovery of streams hosted by the separate Streaming-Platform application.
 
-## Features
+## Database and startup
 
--   **Artist & User Management:** Full CRUD API for managing artists and user accounts.
--   **Live Streaming Hub:** Ingests RTMP streams from artists and provides them for web playback.
--   **Automatic Re-streaming:** Automatically re-streams incoming broadcasts to an artist's configured Twitch channel.
--   **HLS Fallback:** Transcodes RTMP streams into HLS for maximum compatibility with mobile devices and browsers that do not support FLV.
--   **Secure Authentication:** Uses a secure GUID-based stream key system to authenticate broadcasters.
--   **Real-time Stats:** Exposes a private endpoint for monitoring server health and active stream counts.
+Use PostgreSQL and a private `DATABASE_URL`. SQLite configuration in old documentation is obsolete. Node.js 22.22.1 or newer compatible LTS is recommended for the complete repository tooling.
 
-## System Requirements
+```sh
+npm ci
+npm start
+```
 
--   **Node.js** (v18 or higher)
--   **npm**
--   **FFmpeg:** Required for HLS transcoding and re-streaming to Twitch.
--   **Redis:** Required for real-time tracking of active streams.
+Run these commands from `mss-api`. Copy `.env.example` to a private, ignored `.env` and supply your PostgreSQL connection string. Never commit real credentials. The local managed development installation already has a private environment file; do not overwrite it.
 
-## Installation
+Startup runs Knex migrations. Back up the existing database and upload directory, and rehearse upgrades before deploying. Historical migration files must remain unchanged; apply new forward migrations. Do not rerun seeds against an existing installation or overwrite users/passwords. Seed account initialization must use an explicitly supplied password, not bundled default credentials.
 
-1.  **Clone the repository and navigate to the API directory:**
-    ```bash
-    git clone <repository-url>
-    cd mss-api
-    ```
+Default API port: **4000**. MSS web development uses **5174**. These are distinct from ItsNoSecret and Streaming-Platform services.
 
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
+## Streaming boundary
 
-3.  **Install FFmpeg (if not already installed):**
-    *   **Ubuntu/Debian:** `sudo apt update && sudo apt install ffmpeg`
-    *   **macOS (Homebrew):** `brew install ffmpeg`
-    *   **Windows (Chocolatey):** `choco install ffmpeg`
+MSS does **not** host an RTMP server, media transcoder or streaming-channel management service. Manually create each artist's channel in Streaming-Platform, then have an MSS administrator assign its exact, case-sensitive channel name. Automatic provisioning is intentionally out of scope.
 
-4.  **Install and run Redis:**
-    *   Follow the official Redis installation guide: [https://redis.io/docs/getting-started/installation/](https://redis.io/docs/getting-started/installation/)
+- `REDIS_URL`: server-side discovery connection; when omitted, node-redis's local default is used.
+- `MEDIA_BASE_URL`: optional public HTTP(S) media base. Set this to the actual media service URL if clients need the optional HTTP-FLV `playUrl`. MSS does not invent a public localhost fallback.
+- `STREAM_DISCOVERY_TIMEOUT_MS`: bounded discovery operation timeout; default 2000 milliseconds, maximum 10000.
+- `streaming_platform_url`: site setting pointing to the Streaming-Platform **web application**, not the MSS API or RTMP ingest endpoint.
 
-## Running the Application
+The Redis `live_streams` hash is read-only to MSS. Invalid individual rows do not hide healthy streams. A dependency outage is reported as unavailable, not as a healthy offline result. MSS does not create/delete channels or infer expiry from a stream's start time.
 
-1.  **Start the server:**
-    ```bash
-    node index.js
-    ```
+Streaming-Platform's channel authorization, password-protected playback and platform player behavior remain responsibilities of that separate application. MSS authentication is not shared with it.
 
-2.  The server will run on **`http://localhost:4000`**. The RTMP server will run on port **`1935`** and the HTTP-FLV server on port **`8000`**.
+## Browser deployment
 
-3.  The server will automatically create and migrate the `mss.db` SQLite database file on its first run.
+During development, Vite proxies `/api` and `/uploads` to this API. In production, configure the reverse proxy to serve those paths before the SPA fallback. Alternatively build the frontend with an explicit `VITE_API_URL` and configure `CORS_ORIGINS` with the frontend's exact HTTP(S) origin (comma-separated for multiple origins; no wildcard or URL paths). `HOST` defaults to `127.0.0.1`; container deployments that need port publishing must explicitly set `HOST=0.0.0.0` and restrict exposure using their reverse proxy/network configuration. Use HTTPS for an exposed deployment and restrict network access to the database and Redis.
 
-## Broadcasting Instructions (for Artists)
+## Verification
 
-To stream to the Syndicate hub, artists must configure their broadcasting software (e.g., OBS, Streamlabs) with the following settings:
+```sh
+npm test
+npm audit
+npm audit --omit=dev
+```
 
--   **Service:** `Custom...`
--   **Server URL:** `rtmp://localhost:1935/live`
--   **Stream Key:** `{your-artist-slug}/{your-private-guid}`
-
-The unique Stream Key can be found on the **Artist Update** page within the web application. Clicking the "Regenerate Key" button will invalidate the old key and create a new one.
-
-## API Endpoints
-
-A summary of the main API endpoints. Note that most are protected and require authentication.
-
-### Public Endpoints
--   `GET /api/artists`: Get a list of all public artist profiles.
--   `GET /api/artists/:id`: Get a specific artist's public profile.
--   `GET /api/streams`: Get a list of currently active live streams.
-
-### Admin & Authenticated Endpoints
--   `POST /api/auth/login`: Log in to get an auth token.
--   `GET /api/admin/stats`: (Admin only) Get real-time RTMP server statistics.
--   `POST /api/artists/:id/stream-key`: (Owner only) Regenerate a new stream key.
--   `PUT /api/artists/:id`: (Owner only) Update artist details, including social links and Twitch keys.
--   And more for user and artist management...
-
----
-
-*This README was generated by Gemini.*
+Backend regression tests must not modify the live development database. Native database upgrade/CRUD verification uses a uniquely named disposable PostgreSQL database. See `../docs/audit-hardening.md` for verified results and remaining limitations.

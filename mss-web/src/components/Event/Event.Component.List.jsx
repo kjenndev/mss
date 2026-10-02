@@ -1,3 +1,5 @@
+import Alert from '@mui/material/Alert';
+import { getImageUrl } from '../../config';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
@@ -22,17 +24,22 @@ const darkTheme = createTheme({
 });
 
 export default function EventList() {
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [events, setEvents] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    helpers.GetAllEvents().then(async (response) => {
-      if (response.ok) {
-        const data = await response.json();
-        setEvents(data.events || []);
-      }
-    });
-  }, []);
+    let active = true;
+    helpers.GetAllEvents().then(async response => {
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      if (active) { setEvents(data.events || []); setError(''); }
+    }).catch(() => { if (active) setError('Unable to load events.'); });
+    return () => { active = false; };
+  }, [attempt]);
+
+  if (error) return <Alert severity="error">{error}<Button onClick={() => setAttempt(n => n + 1)}>Retry</Button></Alert>;
 
   return (
     <Container className={styles.container}>
@@ -50,12 +57,12 @@ export default function EventList() {
           <Box className={styles.listContent}>
             <Grid container spacing={3} className={styles.cardGrid}>
               {events.map((event) => (
-                <Grid item xs="auto" key={event.id}>
+                <Grid size={{ xs: "auto" }} key={event.id}>
                   <Card className={styles.eventCard}>
                     {event.flyer ? (
                       <CardMedia
                         component="img"
-                        image={event.flyer.startsWith('http') ? event.flyer : `http://localhost:4000${event.flyer}`}
+                        image={getImageUrl(event.flyer)}
                         alt={event.title}
                         className={styles.eventImage}
                       />
@@ -75,17 +82,17 @@ export default function EventList() {
                     </CardContent>
 
                     <CardActions style={{ marginTop: 'auto' }}>
-                      <Button 
-                        onClick={() => navigate(`/events/${event.id}`)} 
-                        size="small" 
+                      <Button
+                        onClick={() => navigate(`/events/${event.id}`)}
+                        size="small"
                         variant="outlined"
                         sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600 }}
                       >
                         Details
                       </Button>
                       {helpers.CanEditEvent(event) && (
-                        <Button 
-                          onClick={() => navigate(`/events/${event.id}/update`)} 
+                        <Button
+                          onClick={() => navigate(`/events/${event.id}/update`)}
                           size="small"
                           sx={{ textTransform: 'none' }}
                         >

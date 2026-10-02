@@ -25,6 +25,7 @@ const darkTheme = createTheme({
 
 export default function UserProfile() {
   const [user, setUser] = useState({ username: '', display_name: '', password: '', confirmPassword: '' });
+  const [originalUsername, setOriginalUsername] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
@@ -37,11 +38,12 @@ export default function UserProfile() {
         const res = await helpers.GetCurrentUser();
         if (res.ok) {
           const data = await res.json();
-          setUser({ 
-            username: data.user.username, 
-            display_name: data.user.display_name || '', 
-            password: '', 
-            confirmPassword: '' 
+          setOriginalUsername(data.user.username);
+          setUser({
+            username: data.user.username,
+            display_name: data.user.display_name || '',
+            password: '',
+            confirmPassword: ''
           });
         } else {
           navigate('/login');
@@ -71,15 +73,15 @@ export default function UserProfile() {
             setSaving(false);
             return;
         }
-        if (user.password.length < 4) {
-            setError('Password must be at least 4 characters');
+        if (user.password.length < 12 || user.password.length > 1024) {
+            setError('Password must be between 12 and 1024 characters');
             setSaving(false);
             return;
         }
     }
 
     try {
-      const updateData = { 
+      const updateData = {
         username: user.username,
         display_name: user.display_name
       };
@@ -89,6 +91,11 @@ export default function UserProfile() {
 
       const res = await helpers.UpdateMyProfile(updateData);
       if (res.ok) {
+        if (user.password || user.username !== originalUsername) {
+          helpers.clearSession();
+          navigate('/login', { replace: true, state: { message: 'Account credentials updated. Please sign in again.' } });
+          return;
+        }
         setSuccess('Profile updated successfully');
         setUser({ ...user, password: '', confirmPassword: '' });
         // Update local storage if username changed
@@ -118,7 +125,7 @@ export default function UserProfile() {
       <ThemeProvider theme={darkTheme}>
         <Paper elevation={4} className={styles.profilePaper}>
           <Typography variant="h4" className={styles.title}>Account Settings</Typography>
-          
+
           <Stack spacing={3}>
             <TextField
               label="Username"
@@ -140,7 +147,7 @@ export default function UserProfile() {
               variant="outlined"
               helperText="This is the name that will show with your comments."
             />
-            
+
             <TextField
               label="New Password"
               name="password"
@@ -151,7 +158,7 @@ export default function UserProfile() {
               fullWidth
               className={styles.inputField}
               variant="outlined"
-              helperText="Only fill this out if you want to change your password."
+              helperText="Use 12–1024 characters, or leave blank to keep your current password."
             />
 
             <TextField
@@ -169,15 +176,15 @@ export default function UserProfile() {
             {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
             <Box className={styles.footer}>
-              <Button 
-                variant="outlined" 
+              <Button
+                variant="outlined"
                 onClick={() => navigate(-1)}
                 disabled={saving}
               >
                 Cancel
               </Button>
-              <Button 
-                variant="contained" 
+              <Button
+                variant="contained"
                 onClick={handleSave}
                 disabled={saving}
                 className={styles.saveButton}

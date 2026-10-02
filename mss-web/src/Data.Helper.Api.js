@@ -1,16 +1,16 @@
-const API_BASE = 'http://localhost:4000/api';
+import { API_BASE } from './config';
 
 function dispatchAuthChange() {
   window.dispatchEvent(new CustomEvent('mss-auth-change'));
 }
 
-function setSession(session) {
+function setSession(session, notify = true) {
   localStorage.setItem('mss-token', session.token);
   localStorage.setItem('mss-user', session.user.username);
   localStorage.setItem('mss-user-id', session.user.id);
   localStorage.setItem('mss-role', session.user.role);
   localStorage.setItem('mss-artist-id', session.user.artist_id || '');
-  dispatchAuthChange();
+  if (notify) dispatchAuthChange();
 }
 
 function clearSession() {
@@ -32,7 +32,8 @@ function getAuthHeaders() {
 }
 
 async function request(path, method = 'GET', body = null, auth = true, formData = false) {
-  const headers = formData ? {} : getAuthHeaders();
+  const sentToken = auth ? localStorage.getItem('mss-token') : null;
+  const headers = formData ? {} : auth ? getAuthHeaders() : { 'Content-Type': 'application/json' };
   if (formData && auth) {
     const token = localStorage.getItem('mss-token');
     if (token) {
@@ -41,9 +42,11 @@ async function request(path, method = 'GET', body = null, auth = true, formData 
   }
   const response = await fetch(`${API_BASE}${path}`, {
     method,
+    signal: AbortSignal.timeout(15000),
     headers,
     body: formData ? body : body ? JSON.stringify(body) : undefined,
   });
+  if (response.status === 401 && sentToken && localStorage.getItem('mss-token') === sentToken) clearSession();
   return response;
 }
 
@@ -57,13 +60,18 @@ async function Authenticate(data) {
 }
 
 async function Logout() {
-  const response = await request('/auth/logout', 'POST');
+  const pending = request('/auth/logout', 'POST');
   clearSession();
-  return response;
+  try { return await pending; } catch { return null; }
 }
 
 async function GetCurrentUser() {
+  const token = localStorage.getItem('mss-token');
   const response = await request('/auth/me', 'GET');
+  if (response.ok && token && token === localStorage.getItem('mss-token')) {
+    const { user } = await response.clone().json();
+    if (token === localStorage.getItem('mss-token')) setSession({ token, user }, false);
+  }
   return response;
 }
 
@@ -93,6 +101,7 @@ async function CreateArtist(data) {
 
 async function UpdateArtist(data) {
   const updateData = {
+    user_id: data.user_id,
     name: data.name,
     location: data.location,
     description: data.description,
@@ -216,8 +225,10 @@ async function GetArtistEvents(artistId) {
   return await request(`/artists/${artistId}/events`, 'GET', null, false);
 }
 
-async function GetComments(params) {
-  const query = new URLSearchParams(params).toString();
+async function GetComments({ artist_id, event_id, after_id, offset, limit } = {}) {
+  // Cursor paging is deletion-safe; retain offset for legacy callers.
+  const params = { artist_id, event_id, after_id, offset, limit };
+  const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null)).toString();
   return await request(`/comments?${query}`, 'GET', null, false);
 }
 
@@ -259,10 +270,10 @@ function IsAdmin() {
 
 function CanEditArtist(artistId, artistOwnerId = null) {
   if (IsAdmin()) return true;
-  
+
   const userArtistId = GetSessionArtistId();
   const userId = GetSessionUserId();
-  
+
   const targetArtistId = Number(artistId);
   const targetOwnerId = artistOwnerId !== null ? Number(artistOwnerId) : null;
 
