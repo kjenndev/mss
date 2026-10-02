@@ -46,14 +46,15 @@ export default function CreateArtist() {
   }
 
   async function handleCreate() {
+    if (artist.channel_name && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(artist.channel_name)) { setError('Channel name must be 1–100 letters, numbers, underscores or hyphens and start with a letter or number.'); return; }
     if (!artist.name.trim()) {
       setError('Artist name is required.');
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await helpers.CreateArtist(artist);
       if (!response.ok) {
@@ -82,78 +83,79 @@ export default function CreateArtist() {
             </Box>
 
             <Stack spacing={3}>
-              <TextField 
+              <TextField
                 fullWidth
-                label="Artist Name" 
-                name="name" 
-                variant="outlined" 
-                value={artist.name} 
+                label="Artist Name"
+                name="name"
+                variant="outlined"
+                value={artist.name}
                 onChange={handleArtistChange}
                 required
               />
-              <TextField 
+              <TextField
                 fullWidth
-                label="Location" 
-                name="location" 
-                variant="outlined" 
-                value={artist.location} 
-                onChange={handleArtistChange} 
+                label="Location"
+                name="location"
+                variant="outlined"
+                value={artist.location}
+                onChange={handleArtistChange}
               />
-              <TextField 
+              <TextField
                 fullWidth
-                label="Description" 
-                name="description" 
-                variant="outlined" 
-                multiline 
-                minRows={4} 
-                value={artist.description} 
-                onChange={handleArtistChange} 
+                label="Description"
+                name="description"
+                variant="outlined"
+                multiline
+                minRows={4}
+                value={artist.description}
+                onChange={handleArtistChange}
               />
 
               <Box className={styles.sectionBox}>
                 <Typography variant="h6" className={styles.sectionHeader}>Social & Streaming Links</Typography>
-                
+
                 <Stack spacing={3}>
-                  <TextField 
+                  <TextField
                     fullWidth
-                    label="Twitch Username" 
-                    name="twitch" 
-                    variant="outlined" 
-                    value={artist.twitch} 
-                    onChange={handleArtistChange} 
+                    label="Twitch Username"
+                    name="twitch"
+                    variant="outlined"
+                    value={artist.twitch}
+                    onChange={handleArtistChange}
                   />
-                  <TextField 
+                  <TextField
                     fullWidth
-                    label="Streaming Platform Channel Name" 
-                    name="channel_name" 
-                    variant="outlined" 
-                    value={artist.channel_name} 
-                    onChange={handleArtistChange} 
+                    label="Streaming Platform Channel Name"
+                    name="channel_name"
+                    variant="outlined"
+                    value={artist.channel_name}
+                    onChange={handleArtistChange}
                     placeholder="e.g. kyle-stream"
+                    helperText="Use the exact existing SP channel. Manual SP provisioning and account assignments are separate."
                   />
-                  <TextField 
+                  <TextField
                     fullWidth
-                    label="SoundCloud URL" 
-                    name="soundcloud" 
-                    variant="outlined" 
-                    value={artist.soundcloud} 
-                    onChange={handleArtistChange} 
+                    label="SoundCloud URL"
+                    name="soundcloud"
+                    variant="outlined"
+                    value={artist.soundcloud}
+                    onChange={handleArtistChange}
                   />
-                  <TextField 
+                  <TextField
                     fullWidth
-                    label="Mixcloud URL" 
-                    name="mixcloud" 
-                    variant="outlined" 
-                    value={artist.mixcloud} 
-                    onChange={handleArtistChange} 
+                    label="Mixcloud URL"
+                    name="mixcloud"
+                    variant="outlined"
+                    value={artist.mixcloud}
+                    onChange={handleArtistChange}
                   />
-                  <TextField 
+                  <TextField
                     fullWidth
-                    label="YouTube URL" 
-                    name="youtube" 
-                    variant="outlined" 
-                    value={artist.youtube} 
-                    onChange={handleArtistChange} 
+                    label="YouTube URL"
+                    name="youtube"
+                    variant="outlined"
+                    value={artist.youtube}
+                    onChange={handleArtistChange}
                   />
                 </Stack>
               </Box>
@@ -167,15 +169,15 @@ export default function CreateArtist() {
             {error && <Alert severity="error">{error}</Alert>}
 
             <Box className={styles.formFooter}>
-              <Button 
-                variant="outlined" 
+              <Button
+                variant="outlined"
                 onClick={() => navigate('/artists')}
                 disabled={loading}
               >
                 Cancel
               </Button>
-              <Button 
-                variant="contained" 
+              <Button
+                variant="contained"
                 onClick={handleCreate}
                 disabled={loading}
                 startIcon={loading && <CircularProgress size={20} color="inherit" />}

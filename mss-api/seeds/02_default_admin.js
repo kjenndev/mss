@@ -1,19 +1,11 @@
-import crypto from 'crypto';
+import { hashPassword } from '../db.js';
 
-/**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> } 
- */
-export const seed = async function(knex) {
-  const adminUser = await knex('users').where({ username: 'admin' }).first();
-  if (!adminUser) {
-    const passwordHash = crypto.createHash('md5').update('admin').digest('hex');
-    await knex('users').insert({
-      username: 'admin',
-      password: passwordHash,
-      role: 'admin',
-      display_name: 'Administrator'
-    });
-    console.log('Created default admin user: admin / admin');
-  }
-};
+// Explicit one-time provisioning only; never reset an existing account.
+export async function seed(knex) {
+  const username = process.env.MSS_ADMIN_USERNAME || 'admin';
+  if (username.length > 100 || !username.trim()) throw new Error('Invalid MSS_ADMIN_USERNAME');
+  if (await knex('users').where({ username }).first()) return;
+  const password = process.env.MSS_ADMIN_PASSWORD;
+  if (typeof password !== 'string' || password.length < 12 || password.length > 1024) throw new Error('Set MSS_ADMIN_PASSWORD to an explicit 12–1024 character secret before provisioning');
+  await knex('users').insert({ username, password: await hashPassword(password), role: 'admin', display_name: 'Administrator' });
+}

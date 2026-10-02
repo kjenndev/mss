@@ -1,3 +1,6 @@
+import Alert from '@mui/material/Alert';
+import { poll } from '../poll';
+import { getImageUrl, watchUrl } from '../config';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
@@ -37,6 +40,9 @@ const darkTheme = createTheme({
 
 export default function Home() {
   const navigate = useNavigate();
+  const [contentError, setContentError] = useState('');
+  const [streamError, setStreamError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [live, setLive] = useState([]);
   const [feed, setFeed] = useState([]);
   const [images, setImages] = useState([]);
@@ -44,13 +50,8 @@ export default function Home() {
   const [settings, setSettings] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isStreamPaused, setIsStreamPaused] = useState(false);
+  const [pausedChannel, setPausedChannel] = useState(null);
 
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return `http://localhost:4000${path}`;
-  };
 
   const getPlatformIcon = (platform) => {
     switch (platform) {
@@ -64,96 +65,49 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const fetchLiveData = () => {
-      // Strictly pull active streams from our RTMP server
-      helpers.GetActiveSyndicateStreams().then(async (res) => {
-        if (res.ok) {
-          const data = await res.json();
-          
-          // Map active streams to the carousel format
-          const active = (data.streams || []).map(s => ({
-            id: s.artistId,
-            name: s.artistName,
-            channelName: s.channelName,
-            slug: s.streamKey,
-            live: true,
-            playUrl: s.playUrl,
-            hlsUrl: s.hlsUrl,
-            twitchUrl: s.twitchUrl,
-            startedAt: s.startedAt
-          }));
-          
-          setLive(active);
+    let active = true;
+    const stop = poll(async () => {
+      try {
+        const response = await helpers.GetActiveSyndicateStreams();
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        if (active) {
+          setLive((data.streams || []).map(stream => ({ id: stream.artistId, name: stream.artistName, channelName: stream.channelName, startedAt: stream.startedAt })));
+          setStreamError('');
         }
-      });
-    };
-
-    fetchLiveData();
-    const interval = setInterval(fetchLiveData, 10000); // Poll every 10 seconds for faster updates
-
-    return () => clearInterval(interval);
+      } catch { if (active) { setLive([]); setStreamError('Live status unavailable. Retrying automatically.'); } }
+    });
+    return () => { active = false; stop(); };
   }, []);
 
   useEffect(() => {
-    // 2. Fetch Global Feed
-    helpers.GetGlobalFeed().then((res) => {
-      if (res.ok) {
-        res.json().then((data) => setFeed(data.feed || []));
+    let active = true;
+    Promise.all([helpers.GetGlobalFeed(), helpers.GetSettings(), helpers.GetAllEvents(), helpers.GetAllImages()]).then(async responses => {
+      if (responses.some(response => !response.ok)) throw new Error();
+      const [feedData, settingsData, eventData, imageData] = await Promise.all(responses.map(response => response.json()));
+      if (active) {
+        setFeed(feedData.feed || []); setSettings(settingsData.settings || {}); setImages(imageData.images || []);
+        setUpcomingEvents((eventData.events || []).filter(event => event.date && new Date(event.date) > new Date()).sort((a,b) => new Date(a.date) - new Date(b.date)).slice(0,6));
+        setContentError('');
       }
-    });
-
-    // 2.2 Fetch System Settings
-    helpers.GetSettings().then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        setSettings(data.settings || {});
-      }
-    });
-
-    // 2.5 Fetch Upcoming Events
-    helpers.GetAllEvents().then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        const now = new Date();
-        const upcoming = (data.events || [])
-          .filter(e => e.date && new Date(e.date) > now)
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
-          .slice(0, 6);
-        setUpcomingEvents(upcoming);
-      }
-    });
-
-    // 3. Fetch Global Gallery
-    helpers.GetAllImages()
-      .then(async (res) => {
-        if (res.ok) {
-          const data = await res.json();
-          console.log('Home: Successfully fetched gallery images:', data.images);
-          setImages(data.images || []);
-        } else {
-          console.error('Home: Failed to fetch gallery images, status:', res.status);
-        }
-      })
-      .catch(err => {
-        console.error('Home: Error fetching gallery images:', err);
-      });
-  }, []);
-
-  useEffect(() => {
-    setIsStreamPaused(false);
-  }, [currentIndex, live]);
+    }).catch(() => { if (active) setContentError('Unable to load home content.'); });
+    return () => { active = false; };
+  }, [attempt]);
 
   const handleJoinChat = (channelName) => {
-    setIsStreamPaused(true);
-    const url = `${settings.streaming_platform_url || 'http://localhost:5174'}/watch/${channelName}`;
-    window.open(url, '_blank');
+    const url = watchUrl(settings.streaming_platform_url, channelName);
+    if (!url) return;
+    setPausedChannel(channelName);
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const currentLive = live.length ? live[currentIndex] : null;
+  const currentLive = live.length ? live[currentIndex % live.length] : null;
 
   return (
     <Container className={styles.container}>
       <ThemeProvider theme={darkTheme}>
+        {streamError && <Alert severity="warning">{streamError}</Alert>}
+        {contentError && <Alert severity="error">{contentError}<Button onClick={() => setAttempt(n => n + 1)}>Retry content</Button></Alert>}
         {/* Branding Section */}
         <Paper elevation={3} className={styles.sectionPaper}>
           <Typography variant="h3" gutterBottom sx={{ fontWeight: 800 }}>
@@ -176,51 +130,51 @@ export default function Home() {
                     <Typography variant="caption" sx={{ fontWeight: 800, textTransform: 'uppercase' }}>LIVE</Typography>
                   </Box>
                 </Box>
-                
+
                 <Typography variant="caption" color="text.secondary">
                   Stream {currentIndex + 1} of {live.length}
                 </Typography>
               </Box>
 
               <Box sx={{ mb: 2 }}>
-                <SyndicatePlayer 
-                  channelName={currentLive.channelName} 
-                  isPaused={isStreamPaused}
-                  onResume={() => setIsStreamPaused(false)}
+                <SyndicatePlayer
+                  channelName={currentLive.channelName}
+                  isPaused={pausedChannel === currentLive.channelName}
+                  onResume={() => setPausedChannel(null)}
                 />
               </Box>
 
               <Box className={styles.carouselControls}>
                 <Box className={styles.buttonGroup}>
-                  <Button 
+                  <Button
                     variant="outlined"
                     startIcon={<NavigateBeforeIcon />}
-                    disabled={live.length <= 1} 
+                    disabled={live.length <= 1}
                     onClick={() => setCurrentIndex((currentIndex - 1 + live.length) % live.length)}
                     sx={{ borderRadius: 2 }}
                   >
                     Prev
                   </Button>
-                  <Button 
+                  <Button
                     variant="outlined"
                     endIcon={<NavigateNextIcon />}
-                    disabled={live.length <= 1} 
+                    disabled={live.length <= 1}
                     onClick={() => setCurrentIndex((currentIndex + 1) % live.length)}
                     sx={{ borderRadius: 2 }}
                   >
                     Next
                   </Button>
                 </Box>
-                
-                {currentLive?.channelName && (
-                  <Button 
+
+                {watchUrl(settings.streaming_platform_url, currentLive?.channelName) && (
+                  <Button
                     onClick={() => handleJoinChat(currentLive.channelName)}
                     variant="contained"
                     size="small"
                     className={styles.openTwitchButton}
                     sx={{ borderRadius: '20px', textTransform: 'none', px: 3 }}
                   >
-                    Join Chat
+                    Open platform player
                   </Button>
                 )}
               </Box>
@@ -241,19 +195,19 @@ export default function Home() {
             </Box>
             <Grid container spacing={3} justifyContent="center">
               {upcomingEvents.map((event) => (
-                <Grid item xs="auto" key={`event-${event.id}`}>
+                <Grid size={{ xs: "auto" }} key={`event-${event.id}`}>
                   <Card className={styles.eventCard}>
                     {event.flyer ? (
                       <Box className={styles.eventFlyerWrapper} onClick={() => navigate(`/events/${event.id}`)}>
-                        <img 
-                          src={getImageUrl(event.flyer)} 
-                          alt={event.title} 
+                        <img
+                          src={getImageUrl(event.flyer)}
+                          alt={event.title}
                           className={styles.eventFlyer}
                         />
                       </Box>
                     ) : (
-                      <Box 
-                        className={styles.eventPlaceholder} 
+                      <Box
+                        className={styles.eventPlaceholder}
                         onClick={() => navigate(`/events/${event.id}`)}
                       >
                         <Typography variant="h5" color="text.secondary">NO FLYER</Typography>
@@ -271,9 +225,9 @@ export default function Home() {
                       </Typography>
                     </CardContent>
                     <CardActions className={styles.cardActions}>
-                      <Button 
+                      <Button
                         onClick={() => navigate(`/events/${event.id}`)}
-                        size="small" 
+                        size="small"
                         variant="outlined"
                         className={styles.viewButton}
                       >
@@ -294,12 +248,12 @@ export default function Home() {
           </Typography>
           <Grid container spacing={3} justifyContent="center">
             {feed.map((item, index) => (
-              <Grid item xs="auto" key={`feed-${index}`}>
+              <Grid size={{ xs: "auto" }} key={`feed-${index}`}>
                 <Card className={styles.feedCard}>
                   <CardContent className={styles.cardContent}>
                     <Box className={styles.artistAvatarRow}>
-                      <Avatar 
-                        src={getImageUrl(item.artistImage)} 
+                      <Avatar
+                        src={getImageUrl(item.artistImage)}
                         sx={{ width: 44, height: 44, bgcolor: 'primary.main', border: '2px solid rgba(255,255,255,0.1)' }}
                       >
                         {item.artistName?.charAt(0)}
@@ -321,14 +275,15 @@ export default function Home() {
                     </Typography>
                   </CardContent>
                   <CardActions className={styles.cardActions}>
-                    <Button 
-                      href={item.url.startsWith('/watch/') ? `${settings.streaming_platform_url || 'http://localhost:5174'}${item.url}` : item.url} 
-                      target="_blank" 
-                      size="small" 
+                    <Button
+                      disabled={item.url.startsWith('/watch/') && !watchUrl(settings.streaming_platform_url, item.url.slice(7))}
+                      href={item.url.startsWith('/watch/') ? watchUrl(settings.streaming_platform_url, item.url.slice(7)) || undefined : item.url}
+                      target="_blank"
+                      size="small"
                       variant="outlined"
                       className={styles.viewButton}
                     >
-                      {item.platform === 'Syndicate Live' ? 'Join Chat' : 'View'}
+                      {item.platform === 'Syndicate Live' ? 'Open platform player' : 'View'}
                     </Button>
                   </CardActions>
                 </Card>
@@ -345,19 +300,19 @@ export default function Home() {
           <Box className={styles.galleryGrid}>
             {(!images || images.length === 0) ? (
               <Box sx={{ py: 8, textAlign: 'center', width: '100%' }}>
-                <Typography color="text.secondary">No photos have been uploaded to the Syndicate yet.</Typography>
+                <Typography color="text.secondary">{contentError ? 'Gallery unavailable.' : 'No photos have been uploaded to the Syndicate yet.'}</Typography>
               </Box>
             ) : (
               images.filter(img => img && img.url).map((image) => (
-                <Box 
-                  key={`global-img-${image.id}`} 
+                <Box
+                  key={`global-img-${image.id}`}
                   className={styles.galleryItem}
                   onClick={() => setSelectedImage(image.url)}
                 >
-                  <img 
-                    src={getImageUrl(image.url)} 
-                    alt="Syndicate upload" 
-                    className={styles.galleryImage} 
+                  <img
+                    src={getImageUrl(image.url)}
+                    alt="Syndicate upload"
+                    className={styles.galleryImage}
                   />
                 </Box>
               ))
@@ -373,9 +328,9 @@ export default function Home() {
           PaperProps={{ className: styles.lightboxOverlay }}
         >
           <DialogContent className={styles.lightboxContent}>
-            <img 
-              src={selectedImage ? getImageUrl(selectedImage) : ''} 
-              alt="Gallery Lightbox" 
+            <img
+              src={selectedImage ? getImageUrl(selectedImage) : ''}
+              alt="Gallery Lightbox"
               className={styles.lightboxImage}
               onClick={() => setSelectedImage(null)}
             />

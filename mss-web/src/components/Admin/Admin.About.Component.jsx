@@ -1,5 +1,6 @@
+import { sanitizeRichText } from '../../sanitize';
+import { getImageUrl } from '../../config';
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -30,34 +31,39 @@ export default function AdminAboutEditor() {
   const [content, setContent] = useState('');
   const [coverPhoto, setCoverPhoto] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [file, setFile] = useState(null);
-  const [apiUrl, setApiUrl] = useState('http://localhost:4000');
 
   useEffect(() => {
-    fetchAboutSettings();
-  }, []);
-
-  async function fetchAboutSettings() {
-    try {
-      const response = await helpers.GetSettings();
-      if (response.ok) {
-        const data = await response.json();
-        setContent(data.settings?.about_content || '');
-        setCoverPhoto(data.settings?.about_cover_photo || '');
-        if (data.settings?.api_base_url) {
-            setApiUrl(data.settings.api_base_url);
+    let cancelled = false;
+    async function fetchAboutSettings() {
+      setLoading(true);
+      setLoadError('');
+      try {
+        const response = await helpers.GetSettings();
+        if (!response.ok) throw new Error('Failed to load settings');
+        const { settings } = await response.json();
+        if (!settings || typeof settings !== 'object' || Array.isArray(settings) ||
+            (settings.about_content != null && typeof settings.about_content !== 'string') ||
+            (settings.about_cover_photo != null && typeof settings.about_cover_photo !== 'string')) {
+          throw new Error('Invalid settings response');
         }
+        if (cancelled) return;
+        setContent(sanitizeRichText(settings.about_content ?? ''));
+        setCoverPhoto(settings.about_cover_photo ?? '');
+      } catch {
+        if (!cancelled) setLoadError('Failed to load settings');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load settings');
-    } finally {
-      setLoading(false);
     }
-  }
+    fetchAboutSettings();
+    return () => { cancelled = true; };
+  }, [attempt]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -65,20 +71,15 @@ export default function AdminAboutEditor() {
     }
   };
 
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    const separator = path.includes('?') ? '&' : '?';
-    return `${apiUrl}${path}${separator}t=${new Date().getTime()}`;
-  };
 
   const handleSave = async () => {
+    if (loading || loadError) return;
     setSaving(true);
     setError('');
     setSuccess('');
     try {
       const updates = [
-        { key: 'about_content', value: content }
+        { key: 'about_content', value: sanitizeRichText(content) }
       ];
 
       // 1. Handle Image Upload if selected
@@ -119,6 +120,8 @@ export default function AdminAboutEditor() {
     );
   }
 
+  if (loadError) return <Alert severity="error">{loadError}<Button onClick={() => setAttempt(value => value + 1)}>Retry</Button></Alert>;
+
   const quillModules = {
     toolbar: [
       [{ 'header': [1, 2, 3, false] }],
@@ -144,7 +147,7 @@ export default function AdminAboutEditor() {
           <Stack spacing={4}>
             <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
               <Typography variant="h6" gutterBottom color="primary.main" sx={{ fontWeight: 700 }}>Cover Photo</Typography>
-              
+
               {coverPhoto && (
                 <Box sx={{ mb: 2, borderRadius: 2, overflow: 'hidden', height: 200, bgcolor: '#000' }}>
                     <img src={getImageUrl(coverPhoto)} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -169,18 +172,19 @@ export default function AdminAboutEditor() {
             </Box>
 
             <Box sx={{ bgcolor: '#fff', color: '#000', borderRadius: 2, overflow: 'hidden' }}>
-              <ReactQuill 
-                theme="snow" 
-                value={content} 
-                onChange={setContent} 
+              <ReactQuill
+                theme="snow"
+                value={sanitizeRichText(content)}
+                onChange={setContent}
                 modules={quillModules}
+                formats={['header', 'bold', 'italic', 'underline', 'strike', 'blockquote', 'list', 'link', 'code-block']}
                 style={{ height: '400px', marginBottom: '50px' }}
               />
             </Box>
 
             <Box display="flex" justifyContent="flex-end" sx={{ mt: 2 }}>
-              <Button 
-                variant="contained" 
+              <Button
+                variant="contained"
                 size="large"
                 startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
                 onClick={handleSave}

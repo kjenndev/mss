@@ -1,5 +1,6 @@
+import Alert from '@mui/material/Alert';
+import { getImageUrl } from '../../config';
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -12,7 +13,6 @@ import CardContent from '@mui/material/CardContent';
 import CardActions from '@mui/material/CardActions';
 import CardMedia from '@mui/material/CardMedia';
 
-import DeleteArtist from './Artist.Component.Delete';
 import * as helpers from '../../Data.Helper.Api';
 import styles from './Artist.Component.List.module.css';
 
@@ -23,19 +23,21 @@ const darkTheme = createTheme({
 });
 
 export default function ArtistList() {
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [artists, setArtists] = useState([]);
-  const navigate = useNavigate();
 
   useEffect(() => {
-    helpers.GetAllArtists().then(async (response) => {
-      if (!response.ok) {
-        navigate('/login');
-        return;
-      }
+    let active = true;
+    helpers.GetAllArtists().then(async response => {
+      if (!response.ok) throw new Error();
       const data = await response.json();
-      setArtists(data.artists || []);
-    });
-  }, [navigate]);
+      if (active) { setArtists(data.artists || []); setError(''); }
+    }).catch(() => { if (active) setError('Unable to load artists.'); });
+    return () => { active = false; };
+  }, [attempt]);
+
+  if (error) return <Alert severity="error">{error}<Button onClick={() => setAttempt(n => n + 1)}>Retry</Button></Alert>;
 
   return (
     <Container className={styles.container}>
@@ -47,12 +49,12 @@ export default function ArtistList() {
         <Box className={styles.listWrapper}>
           <Grid container spacing={3} className={styles.cardGrid}>
             {artists.map((artist) => (
-              <Grid item xs="auto" key={artist.id}>
+              <Grid size={{ xs: "auto" }} key={artist.id}>
                 <Card className={styles.artistCard}>
                   {artist.profile_picture ? (
                     <CardMedia
                       component="img"
-                      image={artist.profile_picture.startsWith('http') ? artist.profile_picture : `http://localhost:4000${artist.profile_picture}`}
+                      image={getImageUrl(artist.profile_picture)}
                       alt={artist.name}
                       className={styles.artistImage}
                     />
@@ -66,17 +68,17 @@ export default function ArtistList() {
                     <Typography color="text.secondary" noWrap>{artist.location || 'Unknown Location'}</Typography>
                   </CardContent>
                   <CardActions>
-                    <Button 
-                      href={`/artists/${artist.id}`} 
-                      size="small" 
+                    <Button
+                      href={`/artists/${artist.id}`}
+                      size="small"
                       variant="outlined"
                       sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600 }}
                     >
                       View Profile
                     </Button>
                     {helpers.CanEditArtist(artist.id, artist.user_id) && (
-                      <Button 
-                        href={`/artists/${artist.id}/update`} 
+                      <Button
+                        href={`/artists/${artist.id}/update`}
                         size="small"
                         sx={{ textTransform: 'none' }}
                       >

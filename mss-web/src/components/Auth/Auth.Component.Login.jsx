@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -22,18 +22,25 @@ export default function Login() {
   const [user, setUser] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const [loading, setLoading] = useState(false);
 
   function handleAuthChange(e) {
     setUser({ ...user, [e.target.name]: e.target.value });
   }
 
   async function handleLogin() {
-    const response = await helpers.Authenticate(user);
-    if (!response.ok) {
-      setError('Invalid username or password');
-      return;
-    }
-    navigate('/');
+    setLoading(true); setError('');
+    try {
+      const response = await helpers.Authenticate(user);
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.error || 'Unable to sign in. Please retry.');
+        return;
+      }
+      navigate('/');
+    } catch { setError('Unable to reach the server. Please retry.'); }
+    finally { setLoading(false); }
   }
 
   return (
@@ -42,6 +49,7 @@ export default function Login() {
         <Box component="form" noValidate autoComplete="off" className={styles.loginBox}>
           <Paper elevation={3} className={styles.loginPaper}>
             <Stack>
+              {location.state?.message && <Typography role="status">{location.state.message}</Typography>}
               <Typography className={styles.loginTitle} variant="h4">
                 Login
               </Typography>
@@ -67,7 +75,7 @@ export default function Login() {
                 fullWidth
               />
               {error && <Typography color="error" className={styles.errorText}>{error}</Typography>}
-              <Button onClick={handleLogin} variant="contained" className={styles.loginButton}>Login</Button>
+              <Button disabled={loading} onClick={handleLogin} variant="contained" className={styles.loginButton}>Login</Button>
             </Stack>
           </Paper>
         </Box>

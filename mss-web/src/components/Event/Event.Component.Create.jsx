@@ -11,7 +11,6 @@ import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
-import dayjs from 'dayjs';
 
 import ArtistDropdown from '../Artist/Artist.Helper.DropDown';
 import * as helpers from '../../Data.Helper.Api';
@@ -30,14 +29,17 @@ export default function CreateEvent() {
   const [event, setEvent] = useState({
     title: '',
     description: '',
-    date: '',
+    date: null,
     location: '',
     ticket_link: '',
     artist_ids: [],
     flyer_artist_name: '',
     flyer_artist_url: '',
   });
+  const [createdId, setCreatedId] = useState(null);
   const [flyer, setFlyer] = useState(null);
+  const [dateError, setDateError] = useState(false);
+  const [dateValue, setDateValue] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -57,35 +59,39 @@ export default function CreateEvent() {
   }
 
   async function handleCreate() {
+    if (dateError) return;
     if (!event.title.trim()) {
       setError('Event title is required.');
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
-      const response = await helpers.CreateEvent(event);
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.error || 'Unable to create event.');
-        setLoading(false);
-        return;
+      let eventId = createdId;
+      if (!eventId) {
+        const response = await helpers.CreateEvent(event);
+        if (!response.ok) {
+          const data = await response.json();
+          setError(data.error || 'Unable to create event.');
+          setLoading(false);
+          return;
+        }
+        const { event: createdEvent } = await response.json();
+        eventId = createdEvent.id;
+        setCreatedId(eventId);
       }
-      
-      const { event: createdEvent } = await response.json();
-      
       if (flyer) {
-        const flyerResponse = await helpers.UploadEventFlyer(createdEvent.id, flyer);
+        const flyerResponse = await helpers.UploadEventFlyer(eventId, flyer);
         if (!flyerResponse.ok) {
             setError('Event created, but flyer upload failed.');
             setLoading(false);
             return;
         }
       }
-      
-      navigate(`/events/${createdEvent.id}`);
+
+      navigate(`/events/${eventId}`);
     } catch (err) {
       console.error(err);
       setError('An unexpected error occurred.');
@@ -105,67 +111,67 @@ export default function CreateEvent() {
               </Typography>
             </Box>
 
-            <Stack spacing={3}>
-              <TextField 
+            <Stack spacing={3} component="fieldset" disabled={Boolean(createdId)} sx={{ border: 0, p: 0, m: 0 }}>
+              <TextField
                 fullWidth
-                label="Event Title" 
-                name="title" 
-                variant="outlined" 
-                value={event.title} 
+                label="Event Title"
+                name="title"
+                variant="outlined"
+                value={event.title}
                 onChange={handleChange}
                 required
               />
               <DateTimePicker
                 label="Date & Time"
-                value={event.date ? dayjs(event.date) : null}
-                onChange={(newValue) => setEvent({ ...event, date: newValue ? newValue.toISOString() : '' })}
+                value={dateValue}
+                onChange={(value) => { setDateValue(value); const invalid = value !== null && !value.isValid(); setDateError(invalid); if (!invalid) setEvent({ ...event, date: value ? value.toISOString() : null }); }}
                 slotProps={{ textField: { fullWidth: true, variant: 'outlined' } }}
               />
-              <TextField 
+              <TextField
                 fullWidth
-                label="Location" 
-                name="location" 
-                variant="outlined" 
-                value={event.location} 
-                onChange={handleChange} 
+                label="Location"
+                name="location"
+                variant="outlined"
+                value={event.location}
+                onChange={handleChange}
               />
-              <TextField 
+              <TextField
                 fullWidth
-                label="Description" 
-                name="description" 
-                variant="outlined" 
-                multiline 
-                minRows={4} 
-                value={event.description} 
-                onChange={handleChange} 
+                label="Description"
+                name="description"
+                variant="outlined"
+                multiline
+                minRows={4}
+                value={event.description}
+                onChange={handleChange}
               />
-              <TextField 
+              <TextField
                 fullWidth
-                label="Ticket Link" 
-                name="ticket_link" 
-                variant="outlined" 
-                value={event.ticket_link} 
-                onChange={handleChange} 
+                label="Ticket Link"
+                name="ticket_link"
+                variant="outlined"
+                value={event.ticket_link}
+                onChange={handleChange}
               />
 
               <Box className={styles.sectionBox}>
                 <Typography variant="h6" className={styles.sectionHeader}>Flyer Artist Credit</Typography>
-                <Stack spacing={3}>
-                  <TextField 
+                <Stack spacing={3} component="fieldset" disabled={Boolean(createdId)} sx={{ border: 0, p: 0, m: 0 }}>
+                  <TextField
                     fullWidth
-                    label="Flyer Artist Name" 
-                    name="flyer_artist_name" 
-                    variant="outlined" 
-                    value={event.flyer_artist_name} 
-                    onChange={handleChange} 
+                    label="Flyer Artist Name"
+                    name="flyer_artist_name"
+                    variant="outlined"
+                    value={event.flyer_artist_name}
+                    onChange={handleChange}
                   />
-                  <TextField 
+                  <TextField
                     fullWidth
-                    label="Flyer Artist URL" 
-                    name="flyer_artist_url" 
-                    variant="outlined" 
-                    value={event.flyer_artist_url} 
-                    onChange={handleChange} 
+                    label="Flyer Artist URL"
+                    name="flyer_artist_url"
+                    variant="outlined"
+                    value={event.flyer_artist_url}
+                    onChange={handleChange}
                   />
                 </Stack>
               </Box>
@@ -192,23 +198,25 @@ export default function CreateEvent() {
               </Box>
             </Stack>
 
+            {dateError && <Alert severity="error">Enter a valid date or clear the date.</Alert>}
             {error && <Alert severity="error">{error}</Alert>}
+            {createdId && <Button onClick={() => navigate(`/events/${createdId}/update`)}>Continue to saved event</Button>}
 
             <Box className={styles.formFooter}>
-              <Button 
-                variant="outlined" 
+              <Button
+                variant="outlined"
                 onClick={() => navigate('/events')}
                 disabled={loading}
               >
                 Cancel
               </Button>
-              <Button 
-                variant="contained" 
+              <Button
+                variant="contained"
                 onClick={handleCreate}
                 disabled={loading}
                 startIcon={loading && <CircularProgress size={20} color="inherit" />}
               >
-                {loading ? 'Creating...' : 'Create Event'}
+                {loading ? 'Saving...' : createdId ? 'Retry flyer upload' : 'Create Event'}
               </Button>
             </Box>
           </Stack>

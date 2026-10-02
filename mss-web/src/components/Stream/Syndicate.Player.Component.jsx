@@ -1,83 +1,32 @@
 import { useState, useEffect } from 'react';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import { Box, Button, Typography, Alert } from '@mui/material';
 import * as helpers from '../../Data.Helper.Api';
+import { watchUrl } from '../../config';
 
-/**
- * SyndicatePlayer acts as an iframe wrapper for the external streaming-platform.
- * Supports auto-pause when a user joins the full chat experience.
- */
+/** Full external platform UI; identity and joining are owned by that platform. */
 export default function SyndicatePlayer({ channelName, isPaused = false, onResume }) {
-  const [platformUrl, setPlatformUrl] = useState('http://localhost:5174');
-
+  const [platformUrl, setPlatformUrl] = useState('');
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    helpers.GetSettings().then(async (res) => {
-        if (res.ok) {
-            const data = await res.json();
-            if (data.settings?.streaming_platform_url) {
-                setPlatformUrl(data.settings.streaming_platform_url);
-            }
-        }
-    });
-  }, []);
-
-  if (!channelName) {
-    return null;
-  }
-
-  const streamUrl = `${platformUrl}/watch/${channelName}?embed=true`;
-
-  return (
-    <Box sx={{ 
-      width: '100%', 
-      bgcolor: '#000', 
-      borderRadius: '8px', 
-      overflow: 'hidden', 
-      position: 'relative', 
-      aspectRatio: '16/9',
-      border: '1px solid rgba(255,255,255,0.1)'
-    }}>
-      {!isPaused ? (
-        <iframe
-          src={streamUrl}
-          title={`Syndicate Live - ${channelName}`}
-          width="100%"
-          height="100%"
-          style={{ border: 'none' }}
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowFullScreen
-        />
-      ) : (
-        <Box 
-          sx={{ 
-            width: '100%', 
-            height: '100%', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            bgcolor: 'rgba(0,0,0,0.85)',
-            gap: 2
-          }}
-        >
-          <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
-            Local Feed Paused
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', px: 4, mb: 1 }}>
-            You are now participating in the full chat experience in another tab.
-          </Typography>
-          <Button 
-            variant="contained" 
-            startIcon={<PlayArrowIcon />} 
-            onClick={onResume}
-            sx={{ borderRadius: '20px', px: 4 }}
-          >
-            Resume Local Stream
-          </Button>
-        </Box>
-      )}
-    </Box>
-  );
+    let active = true;
+    helpers.GetSettings().then(async response => {
+      if (!response.ok) throw new Error('Streaming platform configuration unavailable.');
+      const { settings } = await response.json();
+      if (!watchUrl(settings?.streaming_platform_url, channelName)) throw new Error('Streaming platform is not configured.');
+      if (active) setPlatformUrl(settings.streaming_platform_url);
+    }).catch(err => { if (active) setError(err.message); });
+    return () => { active = false; };
+  }, [attempt, channelName]);
+  if (!channelName) return null;
+  if (error) return <Alert severity="error">{error}<Button onClick={() => { setError(''); setAttempt(n => n + 1); }}>Retry</Button></Alert>;
+  if (!platformUrl) return <Typography role="status">Loading platform configuration...</Typography>;
+  return <Box>
+    <Typography variant="body2">Full platform player. A separate platform join is required; MSS login is not shared.</Typography>
+    {isPaused ? <Box sx={{ p: 4 }}>
+      <Typography>Platform player paused here.</Typography>
+      <Typography>The other tab has its own join and playback controls.</Typography>
+      <Button onClick={onResume}>Resume player</Button>
+    </Box> : <iframe src={watchUrl(platformUrl, channelName)} title={`Full platform player - ${channelName}`} width="100%" height="600" style={{ border: 0, maxWidth: '100%' }} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen />}
+  </Box>;
 }

@@ -1,3 +1,4 @@
+import { getImageUrl } from '../config';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import IconButton from '@mui/material/IconButton';
@@ -19,11 +20,6 @@ export default function NavMenu() {
   const [myArtists, setMyArtists] = useState([]);
   const navigate = useNavigate();
 
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return `http://localhost:4000${path}`;
-  };
 
   const fetchArtists = async () => {
     if (helpers.HasSession()) {
@@ -87,8 +83,8 @@ export default function NavMenu() {
           onClick={handleMenu}
           className={styles.profileIconButton}
         >
-          <Avatar 
-            src={getImageUrl(primaryArtist?.profile_picture)} 
+          <Avatar
+            src={getImageUrl(primaryArtist?.profile_picture)}
             className={styles.navAvatar}
           >
             {userName?.charAt(0).toUpperCase()}
@@ -111,7 +107,7 @@ export default function NavMenu() {
           <MenuItem onClick={() => { handleClose(); navigate('/account'); }}>
             <Typography variant="button" className={styles.menuItemButton}>Account Settings</Typography>
           </MenuItem>
-          
+
           {isAdmin && (
             <MenuItem onClick={() => { handleClose(); navigate('/admin/dashboard'); }}>
               <Typography variant="button" className={styles.menuItemButton}>Admin Dashboard</Typography>

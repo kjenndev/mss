@@ -1,3 +1,4 @@
+import { getImageUrl } from '../../config';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
@@ -41,6 +42,14 @@ const darkTheme = createTheme({
 
 export default function ArtistUpdate() {
   const { id } = useParams();
+  return <ArtistEditor key={id} />;
+}
+
+function ArtistEditor() {
+  const { id } = useParams();
+  const active = useRef(false);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  const [attempt, setAttempt] = useState(0);
   const [artist, setArtist] = useState(null);
   const [images, setImages] = useState([]);
   const [users, setUsers] = useState([]);
@@ -52,13 +61,9 @@ export default function ArtistUpdate() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return `http://localhost:4000${path}`;
-  };
 
   useEffect(() => {
+    let cancelled = false;
     const loadData = async () => {
       try {
         const [artistRes, imagesRes] = await Promise.all([
@@ -66,16 +71,19 @@ export default function ArtistUpdate() {
           helpers.GetArtistImages(id)
         ]);
 
+        if (cancelled) return;
         if (!artistRes.ok) {
-          navigate('/login');
-          return;
+          if (artistRes.status === 401) { navigate('/login'); return; }
+          throw new Error(artistRes.status === 403 ? 'You are not authorized to edit this artist.' : 'Failed to load artist data');
         }
 
         const artistData = await artistRes.json();
+        if (cancelled) return;
         setArtist(artistData.artist);
 
         if (imagesRes.ok) {
           const imagesData = await imagesRes.json();
+          if (cancelled) return;
           setImages(imagesData.images || []);
         }
 
@@ -83,25 +91,28 @@ export default function ArtistUpdate() {
           const usersRes = await helpers.GetAllUsers();
           if (usersRes.ok) {
             const usersData = await usersRes.json();
+            if (cancelled) return;
             setUsers(usersData.users || []);
           }
         }
-      } catch {
-        setError('Failed to load artist data');
+      } catch (err) {
+        if (cancelled) return;
+        setError(err.message || 'Failed to load artist data');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     loadData();
-  }, [id, navigate, isAdmin]);
+    return () => { cancelled = true; };
+  }, [id, navigate, isAdmin, attempt]);
 
   function handleArtistChange(e) {
     setArtist({ ...artist, [e.target.name]: e.target.value });
   }
 
   function handleUserChange(e) {
-    setArtist({ ...artist, user_id: e.target.value });
+    setArtist({ ...artist, user_id: e.target.value === '' ? null : e.target.value });
   }
 
   async function handleImageUpload(e) {
@@ -113,8 +124,10 @@ export default function ArtistUpdate() {
 
     try {
       const response = await helpers.UploadArtistImage(id, file);
+      if (!active.current) return;
       if (!response.ok) {
         const data = await response.json();
+        if (!active.current) return;
         setError(data.error || 'Upload failed');
       } else {
         // Refresh images and artist (for profile pic update)
@@ -122,14 +135,18 @@ export default function ArtistUpdate() {
           helpers.GetArtistImages(id),
           helpers.GetArtistById(id)
         ]);
-        if (newImagesRes.ok) setImages((await newImagesRes.json()).images);
-        if (newArtistRes.ok) setArtist((await newArtistRes.json()).artist);
+        if (!active.current) return;
+        if (newImagesRes.ok) { const data = await newImagesRes.json(); if (!active.current) return; setImages(data.images); }
+        if (newArtistRes.ok) { const { artist: fresh } = await newArtistRes.json(); if (!active.current) return; setArtist(draft => ({ ...draft, profile_picture: fresh.profile_picture, cover_photo: fresh.cover_photo })); }
       }
     } catch {
+      if (!active.current) return;
       setError('An error occurred during upload');
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (active.current) {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
     }
   }
 
@@ -138,48 +155,58 @@ export default function ArtistUpdate() {
 
     try {
       const response = await helpers.DeleteArtistImage(id, imageId);
+      if (!active.current) return;
       if (response.ok) {
-        setImages(images.filter(img => img.id !== imageId));
+        setImages(current => current.filter(img => img.id !== imageId));
         // Refresh artist in case profile pic was deleted
         const artistRes = await helpers.GetArtistById(id);
-        if (artistRes.ok) setArtist((await artistRes.json()).artist);
+        if (!active.current) return;
+        if (artistRes.ok) { const { artist: fresh } = await artistRes.json(); if (!active.current) return; setArtist(draft => ({ ...draft, profile_picture: fresh.profile_picture, cover_photo: fresh.cover_photo })); }
       } else {
         setError('Failed to delete image');
       }
     } catch {
+      if (!active.current) return;
       setError('An error occurred while deleting the image');
     }
   }
 
   async function handleSetProfilePicture(url) {
     try {
-      const response = await helpers.UpdateArtist({ ...artist, profile_picture: url });
+      const response = await helpers.UpdateArtist({ id, profile_picture: url });
+      if (!active.current) return;
       if (response.ok) {
         const data = await response.json();
-        setArtist(data.artist);
+        if (!active.current) return;
+        setArtist(draft => ({ ...draft, profile_picture: data.artist.profile_picture, cover_photo: data.artist.cover_photo }));
       } else {
         setError('Failed to update profile picture');
       }
     } catch {
+      if (!active.current) return;
       setError('An error occurred while updating profile picture');
     }
   }
 
   async function handleSetCoverPhoto(url) {
     try {
-      const response = await helpers.UpdateArtist({ ...artist, cover_photo: url });
+      const response = await helpers.UpdateArtist({ id, cover_photo: url });
+      if (!active.current) return;
       if (response.ok) {
         const data = await response.json();
-        setArtist(data.artist);
+        if (!active.current) return;
+        setArtist(draft => ({ ...draft, profile_picture: data.artist.profile_picture, cover_photo: data.artist.cover_photo }));
       } else {
         setError('Failed to update cover photo');
       }
     } catch {
+      if (!active.current) return;
       setError('An error occurred while updating cover photo');
     }
   }
 
   async function handleUpdate() {
+    if (isAdmin && artist.channel_name && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(artist.channel_name)) { setError('Channel name must be 1–100 letters, numbers, underscores or hyphens and start with a letter or number.'); return; }
     if (!artist.name.trim()) {
       setError('Artist name is required');
       return;
@@ -187,22 +214,26 @@ export default function ArtistUpdate() {
 
     setSaving(true);
     setError('');
-    
+
     try {
       const updateData = { ...artist };
       if (!isAdmin) {
         delete updateData.user_id;
+        delete updateData.channel_name;
       }
-      
+
       const response = await helpers.UpdateArtist(updateData);
+      if (!active.current) return;
       if (!response.ok) {
         const errorData = await response.json();
+        if (!active.current) return;
         setError(errorData.error || 'Unable to update the artist');
         setSaving(false);
         return;
       }
       navigate(`/artists/${id}`);
     } catch {
+      if (!active.current) return;
       setError('An unexpected error occurred while saving');
       setSaving(false);
     }
@@ -219,7 +250,7 @@ export default function ArtistUpdate() {
   if (!artist) {
     return (
       <Container className={styles.container}>
-        <Alert severity="error">Artist not found</Alert>
+        <Alert severity="error">{error || 'Artist not found'}<Button onClick={() => { setLoading(true); setError(''); setAttempt(n => n + 1); }}>Retry</Button></Alert>
       </Container>
     );
   }
@@ -229,7 +260,7 @@ export default function ArtistUpdate() {
       <ThemeProvider theme={darkTheme}>
         <Paper elevation={4} className={styles.mainPaper}>
           {/* Cover Photo Preview */}
-          <Box 
+          <Box
             className={styles.coverPreview}
             sx={{ backgroundImage: artist.cover_photo ? `url(${getImageUrl(artist.cover_photo)})` : 'none' }}
           >
@@ -242,7 +273,7 @@ export default function ArtistUpdate() {
               {!artist.profile_picture && artist.name?.charAt(0)}
             </Avatar>
           </Box>
-          
+
           <Box className={styles.formContent}>
             <Stack spacing={4}>
               <Box>
@@ -257,7 +288,7 @@ export default function ArtistUpdate() {
                   <Typography variant="h6" className={styles.galleryLabel}>Gallery Management</Typography>
                   <Grid container spacing={2} className={styles.galleryGrid}>
                     {images.map((image) => (
-                      <Grid item xs={6} sm={4} md={3} key={image.id}>
+                      <Grid size={{ xs: 6, sm: 4, md: 3 }} key={image.id}>
                         <Card className={styles.galleryCard}>
                           <CardMedia
                             component="img"
@@ -272,8 +303,8 @@ export default function ArtistUpdate() {
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Set as Profile Picture">
-                              <IconButton 
-                                size="small" 
+                              <IconButton
+                                size="small"
                                 color={artist.profile_picture === image.url ? "primary" : "default"}
                                 onClick={() => handleSetProfilePicture(image.url)}
                               >
@@ -281,8 +312,8 @@ export default function ArtistUpdate() {
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Set as Cover Photo">
-                              <IconButton 
-                                size="small" 
+                              <IconButton
+                                size="small"
                                 color={artist.cover_photo === image.url ? "secondary" : "default"}
                                 onClick={() => handleSetCoverPhoto(image.url)}
                               >
@@ -303,7 +334,7 @@ export default function ArtistUpdate() {
                         </Card>
                       </Grid>
                     ))}
-                    <Grid item xs={6} sm={4} md={3}>
+                    <Grid size={{ xs: 6, sm: 4, md: 3 }}>
                       <Card className={styles.uploadCard} onClick={() => fileInputRef.current?.click()}>
                         {uploading ? <CircularProgress size={24} /> : <Typography variant="h3" color="text.secondary">+</Typography>}
                       </Card>
@@ -312,81 +343,83 @@ export default function ArtistUpdate() {
                   </Grid>
                 </Box>
 
-                <TextField 
+                <TextField
                   fullWidth
-                  label="Artist Name" 
-                  name="name" 
-                  variant="outlined" 
-                  value={artist.name} 
+                  label="Artist Name"
+                  name="name"
+                  variant="outlined"
+                  value={artist.name}
                   onChange={handleArtistChange}
                   required
                 />
-                <TextField 
+                <TextField
                   fullWidth
-                  label="Location" 
-                  name="location" 
-                  variant="outlined" 
-                  value={artist.location || ''} 
-                  onChange={handleArtistChange} 
+                  label="Location"
+                  name="location"
+                  variant="outlined"
+                  value={artist.location || ''}
+                  onChange={handleArtistChange}
                 />
-                <TextField 
+                <TextField
                   fullWidth
-                  label="Description" 
-                  name="description" 
-                  variant="outlined" 
-                  multiline 
-                  minRows={4} 
-                  value={artist.description || ''} 
-                  onChange={handleArtistChange} 
+                  label="Description"
+                  name="description"
+                  variant="outlined"
+                  multiline
+                  minRows={4}
+                  value={artist.description || ''}
+                  onChange={handleArtistChange}
                 />
-                
+
                 <Box className={styles.sectionBox}>
                   <Typography variant="h6" className={styles.sectionHeader}>Social & Streaming Links</Typography>
                 </Box>
-                
-                <TextField 
+
+                <TextField
                   fullWidth
-                  label="Twitch Username" 
-                  name="twitch" 
-                  variant="outlined" 
-                  value={artist.twitch || ''} 
-                  onChange={handleArtistChange} 
+                  label="Twitch Username"
+                  name="twitch"
+                  variant="outlined"
+                  value={artist.twitch || ''}
+                  onChange={handleArtistChange}
                   placeholder="e.g. yourname"
                 />
-                <TextField 
+                <TextField
                   fullWidth
-                  label="Streaming Platform Channel Name" 
-                  name="channel_name" 
-                  variant="outlined" 
-                  value={artist.channel_name || ''} 
-                  onChange={handleArtistChange} 
+                  label="Streaming Platform Channel Name"
+                  name="channel_name"
+                  disabled={!isAdmin}
+                  helperText="Admin-only manual mapping. Use the exact existing SP channel; SP accounts are managed separately."
+                  variant="outlined"
+                  value={artist.channel_name || ''}
+                  onChange={handleArtistChange}
                   placeholder="e.g. kyle-stream"
                 />
-                <TextField 
+                <TextField
                   fullWidth
-                  label="SoundCloud URL" 
-                  name="soundcloud" 
-                  variant="outlined" 
-                  value={artist.soundcloud || ''} 
-                  onChange={handleArtistChange} 
+                  label="SoundCloud URL"
+                  name="soundcloud"
+                  variant="outlined"
+                  value={artist.soundcloud || ''}
+                  onChange={handleArtistChange}
                   placeholder="https://soundcloud.com/..."
                 />
-                <TextField 
+                <TextField
                   fullWidth
-                  label="Mixcloud URL" 
-                  name="mixcloud" 
-                  variant="outlined" 
-                  value={artist.mixcloud || ''} 
-                  onChange={handleArtistChange} 
+                  label="Mixcloud URL"
+                  name="mixcloud"
+                  variant="outlined"
+                  value={artist.mixcloud || ''}
+                  onChange={handleArtistChange}
                   placeholder="https://mixcloud.com/..."
                 />
-                <TextField 
+                <TextField
                   fullWidth
-                  label="YouTube URL" 
-                  name="youtube" 
-                  variant="outlined" 
-                  value={artist.youtube || ''} 
-                  onChange={handleArtistChange} 
+                  label="YouTube URL"
+                  name="youtube"
+                  variant="outlined"
+                  value={artist.youtube || ''}
+                  onChange={handleArtistChange}
                   placeholder="https://youtube.com/..."
                 />
 
@@ -417,16 +450,16 @@ export default function ArtistUpdate() {
               {error && <Alert severity="error">{error}</Alert>}
 
               <Box className={styles.formFooter}>
-                <Button 
-                  variant="outlined" 
+                <Button
+                  variant="outlined"
                   onClick={() => navigate(`/artists/${id}`)}
                   disabled={saving}
                   className={styles.cancelButton}
                 >
                   Cancel
                 </Button>
-                <Button 
-                  variant="contained" 
+                <Button
+                  variant="contained"
                   onClick={handleUpdate}
                   disabled={saving}
                   startIcon={saving && <CircularProgress size={20} color="inherit" />}

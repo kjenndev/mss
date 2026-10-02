@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import Alert from '@mui/material/Alert';
+import { getImageUrl } from '../../config';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -25,49 +27,51 @@ const darkTheme = createTheme({
 
 export default function EventDetail() {
   const { id } = useParams();
+  const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchEvent();
-  }, [id]);
-
-  async function fetchEvent() {
-    setLoading(true);
+  const fetchEvent = useCallback(async () => {
+    setLoading(true); setLoadError('');
     try {
       const response = await helpers.GetEventById(id);
       if (response.ok) {
         const data = await response.json();
         setEvent(data.event);
       } else {
-        navigate('/events');
+        setLoadError('Unable to load event.');
       }
     } catch (err) {
       console.error(err);
-      navigate('/events');
+      setLoadError('Unable to load event.');
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
+
+  useEffect(() => { fetchEvent(); }, [fetchEvent]);
 
   async function handleImageUpload(e) {
     if (e.target.files && e.target.files[0]) {
-      setUploading(true);
+      setUploading(true); setError('');
       try {
         const response = await helpers.UploadEventImage(id, e.target.files[0]);
         if (response.ok) {
-          fetchEvent();
-        }
-      } catch (err) {
-        console.error(err);
+          await fetchEvent();
+        } else { setError('Gallery upload failed. Choose the file again to retry.'); }
+      } catch {
+        setError('Gallery upload failed. Choose the file again to retry.');
       } finally {
+        e.target.value = '';
         setUploading(false);
       }
     }
   }
 
+  if (loadError) return <Alert severity="error">{loadError}<Button onClick={fetchEvent}>Retry</Button></Alert>;
   if (loading) {
     return (
       <Container className={styles.container}>
@@ -88,13 +92,14 @@ export default function EventDetail() {
     <Container maxWidth="lg" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
         <Paper elevation={4} className={styles.mainPaper}>
+          {error && <Alert severity="error">{error}</Alert>}
           <Grid container spacing={4}>
-            <Grid item xs={12} md={5}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <Box className={styles.flyerContainer}>
                 {event.flyer ? (
-                  <img 
-                    src={event.flyer.startsWith('http') ? event.flyer : `http://localhost:4000${event.flyer}`} 
-                    alt={event.title} 
+                  <img
+                    src={getImageUrl(event.flyer)}
+                    alt={event.title}
                     className={styles.flyerImage}
                   />
                 ) : (
@@ -103,7 +108,7 @@ export default function EventDetail() {
                   </Box>
                 )}
               </Box>
-              
+
               {event.flyer_artist_name && (
                 <Box mb={2} textAlign="center">
                   <Typography variant="caption" color="text.secondary">
@@ -118,13 +123,13 @@ export default function EventDetail() {
                   </Typography>
                 </Box>
               )}
-              
+
               {event.ticket_link && (
-                <Button 
-                  fullWidth 
-                  variant="contained" 
-                  color="primary" 
-                  href={event.ticket_link} 
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="primary"
+                  href={event.ticket_link}
                   target="_blank"
                   style={{ marginBottom: '1rem' }}
                 >
@@ -133,9 +138,9 @@ export default function EventDetail() {
               )}
 
               {canEdit && (
-                <Button 
-                  fullWidth 
-                  variant="outlined" 
+                <Button
+                  fullWidth
+                  variant="outlined"
                   onClick={() => navigate(`/events/${event.id}/update`)}
                 >
                   Edit Event
@@ -143,7 +148,7 @@ export default function EventDetail() {
               )}
             </Grid>
 
-            <Grid item xs={12} md={7}>
+            <Grid size={{ xs: 12, md: 7 }}>
               <Stack spacing={3}>
                 <Box>
                   <Typography variant="h3" gutterBottom>{event.title}</Typography>
@@ -163,7 +168,7 @@ export default function EventDetail() {
                     {event.artists.map((artist) => (
                       <Chip
                         key={artist.id}
-                        avatar={<Avatar src={artist.profile_picture ? `http://localhost:4000${artist.profile_picture}` : ''} />}
+                        avatar={<Avatar src={getImageUrl(artist.profile_picture)} />}
                         label={artist.name}
                         onClick={() => navigate(`/artists/${artist.id}`)}
                         className={styles.artistChip}
@@ -186,16 +191,16 @@ export default function EventDetail() {
           <Box mt={6}>
             <Typography variant="h4" gutterBottom>Event Photos</Typography>
             <Divider />
-            
+
             {event.images && event.images.length > 0 ? (
               <Grid container spacing={2} className={styles.imageGrid}>
                 {event.images.map((img) => (
-                  <Grid item xs={6} sm={4} md={3} key={img.id}>
-                    <img 
-                      src={`http://localhost:4000${img.url}`} 
-                      alt="Event" 
+                  <Grid size={{ xs: 6, sm: 4, md: 3 }} key={img.id}>
+                    <img
+                      src={getImageUrl(img.url)}
+                      alt="Event"
                       className={styles.eventImage}
-                      onClick={() => window.open(`http://localhost:4000${img.url}`, '_blank')}
+                      onClick={() => window.open(getImageUrl(img.url), '_blank')}
                     />
                   </Grid>
                 ))}
@@ -221,9 +226,9 @@ export default function EventDetail() {
                   disabled={uploading}
                 />
                 <label htmlFor="event-image-upload">
-                  <Button 
-                    variant="contained" 
-                    component="span" 
+                  <Button
+                    variant="contained"
+                    component="span"
                     disabled={uploading}
                     startIcon={uploading && <CircularProgress size={20} color="inherit" />}
                   >

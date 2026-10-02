@@ -1,0 +1,10 @@
+# Private environment configuration (safe templates remain tracked)
+.env
+.env.*
+!.env.example
+
+# Local dependencies and generated verification output
+node_modules/
+coverage/
+.DS_Store
+mss-api/media/
