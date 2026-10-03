@@ -40,7 +40,7 @@ export default function Home() {
   const [images, setImages] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [settings, setSettings] = useState({});
-  const [galleryExpanded, setGalleryExpanded] = useState(false);
+  const [galleryExpanded, setGalleryExpanded] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pausedChannel, setPausedChannel] = useState(null);

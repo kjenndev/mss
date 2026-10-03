@@ -45,7 +45,7 @@ export default function ArtistList() {
   return <section className={styles.container} aria-labelledby="artists-heading">
     <header className={styles.lead}>
       <p className={styles.eyebrow}>Midnight Sound Syndicate</p>
-      <h1 id="artists-heading">Syndicate artists<span aria-hidden="true">.</span></h1>
+      <h1 id="artists-heading">Artists<span aria-hidden="true">.</span></h1>
     </header>
     <div className={styles.tools}>
       <input className={styles.search} type="search" aria-label="Search artists" placeholder="Search artists…" value={query} onChange={event => setQuery(event.target.value)} />
@@ -67,10 +67,10 @@ export default function ArtistList() {
           <div className={styles.bottom}>
             <div className={styles.providers}>{providers.map(([key, label]) => {
               const href = providerUrl(key, artist[key]);
-              return href ? <a key={key} href={href} target="_blank" rel="noopener noreferrer">{label}</a> : null;
+              return href ? <a key={key} className={styles.secondaryAction} href={href} target="_blank" rel="noopener noreferrer">{label}</a> : null;
             })}</div>
-            <a className={styles.action} href={`/artists/${artist.id}`}>View Profile <ArrowOutwardIcon aria-hidden="true" fontSize="small" /></a>
-            {helpers.CanEditArtist(artist.id, artist.user_id) && <a className={styles.action} href={`/artists/${artist.id}/update`}><EditIcon aria-hidden="true" fontSize="small" />Edit</a>}
+            <a className={`${styles.action} ${styles.cardLink}`} href={`/artists/${artist.id}`}>View Profile <ArrowOutwardIcon aria-hidden="true" fontSize="small" /></a>
+            {helpers.CanEditArtist(artist.id, artist.user_id) && <a className={`${styles.action} ${styles.secondaryAction}`} href={`/artists/${artist.id}/update`}><EditIcon aria-hidden="true" fontSize="small" />Edit</a>}
           </div>
         </div>
       </article>)}</div>}
