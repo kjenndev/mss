@@ -14,7 +14,7 @@ vi.mock('./components/Artist/Artist.Helper.DropDown', () => ({ default: () => nu
 vi.mock('@mui/x-date-pickers/DateTimePicker', () => ({ DateTimePicker: () => <input aria-label="Date & Time" /> }));
 beforeEach(() => {
   cleanup(); vi.resetAllMocks();
-  api.IsAdmin.mockReturnValue(true);
+  api.IsAdmin.mockReturnValue(true); api.CanCreateEvent.mockReturnValue(true);
   api.CanEditEvent.mockReturnValue(true);
   api.GetArtistManageData.mockResolvedValue({ ok: true, json: async () => ({ artist: { id: 1, name: 'Artist' } }) });
   api.GetArtistImages.mockResolvedValue({ ok: true, json: async () => ({ images: [] }) });

@@ -25,7 +25,7 @@ vi.mock('./components/User/User.Helper.DropDown',()=>({default:()=>null}));
 const response=data=>({ok:true,json:async()=>data});
 beforeEach(()=>{
  vi.resetAllMocks();
- api.IsAdmin.mockReturnValue(true); api.CanEditArtist.mockReturnValue(true); api.CanEditEvent.mockReturnValue(true);
+ api.IsAdmin.mockReturnValue(true); api.CanCreateEvent.mockReturnValue(true); api.CanEditArtist.mockReturnValue(true); api.CanEditEvent.mockReturnValue(true);
  const artist={id:1,name:'Fixture artist',user_id:1};
  const event={id:1,title:'Fixture event',artists:[],images:[],date:null};
  api.GetAllArtists.mockResolvedValue(response({artists:[artist]}));

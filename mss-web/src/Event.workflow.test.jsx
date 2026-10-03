@@ -9,7 +9,7 @@ import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
 vi.mock('./components/Artist/Artist.Helper.DropDown',()=>({default:()=>null}));
 vi.mock('@mui/x-date-pickers/DateTimePicker',()=>({DateTimePicker:({onChange})=><><button onClick={()=>onChange(dayjs('invalid'))}>Invalid date</button><button onClick={()=>onChange(null)}>Clear date</button></>}));
-beforeEach(()=>{cleanup();vi.resetAllMocks();});
+beforeEach(()=>{cleanup();vi.resetAllMocks();api.CanCreateEvent.mockReturnValue(true);});
 it('retries a failed flyer without creating a second event',async()=>{
  api.CreateEvent.mockResolvedValue({ok:true,json:async()=>({event:{id:8}})});
  api.UploadEventFlyer.mockResolvedValue({ok:false});

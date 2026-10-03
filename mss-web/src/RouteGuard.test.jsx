@@ -13,7 +13,10 @@ it('does not expose admin forms to a validated nonadmin',async()=>{
  expect(screen.queryByText('Save settings')).toBeNull();
  expect(await screen.findByText(/not authorized/i)).toBeTruthy();
 });
-it('allows a validated admin',async()=>{
+it('rejects a validated public user from event creation',async()=>{
+ api.HasSession.mockReturnValue(true);api.GetCurrentUser.mockResolvedValue({ok:true,json:async()=>({user:{id:2,role:'user'}})});render(<MemoryRouter><RouteGuard createEvent><button>Create Event</button></RouteGuard></MemoryRouter>);expect(await screen.findByText(/not authorized/i)).toBeTruthy();expect(screen.queryByText('Create Event')).toBeNull();
+});
+it('allows a validated admin' ,async()=>{
  api.HasSession.mockReturnValue(true);
  api.GetCurrentUser.mockResolvedValue({ok:true,json:async()=>({user:{id:1,role:'admin'}})});
  render(<MemoryRouter><RouteGuard admin><button>Save settings</button></RouteGuard></MemoryRouter>);

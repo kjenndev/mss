@@ -8,6 +8,7 @@ import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
 
+import { Link } from 'react-router-dom';
 import * as helpers from '../../Data.Helper.Api';
 import styles from './Auth.Component.Login.module.css';
 
@@ -47,7 +48,7 @@ export default function Login() {
       <ThemeProvider theme={darkTheme}>
         <Box component="form" noValidate autoComplete="off" className={styles.loginBox}>
           <Box className={styles.content}>
-            <Stack>
+            <Stack sx={{ gap: 1, '& a': { color: 'primary.main', textUnderlineOffset: '3px' } }}>
               {location.state?.message && <Typography role="status">{location.state.message}</Typography>}
               <Typography className={styles.eyebrow}>Account access</Typography>
               <Typography component="h1" className={styles.loginTitle} variant="h4">
@@ -57,6 +58,7 @@ export default function Login() {
                 id="username"
                 className={styles.inputField}
                 label="Username"
+                helperText="Usernames are not case-sensitive"
                 name="username"
                 variant="outlined"
                 value={user.username}
@@ -76,6 +78,8 @@ export default function Login() {
               />
               {error && <Typography color="error" className={styles.errorText}>{error}</Typography>}
               <Button disabled={loading} onClick={handleLogin} variant="contained" className={styles.loginButton}>Login</Button>
+              <Link to="/register">Create account</Link>
+              <Link to="/resend-verification">Resend verification email</Link>
             </Stack>
           </Box>
         </Box>

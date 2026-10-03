@@ -63,3 +63,24 @@ it('requests optional artist scope without changing homepage pagination',async()
  await api.GetMediaLibrary();
  expect(Object.fromEntries(new URL(fetch.mock.calls[1][0],'http://localhost').searchParams)).toEqual({offset:'0',limit:'50'});
 });
+
+it('sends email-first public contracts without auth and authenticates only email-change completion', async () => {
+  localStorage.setItem('mss-token', 'session-fixture');
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
+  const signup = { username: 'listener', email: 'listener@example.com' };
+  const token = { token: 'private-link-token' };
+  const completion = { ...token, username: 'fresh', password: 'a fresh password', accept_terms: true, confirm_adult: true, terms_version: '2026-10-03', privacy_version: '2026-10-03', email_alerts_opt_in: false };
+  for (const [helper, path, payload] of [[api.Register, '/auth/register', signup], [api.GetVerificationInfo, '/auth/verification-info', token], [api.VerifyEmail, '/auth/verify-email', completion]]) {
+    await helper(payload);
+    const [url, options] = fetch.mock.calls.at(-1);
+    expect(url.endsWith(path)).toBe(true);
+    expect(options.method).toBe('POST');
+    expect(options.headers.Authorization).toBeUndefined();
+    expect(JSON.parse(options.body)).toEqual(payload);
+  }
+  await api.VerifyEmail({ ...token, current_password: 'existing password' }, true);
+  expect(fetch.mock.calls.at(-1)[1].headers.Authorization).toBe('Bearer session-fixture');
+  expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toEqual({ ...token, current_password: 'existing password' });
+  expect(localStorage.length).toBe(1);
+  expect(localStorage.getItem('mss-token')).toBe('session-fixture');
+});

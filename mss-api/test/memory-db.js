@@ -6,6 +6,7 @@ export function memoryDb(initial={}, fail=()=>false) {
   const rows=()=> (state[table]||[]).filter(row=>filters.every(f=>f(row)));
   const q={
    where(key,value,third){if(typeof key==='object')filters.push(r=>Object.entries(key).every(([k,v])=>r[k]==v));else if(third!==undefined)filters.push(r=>value==='<'?r[key]<third:value==='>'?r[key]>third:r[key]===third);else filters.push(r=>r[key]==value);return q},
+   whereRaw(sql, bindings){if(sql !== 'lower(username) = lower(?)' || !Array.isArray(bindings) || bindings.length !== 1)throw Error('Unsupported memory SQL: '+sql);filters.push(r=>typeof r.username==='string' && r.username.toLowerCase()===String(bindings[0]).toLowerCase());return q},
    whereIn(key,values){filters.push(r=>values.includes(r[key]));return q},whereNot(key,v){filters.push(r=>r[key]!==v);return q},
    select(){return q},orderBy(){return q},forUpdate(){locks.push(table);return q},limit(n){limit=n;return q},offset(n){offset=n;return q},
    sum(){q.first=async()=>({total:rows().reduce((n,r)=>n+Number(r.bytes),0)});return q},

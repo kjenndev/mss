@@ -31,7 +31,7 @@ export default function EventList(){
   return (ak?(sort==='asc'?at-bt:bt-at):0)||String(a.id).localeCompare(String(b.id));
  });
  return <section className={styles.container} aria-labelledby="events-heading">
-  <header className={styles.lead}><div><p className={styles.eyebrow}>Midnight Sound Syndicate</p><h1 id="events-heading">Events<span aria-hidden="true">.</span></h1></div>{helpers.HasSession()&&<a className={styles.create} href="/events/create"><AddIcon aria-hidden="true" fontSize="small"/>Create Event</a>}</header>
+  <header className={styles.lead}><div><p className={styles.eyebrow}>Midnight Sound Syndicate</p><h1 id="events-heading">Events<span aria-hidden="true">.</span></h1></div>{helpers.CanCreateEvent()&&<a className={styles.create} href="/events/create"><AddIcon aria-hidden="true" fontSize="small"/>Create Event</a>}</header>
   <div className={styles.tools}><input className={styles.search} type="search" aria-label="Search events" placeholder="Search events or locations…" value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label="Sort events" value={sort} onChange={e=>setSort(e.target.value)}><option value="asc">Date: earliest first</option><option value="desc">Date: latest first</option></select><span className={styles.count} role="status">{loading?'Loading events…':error?'Event count unavailable':search?`${visible.length} of ${events.length} events`:`${events.length} ${events.length===1?'event':'events'}`}</span></div>
   {!loading&&!error&&!events.length&&<p className={styles.empty}>No events yet.</p>}
   {!loading&&!error&&events.length>0&&!visible.length&&<p className={styles.empty}>No matching events. Try another title or location.</p>}

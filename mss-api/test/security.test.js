@@ -41,7 +41,7 @@ test('credential changes revoke all old sessions atomically',async()=>{
  }
 });
 test('typed malformed artist and event bodies are rejected before mutation',async()=>{
- for(const [method,url,body] of [['post','/api/artists',{name:{x:1}}],['put','/api/events/:id',{artist_ids:[1,1]}],['put','/api/auth/me',{password:123}],['post','/api/users',{username:'a',password:'short'}]]){
+ for(const [method,url,body] of [['post','/api/artists',{name:{x:1}}],['put','/api/events/:id',{artist_ids:[1,1]}],['put','/api/auth/me',{password:123}],['post','/api/users',{username:'a',password:'four'}]]){
  const db=memoryDb();const h=await harness({getDb:async()=>db});const res=response();
  await h.route(method,url).handlers.at(-1)({body,params:{id:1},user:{role:'admin'}},res,e=>{throw e});
  assert.equal(res.code,400);assert.equal(db.operations.length,0);
@@ -79,15 +79,15 @@ test('optional event date clears to null and invalid dates are rejected',async()
  await h.route('put','/api/events/:id').handlers.at(-1)({body:{date},event:db.state().events[0]},res,e=>{throw e});assert.equal(res.code,code);if(code===200)assert.equal(db.state().events[0].date,null);
  }
 });
-test('guest comments require exactly one existing target and same-scope parent',async()=>{
+test('authenticated comments require exactly one existing target and same-scope parent',async()=>{
  for(const [fields,code] of [[{},400],[{artist_id:1,event_id:1},400],[{artist_id:99},404],[{artist_id:1,parent_id:2},400],[{artist_id:1,parent_id:99},400],[{artist_id:1},201]]){
- const db=memoryDb({artists:[{id:1}],comments:[{id:2,artist_id:2,event_id:null}]});const h=await harness({getDb:async()=>db});const res=response();
- await h.route('post','/api/comments').handlers.at(-1)({body:{content:'hello',author_name:'Guest',...fields},ip:'guest'},res,e=>{throw e});assert.equal(res.code,code);if(code===201)assert.equal(res.body.comment.user_id,null);
+ const db=memoryDb({users:[{id:7,username:'Member',role:'user'}],sessions:[{token:'comment-token',user_id:7,expires_at:'2099-01-01'}],artists:[{id:1}],comments:[{id:2,artist_id:2,event_id:null}]});const h=await harness({getDb:async()=>db});const res=response();
+ await h.route('post','/api/comments').handlers.at(-1)({headers:{authorization:'Bearer comment-token'},token:'comment-token',body:{content:'hello',...fields},ip:'member'},res,e=>{throw e});assert.equal(res.code,code);if(code===201)assert.equal(res.body.comment.user_id,7);
  }
 });
-test('guest comment floods are throttled',async()=>{
- const db=memoryDb({artists:[{id:1}]});const h=await harness({getDb:async()=>db});let res;
- for(let i=0;i<21;i++){res=response();await h.route('post','/api/comments').handlers.at(-1)({body:{content:'hello',author_name:'guest',artist_id:1},ip:'guest'},res,e=>{throw e});}assert.equal(res.code,429);
+test('authenticated comment floods are throttled',async()=>{
+ const db=memoryDb({users:[{id:7,username:'Member',role:'user'}],sessions:[{token:'comment-token',user_id:7,expires_at:'2099-01-01'}],artists:[{id:1}]});const h=await harness({getDb:async()=>db});let res;
+ for(let i=0;i<21;i++){res=response();await h.route('post','/api/comments').handlers.at(-1)({headers:{authorization:'Bearer comment-token'},token:'comment-token',body:{content:'hello',artist_id:1},ip:'member'},res,e=>{throw e});}assert.equal(res.code,429);
 });
 test('event upload authorizes object before accepting multipart data',async()=>{
  for(const events of [[],[{id:1,creator_id:2}]]){
@@ -148,7 +148,7 @@ test('malformed settings batches are rejected before mutation',async()=>{
 });
 test('unchanged credentials in profile forms do not revoke sessions',async()=>{
  for(const url of ['/api/auth/me','/api/users/:id']){
- const db=memoryDb({users:[{id:1,username:'same',role:'admin',is_disabled:0}],sessions:[{user_id:1,token:'existing'}],artists:[]});const h=await harness({getDb:async()=>db});const res=response();await h.route('put',url).handlers.at(-1)({params:{id:1},user:{id:1,username:'same',role:'admin'},body:{username:'same',role:'admin',is_disabled:0,display_name:'New display',password:''}},res,e=>{throw e});assert.equal(res.code,200);assert.equal(db.state().sessions.length,1);
+ const db=memoryDb({users:[{id:1,username:'same',role:'admin',is_disabled:0}],sessions:[{user_id:1,token:'existing'}],artists:[]});const h=await harness({getDb:async()=>db});const res=response();await h.route('put',url).handlers.at(-1)({params:{id:1},user:{id:1,username:'same',role:'admin'},body:{username:'same',...(url==='/api/users/:id'?{role:'admin',is_disabled:0}:{}),display_name:'New display',password:''}},res,e=>{throw e});assert.equal(res.code,200);assert.equal(db.state().sessions.length,1);
  }
 });
 test('numeric login password is rejected before DB access',async()=>{

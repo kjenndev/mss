@@ -47,8 +47,8 @@ export default function CreateUser() {
       return;
     }
     
-    if (user.password.length < 12 || user.password.length > 1024) {
-      setError('Password must be between 12 and 1024 characters');
+    if (user.password.length < 5 || user.password.length > 1024) {
+      setError('Password must be between 5 and 1024 characters');
       return;
     }
 
@@ -112,7 +112,8 @@ export default function CreateUser() {
                 label="Password" 
                 name="password" 
                 type="password"
-                helperText="Use 12–1024 characters."
+                slotProps={{ htmlInput: { minLength: 5, maxLength: 1024 } }}
+                helperText="Use 5–1024 characters."
                 variant="outlined" 
                 value={user.password} 
                 onChange={handleUserChange}
