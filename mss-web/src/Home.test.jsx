@@ -141,11 +141,17 @@ it('presents Cinema replay metadata and honest empty discovery sections',async()
  expect(screen.getByRole('link',{name:'All events'}).getAttribute('href')).toBe('/events');
 });
 
-it('limits gallery preview and exposes every photo with an accessible inline toggle and lightbox',async()=>{
+it('expands gallery by default with a reversible preview toggle and lightbox',async()=>{
  mockHome(); api.GetAllImages.mockResolvedValue({ok:true,json:async()=>({images:Array.from({length:5},(_,i)=>({id:i,url:`/uploads/test-${i}.jpg`}))})});
  render(<MemoryRouter><Home/></MemoryRouter>); await act(async()=>{});
+ expect(screen.getAllByRole('button',{name:/Open photo/})).toHaveLength(5);
+ const toggle=screen.getByRole('button',{name:'Show fewer photos'});
+ expect(toggle.getAttribute('aria-expanded')).toBe('true');
+ expect(toggle.getAttribute('aria-controls')).toBe('home-photos');
+ expect(toggle.querySelector('[data-testid="ExpandLessIcon"]')).toBeTruthy();
+ fireEvent.click(toggle);
  expect(screen.getAllByRole('button',{name:/Open photo/})).toHaveLength(2);
- const toggle=screen.getByRole('button',{name:'View all photos'});
+ expect(screen.getByRole('button',{name:'View all photos'})).toBe(toggle);
  expect(toggle.getAttribute('aria-expanded')).toBe('false');
  expect(toggle.querySelector('[data-testid="ExpandMoreIcon"]')).toBeTruthy();
  fireEvent.click(toggle); expect(screen.getAllByRole('button',{name:/Open photo/})).toHaveLength(5);

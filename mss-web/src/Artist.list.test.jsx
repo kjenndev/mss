@@ -4,6 +4,49 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import ArtistList from './components/Artist/Artist.Component.List';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
+import styles from './components/Artist/Artist.Component.List.module.css';
+import {readFileSync} from 'node:fs';
+const cardCss=readFileSync('src/components/Artist/Artist.Component.List.module.css','utf8');
+it('stretches the native profile link over the card with independent provider and Edit controls',async()=>{
+ api.GetAllArtists.mockResolvedValue(response([{...artists[1],soundcloud:'https://soundcloud.com/fixture'}]));
+ api.CanEditArtist.mockReturnValue(true);
+ const {container}=render(<ArtistList/>);
+ const card=(await screen.findByRole('heading',{name:'Alpha Test'})).closest('article');
+ const details=within(card).getByRole('link',{name:'View Profile'});
+ const edit=within(card).getByRole('link',{name:'Edit'});
+ expect(details.classList.contains(styles.cardLink)).toBe(true);
+ expect(edit.classList.contains(styles.secondaryAction)).toBe(true);
+ const provider=within(card).getByRole('link',{name:'SoundCloud'});
+ expect(provider.classList.contains(styles.secondaryAction)).toBe(true);
+ expect(provider.getAttribute('href')).toBe('https://soundcloud.com/fixture');
+ expect(provider.getAttribute('target')).toBe('_blank');
+ expect(provider.getAttribute('rel')).toBe('noopener noreferrer');
+ expect(details.getAttribute('href')).toBe('/artists/1');
+ expect(edit.getAttribute('href')).toBe('/artists/1/update');
+ expect(container.querySelector('a a')).toBeNull();
+ expect(card.hasAttribute('tabindex')).toBe(false);
+ details.focus();expect(document.activeElement).toBe(details);
+ for(const modifiers of [{ctrlKey:true},{metaKey:true},{shiftKey:true},{button:1}]) {
+  const click=new MouseEvent('click',{bubbles:true,cancelable:true,...modifiers});
+  let intercepted;
+  const observe=event=>{intercepted=event.defaultPrevented;event.preventDefault();};
+  document.addEventListener('click',observe,{once:true});
+  details.dispatchEvent(click);expect(intercepted).toBe(false);
+ }
+ const style=document.createElement('style');style.textContent=cardCss;document.head.append(style);
+ try {
+  const rule=selector=>Array.from(style.sheet.cssRules).find(rule=>rule.selectorText===selector)?.style;
+  expect(rule('.artist')?.position).toBe('relative');
+  expect(rule('.artist')?.isolation).toBe('isolate');
+  expect(rule('.cardLink::after')?.position).toBe('absolute');
+  expect(rule('.cardLink::after')?.inset).toBe('0px');
+  expect(rule('.cardLink::after')?.zIndex).toBe('1');
+  expect(rule('.secondaryAction')?.position).toBe('relative');
+  expect(rule('.secondaryAction')?.zIndex).toBe('2');
+  expect(rule('.cardLink:focus-visible::after')?.outline).toContain('2px solid');
+ } finally {style.remove();}
+});
+
 const response = artists => ({ ok: true, json: async () => ({ artists }) });
 const artists = [
   { id: 2, user_id: 20, name: 'Zulu Test', location: 'Detroit', profile_picture: '/uploads/fixture.jpg' },
@@ -14,7 +57,7 @@ afterEach(cleanup);
 it('renders the portrait directory with semantic identity and existing owner actions', async () => {
   api.CanEditArtist.mockImplementation((id, owner) => id === 1 && owner === 10);
   const { container } = render(<ArtistList />);
-  expect(await screen.findByRole('heading', { level: 1, name: 'Syndicate artists' })).toBeTruthy();
+  expect(await screen.findByRole('heading', { level: 1, name: 'Artists' })).toBeTruthy();
   const cards = await screen.findAllByRole('article');
   expect(cards).toHaveLength(2);
   expect(within(cards[0]).getByRole('heading', { name: 'Alpha Test' })).toBeTruthy();
