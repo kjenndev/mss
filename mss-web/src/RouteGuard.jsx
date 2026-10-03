@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Alert, Button, Box } from '@mui/material';
 import * as api from './Data.Helper.Api';
 
-export default function RouteGuard({ children, admin = false }) {
+export default function RouteGuard({ children, admin = false, createEvent = false }) {
   const [state, setState] = useState({ loading: true });
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -30,6 +30,6 @@ export default function RouteGuard({ children, admin = false }) {
   if (state.signedOut) return <Navigate to="/login" replace />;
   if (state.loading) return <Box role="status">Checking session...</Box>;
   if (state.error) return <Alert severity="error">Unable to verify your session. <Button onClick={() => setAttempt(n => n + 1)}>Retry</Button></Alert>;
-  if (!state.user || (admin && state.user.role !== 'admin')) return <Alert severity="error">You are not authorized to access this page.</Alert>;
+  if (!state.user || (admin && state.user.role !== 'admin') || (createEvent && !['artist', 'admin'].includes(state.user?.role))) return <Alert severity="error">You are not authorized to access this page.</Alert>;
   return children;
 }

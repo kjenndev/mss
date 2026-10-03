@@ -60,7 +60,7 @@ export default function CreateEvent() {
   }
 
   async function handleCreate() {
-    if (dateError) return;
+    if (!helpers.CanCreateEvent() || dateError) return;
     if (!event.title.trim()) {
       setError('Event title is required.');
       return;
@@ -99,6 +99,8 @@ export default function CreateEvent() {
       setLoading(false);
     }
   }
+
+  if (!helpers.CanCreateEvent()) return <Alert severity="error">Only artists and administrators can create events.</Alert>;
 
   return (
     <Container maxWidth="md" className={styles.container}>

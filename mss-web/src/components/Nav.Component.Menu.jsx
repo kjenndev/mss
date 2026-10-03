@@ -1,8 +1,7 @@
-import { getImageUrl } from '../config';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import IconButton from '@mui/material/IconButton';
-import Avatar from '@mui/material/Avatar';
+import ProfileAvatar from './User/ProfileAvatar';
 import MenuItem from '@mui/material/MenuItem';
 import Menu from '@mui/material/Menu';
 import Button from '@mui/material/Button';
@@ -17,38 +16,66 @@ export default function NavMenu() {
   const [hasSession, setHasSession] = useState(helpers.HasSession());
   const [isAdmin, setIsAdmin] = useState(helpers.IsAdmin());
   const [userName, setUserName] = useState(helpers.GetSessionUser());
+  const [currentUser, setCurrentUser] = useState(null);
   const [myArtists, setMyArtists] = useState([]);
   const navigate = useNavigate();
 
 
-  const fetchArtists = async () => {
-    if (helpers.HasSession()) {
-      try {
-        const res = await helpers.GetMyArtists();
-        if (res.ok) {
-          const data = await res.json();
-          setMyArtists(data.artists || []);
-        }
-      } catch (err) {
-        console.error('Error fetching artists:', err);
-      }
-    } else {
-      setMyArtists([]);
-    }
-  };
-
   useEffect(() => {
-    const updateAuth = () => {
+    let active = true;
+    let authGeneration = 0;
+    let avatarGeneration = 0;
+    const refreshAvatar = async () => {
+      const generation = ++avatarGeneration;
+      const token = localStorage.getItem('mss-token');
+      const isCurrent = () => active && generation === avatarGeneration && token === localStorage.getItem('mss-token');
+      if (!helpers.HasSession()) { setCurrentUser(null); return; }
+      try {
+        const res = await helpers.GetCurrentUser();
+        const data = res.ok ? await res.json() : null;
+        if (isCurrent()) {
+          setCurrentUser(data?.user || null);
+          if (data?.user) {
+            setUserName(data.user.username);
+            setIsAdmin(helpers.IsAdmin());
+          }
+        }
+      } catch {
+        if (isCurrent()) setCurrentUser(null);
+      }
+    };
+    const updateAuth = async () => {
+      const generation = ++authGeneration;
+      const token = localStorage.getItem('mss-token');
       setHasSession(helpers.HasSession());
       setIsAdmin(helpers.IsAdmin());
       setUserName(helpers.GetSessionUser());
-      fetchArtists(); // Fetch artists whenever auth changes
+      setCurrentUser(null);
+      setMyArtists([]);
+      setAnchorEl(null);
+      refreshAvatar();
+      if (!helpers.HasSession()) return;
+      try {
+        const res = await helpers.GetMyArtists();
+        const data = res.ok ? await res.json() : null;
+        if (active && generation === authGeneration && token === localStorage.getItem('mss-token')) {
+          setMyArtists(data?.artists || []);
+        }
+      } catch { /* Keep the account menu usable if artist lookup fails. */ }
     };
-
-    fetchArtists(); // Fetch artists on initial mount
-
+    const onStorage = event => {
+      if (!event.key || event.key.startsWith('mss-')) updateAuth();
+    };
+    updateAuth();
     window.addEventListener('mss-auth-change', updateAuth);
-    return () => window.removeEventListener('mss-auth-change', updateAuth);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('mss-avatar-change', refreshAvatar);
+    return () => {
+      active = false;
+      window.removeEventListener('mss-auth-change', updateAuth);
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('mss-avatar-change', refreshAvatar);
+    };
   }, []);
 
   const handleMenu = (e) => {
@@ -71,7 +98,6 @@ export default function NavMenu() {
   };
 
   if (hasSession) {
-    const primaryArtist = myArtists[0];
 
     return (
       <>
@@ -80,15 +106,11 @@ export default function NavMenu() {
           aria-label="account of current user"
           aria-controls="menu-appbar"
           aria-haspopup="true"
+          aria-expanded={Boolean(anchorEl)}
           onClick={handleMenu}
           className={styles.profileIconButton}
         >
-          <Avatar
-            src={getImageUrl(primaryArtist?.profile_picture)}
-            className={styles.navAvatar}
-          >
-            {userName?.charAt(0).toUpperCase()}
-          </Avatar>
+          <ProfileAvatar src={currentUser?.profile_picture} name={currentUser?.username || userName} sx={{ width: 32, height: 32, fontSize: '1rem' }} />
         </IconButton>
         <Menu
           id="menu-appbar"
@@ -137,5 +159,5 @@ export default function NavMenu() {
     );
   }
 
-  return <Button color="inherit" href="/login">Login</Button>;
+  return <><Button color="inherit" href="/login">Login</Button><Button color="inherit" href="/register">Create account</Button></>;
 }

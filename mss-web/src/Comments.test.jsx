@@ -4,7 +4,7 @@ import {render,screen,cleanup,fireEvent,act} from '@testing-library/react';
 import Comments from './components/Comments/CommentSection';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
-beforeEach(()=>{cleanup();vi.resetAllMocks();});
+beforeEach(()=>{cleanup();vi.resetAllMocks();api.HasSession.mockReturnValue(true);api.GetCurrentUser.mockResolvedValue({ok:true,json:async()=>({user:{id:7,username:"StoredName"}})});});
 it('distinguishes failed comment loading from emptiness and retries',async()=>{
  api.GetComments.mockResolvedValueOnce({ok:false}).mockResolvedValue({ok:true,json:async()=>({comments:[]})});
  render(<Comments artistId={1}/>);
@@ -44,7 +44,7 @@ it('concurrent post and delete completions preserve both changes',async()=>{
  api.PostComment.mockImplementation(()=>new Promise(r=>{post=r;}));
  api.DeleteComment.mockImplementation(()=>new Promise(r=>{del=r;}));
  render(<Comments artistId={1}/>);await screen.findByText('Remove me');
- fireEvent.change(screen.getByLabelText(/Your Name/),{target:{value:'Guest'}});
+ expect(await screen.findByDisplayValue('StoredName')).toHaveAttribute('readonly');
  fireEvent.change(screen.getByPlaceholderText('Write a comment...'),{target:{value:'New comment'}});
  fireEvent.click(screen.getByRole('button',{name:'Post Comment'}));
  fireEvent.click(screen.getAllByRole('button',{name:'Delete'})[0]);
@@ -58,7 +58,7 @@ it('initial page completing after a post must not erase the new comment',async()
  api.GetComments.mockImplementation(()=>new Promise(r=>{load=r;}));
  api.PostComment.mockResolvedValue({ok:true,json:async()=>({comment:{id:2,content:'Posted during load'}})});
  render(<Comments eventId={1}/>);
- fireEvent.change(screen.getByLabelText(/Your Name/),{target:{value:'Guest'}});
+ expect(await screen.findByDisplayValue('StoredName')).toHaveAttribute('readonly');
  fireEvent.change(screen.getByPlaceholderText('Write a comment...'),{target:{value:'Posted during load'}});
  fireEvent.click(screen.getByRole('button',{name:'Post Comment'}));
  await act(async()=>{});
@@ -71,7 +71,7 @@ it.each([true,false])('late old-route post (ok=%s) cannot affect the new thread 
  api.GetComments.mockImplementation(async({event_id})=>({ok:true,json:async()=>({comments:[{id:event_id,content:`Thread ${event_id}`}]})}));
  api.PostComment.mockImplementation(()=>new Promise(r=>{post=r;}));
  const view=render(<Comments eventId={1}/>);await screen.findByText('Thread 1');
- fireEvent.change(screen.getByLabelText(/Your Name/),{target:{value:'Guest'}});
+ expect(await screen.findByDisplayValue('StoredName')).toHaveAttribute('readonly');
  fireEvent.change(screen.getByPlaceholderText('Write a comment...'),{target:{value:'Old pending post'}});
  fireEvent.click(screen.getByRole('button',{name:'Post Comment'}));
  view.rerender(<Comments eventId={2}/>);await screen.findByText('Thread 2');

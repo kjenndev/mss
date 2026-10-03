@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route  } from 'react-router-dom';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 
+import './components/Auth/verificationToken';
 import './index.css'
 import { MediaPlayerProvider } from './components/Media/MediaPlayerProvider';
 import MediaNavigation from './components/Media/MediaNavigation';
@@ -25,6 +26,11 @@ import About from './components/About.Component.jsx'
 import AdminDashboard from './components/Admin/Admin.Dashboard.Component'
 import AdminSettings from './components/Admin/Admin.Settings.Component'
 import AdminAboutEditor from './components/Admin/Admin.About.Component'
+import Register from './components/Auth/Register';
+import VerifyEmail from './components/Auth/VerifyEmail';
+import ResendVerification from './components/Auth/ResendVerification';
+import LegalPage from './components/Auth/LegalPage';
+import AdminEmail from './components/Admin/Admin.Email';
 import UserProfile from './components/User/User.Component.Profile'
 
 
@@ -43,10 +49,16 @@ createRoot(document.getElementById('root')).render(
           <Route path="/artists/create" element={<RouteGuard admin><CreateArtist /></RouteGuard>} />
           <Route path="/artists/:id/update" element={<RouteGuard><ArtistUpdate /></RouteGuard>} />
           <Route path="/events" element={<EventList key={window.location.pathname} />} />
-          <Route path="/events/create" element={<RouteGuard><CreateEvent /></RouteGuard>} />
+          <Route path="/events/create" element={<RouteGuard createEvent><CreateEvent /></RouteGuard>} />
           <Route path="/events/:id" element={<EventDetail key={window.location.pathname} />} />
           <Route path="/events/:id/update" element={<RouteGuard><EventUpdate /></RouteGuard>} />
           <Route path="/users/create" element={<RouteGuard admin><CreateUser /></RouteGuard>} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/resend-verification" element={<ResendVerification />} />
+          <Route path="/terms" element={<LegalPage kind="terms" />} />
+          <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+          <Route path="/admin/email" element={<RouteGuard admin><AdminEmail /></RouteGuard>} />
           <Route path="/login" element={<Login key={window.location.pathname} />} />
           <Route path="/admin/dashboard" element={<RouteGuard admin><AdminDashboard /></RouteGuard>} />
           <Route path="/admin/settings" element={<RouteGuard admin><AdminSettings /></RouteGuard>} />

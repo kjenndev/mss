@@ -140,8 +140,8 @@ export default function AdminDashboard() {
 
   const handleUserEditSave = async () => {
     setError('');
-    if (editUser.password && (editUser.password.length < 12 || editUser.password.length > 1024)) {
-      setError('Password must be between 12 and 1024 characters');
+    if (editUser.password && (editUser.password.length < 5 || editUser.password.length > 1024)) {
+      setError('Password must be between 5 and 1024 characters');
       return;
     }
     // Use the first artist in the list as the primary artist_id for legacy support
@@ -398,7 +398,8 @@ export default function AdminDashboard() {
               />
               <MuiTextField
                 label="New Password (leave blank to keep)"
-                helperText="Use 12–1024 characters, or leave blank to keep the current password."
+                slotProps={{ htmlInput: { minLength: 5, maxLength: 1024 } }}
+                helperText="Use 5–1024 characters, or leave blank to keep the current password."
                 type="password"
                 fullWidth
                 onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}

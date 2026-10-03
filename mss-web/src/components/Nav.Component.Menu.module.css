@@ -1,14 +1,9 @@
 .profileIconButton {
-  padding: 0 !important;
+  padding: 4px !important;
+  min-width: 44px;
+  min-height: 44px;
   margin-left: 8px !important;
   border: 2px solid rgba(255,255,255,0.1) !important;
-}
-
-.navAvatar {
-  width: 32px !important;
-  height: 32px !important;
-  background-color: var(--primary-main) !important;
-  font-size: 1rem !important;
 }
 
 .menuItemButton {

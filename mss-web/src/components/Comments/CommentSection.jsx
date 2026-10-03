@@ -5,7 +5,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Avatar from '@mui/material/Avatar';
+import ProfileAvatar from '../User/ProfileAvatar';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import styles from './CommentSection.module.css';
@@ -29,6 +29,9 @@ function CommentThread({ artistId, eventId }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewMessage] = useState('');
   const [authorName, setAuthorName] = useState('');
+  const [authorPicture, setAuthorPicture] = useState(null);
+  const [hasSession, setHasSession] = useState(helpers.HasSession);
+  const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [nextCursor, setNextCursor] = useState(null);
@@ -36,19 +39,31 @@ function CommentThread({ artistId, eventId }) {
   const [error, setError] = useState('');
 
   const isAdmin = helpers.IsAdmin();
-  const hasSession = helpers.HasSession();
-
-  // Initialize author name from session if available
+  // Use the shared session API/event, not a user-editable display name.
   useEffect(() => {
-    if (hasSession) {
-        helpers.GetCurrentUser().then(async (res) => {
-            if (res.ok) {
-                const data = await res.json();
-                setAuthorName(data.user.display_name || data.user.username || '');
-            }
-        }).catch(() => setError('Unable to load your display name. You may enter it manually.'));
+    let current = true, generation = 0;
+    async function refreshUser() {
+      const request = ++generation;
+      setAuthorName(''); setAuthorPicture(null); setAuthError('');
+      const signedIn = helpers.HasSession();
+      setHasSession(signedIn);
+      if (!signedIn) return;
+      try {
+        const response = await helpers.GetCurrentUser();
+        if (!response.ok) throw new Error();
+        const { user } = await response.json();
+        if (!user?.username) throw new Error();
+        if (current && request === generation) { setAuthorName(user.username); setAuthorPicture(user.profile_picture || null); }
+      } catch {
+        if (current && request === generation) setAuthError('Unable to verify your username. Please sign in again.');
+      }
     }
-  }, [hasSession]);
+    refreshUser();
+    window.addEventListener('mss-auth-change', refreshUser);
+    window.addEventListener('mss-avatar-change', refreshUser);
+    window.addEventListener('storage', refreshUser);
+    return () => { current = false; generation++; window.removeEventListener('mss-auth-change', refreshUser); window.removeEventListener('mss-avatar-change', refreshUser); window.removeEventListener('storage', refreshUser); };
+  }, []);
 
   const fetchComments = useCallback(async (after_id = 0) => {
     const generation = ++loadGeneration.current;
@@ -67,18 +82,13 @@ function CommentThread({ artistId, eventId }) {
   useEffect(() => { fetchComments(); }, [fetchComments]);
 
   async function handlePost() {
-    if (!newComment.trim()) return;
-    if (!authorName.trim()) {
-        setError('Please enter your name.');
-        return;
-    }
+    if (posting || !hasSession || !helpers.HasSession() || !authorName || !newComment.trim()) return;
 
     setPosting(true);
     setError('');
     try {
       const data = {
         content: newComment,
-        author_name: authorName,
         artist_id: artistId || null,
         event_id: eventId || null,
       };
@@ -89,7 +99,6 @@ function CommentThread({ artistId, eventId }) {
         if (!active.current) return;
         setComments(previous => [...previous.filter(item => item.id !== comment.id), comment]);
         setNewMessage('');
-        // Keep the author name for the next comment
       } else {
         const data = await response.json();
         if (!active.current) return;
@@ -121,22 +130,18 @@ function CommentThread({ artistId, eventId }) {
         Comments ({comments.length})
       </Typography>
 
-      <Box component="section" aria-label="Write a comment" className={styles.composer}>
+      {hasSession ? <Box component="section" aria-label="Write a comment" className={styles.composer}>
         <Stack direction="row" spacing={2} className={styles.composerRow}>
-          <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.1)' }}>
-            {(authorName || '?').charAt(0).toUpperCase()}
-          </Avatar>
+          <ProfileAvatar src={authorPicture} name={authorName} />
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <TextField
               fullWidth
               size="small"
-              label="Your Name"
-              placeholder="Enter your name..."
+              label="Username"
               variant="outlined"
               value={authorName}
-              onChange={(e) => setAuthorName(e.target.value)}
+              slotProps={{ input: { readOnly: true } }}
               sx={{ mb: 2, maxWidth: '300px' }}
-              required
             />
             <TextField
               fullWidth
@@ -163,8 +168,9 @@ function CommentThread({ artistId, eventId }) {
             </Box>
           </Box>
         </Stack>
-      </Box>
+      </Box> : <Box className={styles.composer}><Typography>Sign in to join the discussion.</Typography><Button href="/login" sx={{ minHeight: 44 }}>Sign in to comment</Button></Box>}
 
+      {authError && <Alert severity="error" sx={{ mb: 3 }}>{authError}<Button href="/login">Sign in</Button></Alert>}
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
       {loadError ? <Alert severity="error">{loadError}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => fetchComments()}>Retry comments</Button></Alert> : loading ? (
@@ -174,9 +180,7 @@ function CommentThread({ artistId, eventId }) {
           {comments.map((comment) => (
             <Box key={comment.id}>
               <Stack direction="row" spacing={2} alignItems="flex-start">
-                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.1)' }}>
-                  {(comment.author_name || '?').charAt(0).toUpperCase()}
-                </Avatar>
+                <ProfileAvatar src={comment.author_profile_picture} name={comment.author_name} />
                 <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                   <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>

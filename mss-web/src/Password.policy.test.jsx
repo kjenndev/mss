@@ -14,10 +14,12 @@ const ok = data => ({ ok: true, json: async () => data });
 it('login still submits legacy short credentials unchanged', async () => {
  api.Authenticate.mockResolvedValue(ok({}));
  render(<MemoryRouter><Login /></MemoryRouter>);
- fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'legacy' } });
- fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'old4' } });
+ fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'LeGaCy' } });
+ fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'OlD4' } });
+ expect(screen.getByText('Usernames are not case-sensitive')).toBeTruthy();
+ expect(screen.getByLabelText('Password').hasAttribute('minlength')).toBe(false);
  fireEvent.click(screen.getByRole('button', { name: 'Login' }));
- await waitFor(() => expect(api.Authenticate).toHaveBeenCalledWith({ username: 'legacy', password: 'old4' }));
+ await waitFor(() => expect(api.Authenticate).toHaveBeenCalledWith({ username: 'LeGaCy', password: 'OlD4' }));
 });
 async function openForm(kind) {
  if (kind === 'create') {
@@ -43,23 +45,25 @@ async function openForm(kind) {
  return { input: screen.getByLabelText('New Password (leave blank to keep)'), button: screen.getByRole('button', { name: 'Save Changes' }), save: api.UpdateUser };
 }
 for (const kind of ['create', 'profile', 'admin']) {
- it.each([11, 1025])(`${kind} rejects a new password of %i characters`, async length => {
+ it.each([4, 1025])(`${kind} rejects a new password of %i characters`, async length => {
   const form = await openForm(kind);
-  fireEvent.change(form.input, { target: { value: 'a'.repeat(length) } });
-  if (form.confirm) fireEvent.change(form.confirm, { target: { value: 'a'.repeat(length) } });
+  fireEvent.change(form.input, { target: { value: 'AbCdE'.repeat(Math.ceil(length / 5)).slice(0, length) } });
+  if (form.confirm) fireEvent.change(form.confirm, { target: { value: 'AbCdE'.repeat(Math.ceil(length / 5)).slice(0, length) } });
   fireEvent.click(form.button);
   expect(form.save).not.toHaveBeenCalled();
-  expect(screen.getByText('Password must be between 12 and 1024 characters')).toBeTruthy();
+  expect(screen.getByText('Password must be between 5 and 1024 characters')).toBeTruthy();
  });
- it.each([12, 1024])(`${kind} accepts a new password of %i characters`, async length => {
+ it.each([5, 1024])(`${kind} accepts a new password of %i characters`, async length => {
   const form = await openForm(kind);
   expect(form.input.getAttribute('aria-describedby')).toBeTruthy();
-  expect(document.getElementById(form.input.getAttribute('aria-describedby')).textContent).toMatch(/12.*1024/);
-  fireEvent.change(form.input, { target: { value: 'a'.repeat(length) } });
-  if (form.confirm) fireEvent.change(form.confirm, { target: { value: 'a'.repeat(length) } });
+  fireEvent.change(form.input, { target: { value: 'AbCdE'.repeat(Math.ceil(length / 5)).slice(0, length) } });
+  if (form.confirm) fireEvent.change(form.confirm, { target: { value: 'AbCdE'.repeat(Math.ceil(length / 5)).slice(0, length) } });
   fireEvent.click(form.button);
   await waitFor(() => expect(form.save).toHaveBeenCalled());
-  expect(form.save.mock.calls[0].at(-1).password).toBe('a'.repeat(length));
+  expect(form.save.mock.calls[0].at(-1).password).toBe('AbCdE'.repeat(Math.ceil(length / 5)).slice(0, length));
+  expect(form.input.minLength).toBe(5);
+  expect(form.input.maxLength).toBe(1024);
+  expect(document.getElementById(form.input.getAttribute('aria-describedby')).textContent).toMatch(/5.*1024/);
  });
 }
 it.each(['profile', 'admin'])('%s leaves a blank password unchanged', async kind => {

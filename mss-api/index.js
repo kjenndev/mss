@@ -1,3 +1,4 @@
+import { createRegistrationRouter } from './registration.js';
 import { decodeImage } from './uploads.js';
 import express from 'express';
 import cors from 'cors';
@@ -39,7 +40,7 @@ const loginAccountBudget = budget(10, 15 * 60 * 1000);
 const loginIpBudget = budget(30, 15 * 60 * 1000);
 const loginGlobalBudget = budget(300, 15 * 60 * 1000, 1);
 function publicUser(row) {
-  return Object.fromEntries(['id', 'username', 'role', 'artist_id', 'is_disabled', 'display_name'].filter(key => key in row).map(key => [key, row[key]]));
+  return { ...Object.fromEntries(['id', 'username', 'role', 'artist_id', 'is_disabled', 'display_name'].filter(key => key in row).map(key => [key, row[key]])), profile_picture: row.profile_picture ?? null };
 }
 const apiPort = process.env.PORT || 4000;
 const uploadFolder = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
@@ -76,6 +77,7 @@ function validationError(req, method, route) {
   const body = req.body;
   if (body !== undefined && (body === null || typeof body !== 'object' || Array.isArray(body))) return 'JSON object required';
   const b = body || {};
+  if (route === '/api/auth/me' && (Object.keys(b).some(key => !['username', 'password', 'display_name', 'email_alerts_opt_in'].includes(key)) || (b.email_alerts_opt_in !== undefined && typeof b.email_alerts_opt_in !== 'boolean'))) return 'Invalid profile fields';
   const settingValue = value => value === null || (typeof value === 'string' && value.length <= 10000);
   if (route === '/api/settings/:key' && !settingValue(b.value)) return 'Setting value must be text or null';
   if (route === '/api/settings/batch' && (!Array.isArray(b.settings) || b.settings.length > 100 || b.settings.some(item => !item || typeof item.key !== 'string' || !item.key.trim() || item.key.length > 100 || !settingValue(item.value)) || new Set(b.settings.map(item => item.key)).size !== b.settings.length)) return 'Use up to 100 distinct settings with string keys and text values';
@@ -84,8 +86,8 @@ function validationError(req, method, route) {
     if (b[key] !== undefined && !(b[key] === null && ['cover_photo', 'profile_picture'].includes(key)) && (typeof b[key] !== 'string' || b[key].length > max)) return `Invalid ${key}`;
   }
   for (const key of ['username', 'name', 'title', 'author_name', 'content']) if (b[key] !== undefined && !b[key].trim()) return `${key} must not be empty`;
-  if (b.password !== undefined && (typeof b.password !== 'string' || b.password.length > 1024 || (route !== '/api/auth/login' && b.password !== '' && b.password.length < 12))) return 'Password must be 12–1024 characters';
-  if (method === 'post' && route === '/api/users' && (!b.password || b.password.length < 12)) return 'Password must be 12–1024 characters';
+  if (b.password !== undefined && (typeof b.password !== 'string' || b.password.length > 1024 || (route !== '/api/auth/login' && b.password !== '' && b.password.length < 5))) return 'Password must be 5–1024 characters';
+  if (method === 'post' && route === '/api/users' && (!b.password || b.password.length < 5)) return 'Password must be 5–1024 characters';
   if (b.channel_name !== undefined && b.channel_name !== '' && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(b.channel_name)) return 'Invalid channel name';
   if (b.date !== undefined && b.date !== null && b.date !== '' && (typeof b.date !== 'string' || b.date.length > 40 || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(b.date) || !Number.isFinite(Date.parse(b.date)))) return 'Invalid event date';
   if (b.role !== undefined && !['admin', 'artist', 'user'].includes(b.role)) return 'Invalid role';
@@ -101,7 +103,7 @@ async function removeUpload(filename) {
       await trx.raw('SELECT pg_advisory_xact_lock(1297306453)');
       const name = path.basename(filename), url = `/uploads/${name}`;
       for (const [table, column, value] of [
-        ['events', 'flyer', url], ['artists', 'profile_picture', url], ['artists', 'cover_photo', url],
+        ['users', 'profile_picture', url], ['events', 'flyer', url], ['artists', 'profile_picture', url], ['artists', 'cover_photo', url],
         ['artist_images', 'filename', name], ['event_images', 'filename', name]
       ]) if (await trx(table).where({ [column]: value }).first()) return;
       // Settings may embed legacy shared media URLs in sanitized rich text.
@@ -197,7 +199,7 @@ for (const method of ['get', 'post', 'put', 'delete']) {
       const invalid = validationError(req, method, route);
       if (invalid) return res.status(400).json({ error: invalid });
       return method !== 'get' && index === handlers.length - 1 && route !== '/api/auth/login'
-        ? atomicHandler(handler, req, res, next, handlers.filter(h => [authMiddleware, adminOnly, canManageArtist, canManageEvent, canUploadEvent].includes(h))) : handler(req, res, next); }).catch(next)));
+        ? atomicHandler(handler, req, res, next, handlers.filter(h => [authMiddleware, adminOnly, canCreateEvent, canManageArtist, canManageEvent, canUploadEvent].includes(h))) : handler(req, res, next); }).catch(next)));
 }
 const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://localhost:5174').split(',').map(value => value.trim()).filter(Boolean);
 for (const origin of corsOrigins) {
@@ -207,6 +209,7 @@ for (const origin of corsOrigins) {
 }
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(express.json());
+app.use(createRegistrationRouter({ getDb, hashPassword, verifyPassword }));
 app.use('/uploads', (req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
   res.set('Content-Security-Policy', "default-src 'none'; sandbox");
@@ -232,9 +235,16 @@ async function authMiddleware(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const userQuery = db('users').select('id', 'username', 'role', 'artist_id', 'is_disabled', 'display_name').where({ id: session.user_id });
+  const userQuery = db('users').select('id', 'username', 'role', 'artist_id', 'is_disabled', 'display_name', 'profile_picture', 'email', 'email_verified_at', 'email_alerts_opt_in').where({ id: session.user_id });
   if (req.db) userQuery.forUpdate();
   const user = await userQuery.first();
+  // A session may be revoked while this transaction waits for the user lock.
+  if (req.db) {
+    const currentSession = await db('sessions').where({ token }).forUpdate().first();
+    if (!currentSession || Number(currentSession.user_id) !== Number(user?.id) || !(new Date(currentSession.expires_at).getTime() > Date.now())) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
   
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -253,6 +263,11 @@ function adminOnly(req, res, next) {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
+  next();
+}
+
+function canCreateEvent(req, res, next) {
+  if (!['artist', 'admin'].includes(req.user.role)) return res.status(403).json({ error: 'Artist or admin access required' });
   next();
 }
 
@@ -312,15 +327,25 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   const db = req.db || await getDb();
-  if (!loginAccountBudget(username.toLowerCase()) || !loginIpBudget(req.ip) || !loginGlobalBudget('global')) return res.status(429).json({ error: 'Too many login attempts; try again later' });
+  if (!loginIpBudget(req.ip) || !loginGlobalBudget('global')) return res.status(429).json({ error: 'Too many login attempts; try again later' });
   const result = await db.transaction(async trx => {
     // Lock serializes login with credential resets; stale credentials cannot create a new session.
-    const user = await trx('users').where({ username }).forUpdate().first();
+    const matches = await trx('users').whereRaw('lower(username) = lower(?)', [username]).orderBy('id').limit(2).forUpdate();
+    // PostgreSQL lower() can equate Unicode spellings that JavaScript does not.
+    // Charge the resolved identity before password work, regardless of alias or IP.
+    // Unresolved names retain a separate budget and can never select an identity.
+    const accountKey = matches.length === 1 ? `user:${matches[0].id}` : `unresolved:${username.toLowerCase()}`;
+    if (!loginAccountBudget(accountKey)) return { status: 429, error: 'Too many login attempts; try again later' };
+    // A pre-migration legacy collision must never select an arbitrary identity.
+    if (matches.length !== 1) return { status: 401, error: 'Invalid credentials' };
+    const user = matches[0];
     if (!user || !(await verifyPassword(password, user.password))) return { status: 401, error: 'Invalid credentials' };
     if (user.is_disabled) return { status: 403, error: 'Account is disabled' };
     if (/^[a-f0-9]{32}$/i.test(user.password)) await trx('users').where({ id: user.id }).update({ password: await hashPassword(password) });
     const token = uuidv4();
-    await trx('sessions').where('expires_at', '<', new Date()).del();
+    // Keep cleanup within the locked account: another account may hold its session
+    // while waiting for this user (for example an admin edit).
+    await trx('sessions').where({ user_id: user.id }).where('expires_at', '<', new Date()).del();
     await trx('sessions').insert({ token, user_id: user.id, expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000) });
     return { token, user: publicUser(user) };
   });
@@ -338,8 +363,27 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
   res.json({ user: req.user });
 });
 
+// Account portraits are separate from artist gallery images. The shared atomic
+// wrapper revalidates auth under the mutation/user/session locks and compensates files.
+app.post('/api/auth/me/avatar', authMiddleware, boundedUpload('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Image is required' });
+  if (Object.keys(req.body || {}).length) return res.status(400).json({ error: 'Avatar accepts only the image file' });
+  const profile_picture = `/uploads/${req.file.filename}`;
+  await req.db('users').where({ id: req.user.id }).update({ profile_picture });
+  await scheduleRemovedUploadReferences(req, [req.user.profile_picture]);
+  res.json({ user: publicUser({ ...req.user, profile_picture }) });
+});
+
+app.delete('/api/auth/me/avatar', authMiddleware, async (req, res) => {
+  if (Object.keys(req.body || {}).length) return res.status(400).json({ error: 'Avatar removal accepts no fields' });
+  await req.db('users').where({ id: req.user.id }).update({ profile_picture: null });
+  await scheduleRemovedUploadReferences(req, [req.user.profile_picture]);
+  res.json({ user: publicUser({ ...req.user, profile_picture: null }) });
+});
+
 app.put('/api/auth/me', authMiddleware, async (req, res) => {
-  const { username, password, display_name } = req.body || {};
+  const { username, password, display_name, email_alerts_opt_in } = req.body || {};
+  if (email_alerts_opt_in === true && (!req.user.email || !req.user.email_verified_at)) return res.status(400).json({ error: 'Verify an email address before opting into alerts' });
   const db = req.db || await getDb();
 
   const updateFields = {
@@ -347,6 +391,10 @@ app.put('/api/auth/me', authMiddleware, async (req, res) => {
     display_name: display_name !== undefined ? display_name : req.user.display_name,
   };
 
+  if (email_alerts_opt_in !== undefined) {
+    updateFields.email_alerts_opt_in = email_alerts_opt_in;
+    updateFields.email_alerts_updated_at = new Date();
+  }
   try {
     if (password) {
       updateFields.password = await hashPassword(password);
@@ -357,7 +405,7 @@ app.put('/api/auth/me', authMiddleware, async (req, res) => {
     if (password || (username !== undefined && username !== req.user.username)) await db('sessions').where({ user_id: req.user.id }).del();
 
     const updatedUser = await db('users')
-      .select('id', 'username', 'role', 'artist_id', 'display_name')
+      .select('id', 'username', 'role', 'artist_id', 'display_name', 'profile_picture', 'email', 'email_verified_at', 'email_alerts_opt_in')
       .where({ id: req.user.id })
       .first();
       
@@ -503,6 +551,9 @@ app.delete('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
     return res.status(400).json({ error: 'Cannot delete your own admin account' });
   }
   const db = req.db || await getDb();
+  // Match standalone authentication and credential resets: user before sessions.
+  const deletedUser = await db('users').where({ id: userId }).forUpdate().first();
+  await scheduleRemovedUploadReferences(req, [deletedUser?.profile_picture]);
   await db('sessions').where({ user_id: userId }).del();
   await db('users').where({ id: userId }).del();
   res.json({ success: true });
@@ -724,7 +775,7 @@ app.get('/api/events/:id', async (req, res) => {
   res.json({ event: { ...event, artists, images: images.map(img => ({ ...img, url: `/uploads/${img.filename}` })) } });
 });
 
-app.post('/api/events', authMiddleware, async (req, res) => {
+app.post('/api/events', authMiddleware, canCreateEvent, async (req, res) => {
   const { title, description, date, location, ticket_link, artist_ids, flyer_artist_name, flyer_artist_url } = req.body || {};
   if (!title) {
     return res.status(400).json({ error: 'Title is required' });
@@ -980,6 +1031,18 @@ app.get('/api/admin/stats', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+// One bounded author lookup per page, never one query per comment or private user columns.
+async function publicComments(db, rows) {
+  const ids = [...new Set(rows.map(row => row.user_id).filter(id => id != null))];
+  const authors = ids.length ? await db('users').whereIn('id', ids).select('id', 'profile_picture') : [];
+  const pictures = new Map(authors.map(author => [Number(author.id), author.profile_picture ?? null]));
+  const fields = ['id', 'content', 'user_id', 'artist_id', 'event_id', 'parent_id', 'author_name', 'created_at', 'updated_at'];
+  return rows.map(row => ({
+    ...Object.fromEntries(fields.filter(key => key in row).map(key => [key, row[key]])),
+    author_profile_picture: pictures.get(Number(row.user_id)) ?? null,
+  }));
+}
+
 app.get('/api/comments', async (req, res) => {
   const { artist_id, event_id } = req.query;
   const limit = Number(req.query.limit ?? 100), offset = Number(req.query.offset ?? 0);
@@ -991,18 +1054,15 @@ app.get('/api/comments', async (req, res) => {
   if (cursor !== undefined) query.where('id', '>', Number(cursor));
   else query.offset(offset);
   const rows = await query;
-  const has_more = rows.length > limit, comments = rows.slice(0, limit);
+  const has_more = rows.length > limit, comments = await publicComments(db, rows.slice(0, limit));
   res.json({ comments, has_more, next_offset: has_more ? offset + limit : null, next_cursor: has_more ? comments.at(-1).id : null });
 });
 
-app.post('/api/comments', async (req, res) => {
+app.post('/api/comments', authMiddleware, async (req, res) => {
   if (!commentIpBudget(req.ip) || !commentGlobalBudget('global')) return res.status(429).json({ error: 'Too many comments; try again later' });
-  const { content, artist_id, event_id, parent_id, author_name } = req.body || {};
+  const { content, artist_id, event_id, parent_id } = req.body || {};
   if (!content) {
     return res.status(400).json({ error: 'Comment content is required' });
-  }
-  if (!author_name) {
-    return res.status(400).json({ error: 'Name is required' });
   }
 
   const db = req.db || await getDb();
@@ -1016,8 +1076,8 @@ app.post('/api/comments', async (req, res) => {
     }
     const [commentIdObj] = await db('comments').insert({
       content,
-      user_id: null, // Force no association
-      author_name,
+      user_id: req.user.id,
+      author_name: req.user.username,
       artist_id: artist_id || null,
       event_id: event_id || null,
       parent_id: parent_id || null,
@@ -1026,7 +1086,7 @@ app.post('/api/comments', async (req, res) => {
     const commentId = typeof commentIdObj === 'object' ? commentIdObj.id : commentIdObj;
     const comment = await db('comments').where('id', commentId).first();
 
-    res.status(201).json({ comment });
+    res.status(201).json({ comment: (await publicComments(db, [comment]))[0] });
   } catch (err) {
     if (['23503', '23505', '23514', '22P02', '22007'].includes(err.code)) throw err;
 

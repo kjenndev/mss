@@ -101,6 +101,7 @@ export default function AdminSettings() {
             Manage global configuration for the Midnight Sound Syndicate platform.
           </Typography>
 
+          <Button href="/admin/email" variant="outlined" sx={{ mb: 3 }}>Email setup</Button>
           {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
           {error === 'Failed to load settings' && <Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={fetchSettings}>Retry</Button>}
           {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}

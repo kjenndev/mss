@@ -75,6 +75,14 @@ async function GetCurrentUser() {
   return response;
 }
 
+export async function UploadMyAvatar(file) {
+  const form = new FormData();
+  form.append('image', file);
+  return request('/auth/me/avatar', 'POST', form, true, true);
+}
+
+export const DeleteMyAvatar = () => request('/auth/me/avatar', 'DELETE');
+
 async function UpdateMyProfile(data) {
   return await request('/auth/me', 'PUT', data);
 }
@@ -243,6 +251,17 @@ async function PostComment(data) {
 async function DeleteComment(id) {
   return await request(`/comments/${id}`, 'DELETE');
 }
+
+export const GetRegistrationConfig = () => request('/auth/registration-config', 'GET', null, false);
+export const GetVerificationInfo = data => request('/auth/verification-info', 'POST', data, false);
+export const VerifyEmail = (data, authenticated = false) => request('/auth/verify-email', 'POST', data, authenticated);
+export const ResendVerification = data => request('/auth/resend-verification', 'POST', data, false);
+export const ChangeEmail = data => request('/auth/email-change', 'POST', data);
+export const GetEmailSettings = () => request('/admin/email-settings');
+export const UpdateEmailSettings = data => request('/admin/email-settings', 'PUT', data);
+export const Register = data => request('/auth/register', 'POST', data, false);
+
+export function CanCreateEvent() { return HasSession() && ['artist', 'admin'].includes(GetSessionRole()); }
 
 function HasSession() {
   return Boolean(localStorage.getItem('mss-token'));

@@ -15,6 +15,10 @@ Run these commands from `mss-api`. Copy `.env.example` to a private, ignored `.e
 
 Startup runs Knex migrations. Back up the existing database and upload directory, and rehearse upgrades before deploying. Historical migration files must remain unchanged; apply new forward migrations. Do not rerun seeds against an existing installation or overwrite users/passwords. Seed account initialization must use an explicitly supplied password, not bundled default credentials.
 
+New passwords (registration completion, admin creation/reset, self-profile changes and explicit `MSS_ADMIN_PASSWORD` provisioning) must be **5–1024 characters**. Passwords remain case-sensitive and use salted scrypt; existing shorter passwords still work at login. Usernames compare case-insensitively using PostgreSQL `lower()` while their stored/display spelling is preserved. The provisioning seed leaves an existing case-insensitive username match unchanged.
+
+The additive `20261003010000_case_insensitive_usernames.js` migration creates unique `lower(username)` indexes on users and pending registrations. Existing case collisions cause the migration to fail and roll back; it never renames, merges or deletes records. Review collisions before deployment and resolve them only with explicit operator approval. Pending signup suggestions remain non-authoritative: only mailbox-owner completion establishes credentials, and suggestions do not reserve names against authenticated account management. Duplicate account writes return HTTP 409; ineligible registration requests retain their generic HTTP 202 response.
+
 Default API port: **4000**. MSS web development uses **5174**. These are distinct from ItsNoSecret and Streaming-Platform services.
 
 ## Streaming boundary
@@ -47,3 +51,18 @@ Backend regression tests must not modify the live development database. Native d
 ## Artist media library
 
 `GET /api/media-library` aggregates public SoundCloud/Mixcloud metadata from linked artist profiles without changing `/api/feed`. See [MEDIA_LIBRARY.md](MEDIA_LIBRARY.md) for credentials, API contract, safety budgets, cache semantics, verification, and large-catalog limitations.
+
+## Public registration
+
+See [PUBLIC_REGISTRATION.md](PUBLIC_REGISTRATION.md) for additive PostgreSQL migration, private Resend configuration, API contracts, email-change flow, deployment safeguards and disposable integration tests. Registration remains unavailable until mail setup is complete. Public contact: support@midnightsoundsyndicate.com.
+
+## Account profile pictures
+
+Run the new additive `20261003020000_user_profile_picture.js` migration before this API version. It adds nullable `users.profile_picture`; existing accounts remain unchanged with a null picture. Account avatars are independent of artist portraits, covers and galleries.
+
+- Authenticated `user`, `artist`, and `admin` roles may manage **only their own** avatar via `POST /api/auth/me/avatar` with multipart field **`image`** (one file, no other fields). `DELETE /api/auth/me/avatar` takes no body and is idempotent. Both return `{ user: publicUser }`, including nullable `profile_picture`. Login, GET/PUT `/api/auth/me` also include that field. URLs cannot be supplied through the profile update API.
+- Uses the existing upload limit: **5 MiB (5,242,880 bytes)** for both input and re-encoded output; **16,000,000 decoded pixels**. JPEG, PNG and WebP are decoded by content, never trusted MIME/extension; SVG, GIF, malformed files and animation (including APNG) are rejected. Output is metadata-stripped, orientation-corrected WebP at quality 85 with a random filename. No client-selected path is used.
+- Existing admission remains two simultaneous buffered uploads, 60 attempts/account/hour, 100 MiB/account and 1 GiB total persisted upload quotas. A replacement temporarily needs quota for old plus new encoded file until after-commit cleanup. Oversize/quota returns 413; unsupported/invalid image returns 415; missing file/extra fields returns 400; missing/revoked authentication returns 401; disabled accounts return 403; admission limits return 429.
+- The existing transaction/upload wrapper serializes mutations with the shared advisory lock, then locks/revalidates the account/session. Staged/published files are compensated on transaction failure; previous media is reclaimed only after commit and only if no user avatar, artist/gallery, event/gallery or settings reference remains. Account deletion schedules its avatar for the same guarded cleanup. Filesystem cleanup failures retain accounting and log deferred cleanup, as for existing galleries.
+- Public GET comments and authenticated POST comments return nullable `author_profile_picture` from the associated user's **current** avatar (not client input, not a historical snapshot). Legacy anonymous comments return null, historical author names remain unchanged, and only avatar/id columns are fetched in one bounded batch per page. No private account fields are returned in comment DTOs.
+- Isolated regression: `node --test test/*.test.js`; real PostgreSQL/multipart/concurrency checks: `wsl.exe -d Ubuntu -u root -- python3 /home/kjenn/code/mss/mss-api/test/run-registration-postgres.py avatar-native.test.js`. The latter copies without `.env`, uploads or media and creates/drops only a uniquely named disposable test database. It does not migrate live data or send email.
