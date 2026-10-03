@@ -7,11 +7,27 @@ import Menu from '@mui/material/Menu';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
+import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
+import DashboardOutlined from '@mui/icons-material/DashboardOutlined';
+import TuneOutlined from '@mui/icons-material/TuneOutlined';
+import PersonOutline from '@mui/icons-material/PersonOutline';
+import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
 
 import * as helpers from '../Data.Helper.Api';
 import styles from './Nav.Component.Menu.module.css';
 
-export default function NavMenu() {
+function AccountIdentity({ user, name }) {
+  return <li role="presentation" className={styles.identity}>
+    <ProfileAvatar src={user?.profile_picture} name={name} sx={{ width: 40, height: 40, flexShrink: 0 }} />
+    <div className={styles.identityText}>
+      <Typography component="p" className={styles.identityCaption}>Signed in as</Typography>
+      <Typography component="p" className={styles.identityName}>{name}</Typography>
+    </div>
+  </li>;
+}
+AccountIdentity.muiSkipListHighlight = true;
+
+export default function NavMenu({ guestClassName }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [hasSession, setHasSession] = useState(helpers.HasSession());
   const [isAdmin, setIsAdmin] = useState(helpers.IsAdmin());
@@ -115,42 +131,49 @@ export default function NavMenu() {
         <Menu
           id="menu-appbar"
           anchorEl={anchorEl}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           keepMounted
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           open={Boolean(anchorEl)}
           onClose={handleClose}
+          slotProps={{
+            paper: { className: styles.menuPaper },
+            list: { 'aria-label': 'Account', className: styles.menuList },
+          }}
         >
-          <MenuItem disabled>
-            <Typography variant="body2" color="text.secondary">Logged in as: {userName}</Typography>
-          </MenuItem>
+          <AccountIdentity user={currentUser} name={currentUser?.username || userName} />
           <Divider />
 
-          <MenuItem onClick={() => { handleClose(); navigate('/account'); }}>
-            <Typography variant="button" className={styles.menuItemButton}>Account Settings</Typography>
+          <MenuItem className={styles.menuRow} onClick={() => { handleClose(); navigate('/account'); }}>
+            <SettingsOutlined fontSize="small" /><Typography variant="body2" className={styles.menuItemButton}>Account Settings</Typography>
           </MenuItem>
 
+          {isAdmin && <Divider />}
           {isAdmin && (
-            <MenuItem onClick={() => { handleClose(); navigate('/admin/dashboard'); }}>
-              <Typography variant="button" className={styles.menuItemButton}>Admin Dashboard</Typography>
+            <MenuItem className={styles.menuRow} onClick={() => { handleClose(); navigate('/admin/dashboard'); }}>
+              <DashboardOutlined fontSize="small" /><Typography variant="body2" className={styles.menuItemButton}>Admin Dashboard</Typography>
             </MenuItem>
           )}
           {isAdmin && (
-            <MenuItem onClick={() => { handleClose(); navigate('/admin/settings'); }}>
-              <Typography variant="button" className={styles.menuItemButton}>System Settings</Typography>
+            <MenuItem className={styles.menuRow} onClick={() => { handleClose(); navigate('/admin/settings'); }}>
+              <TuneOutlined fontSize="small" /><Typography variant="body2" className={styles.menuItemButton}>System Settings</Typography>
             </MenuItem>
           )}
 
+          {myArtists.length > 0 && <Divider />}
           {myArtists.map((artist) => (
-            <MenuItem key={artist.id} onClick={() => handleArtistClick(artist.id)}>
-              <Typography variant="button" className={styles.menuItemButton}>
+            <MenuItem className={styles.menuRow} key={artist.id} onClick={() => handleArtistClick(artist.id)}>
+              <PersonOutline fontSize="small" />
+              <Typography variant="body2" className={styles.menuItemButton}>
                 {artist.name} Profile
               </Typography>
             </MenuItem>
           ))}
 
-          <MenuItem onClick={handleLogout}>
-            <Typography variant="button" className={styles.menuItemButton + ' ' + styles.logoutButton}>
+          <Divider />
+          <MenuItem className={`${styles.menuRow} ${styles.logoutButton}`} onClick={handleLogout}>
+            <LogoutOutlined fontSize="small" />
+            <Typography variant="body2" className={styles.menuItemButton + ' ' + styles.logoutButton}>
               Logout
             </Typography>
           </MenuItem>
@@ -159,5 +182,5 @@ export default function NavMenu() {
     );
   }
 
-  return <><Button color="inherit" href="/login">Login</Button><Button color="inherit" href="/register">Create account</Button></>;
+  return <div className={guestClassName}><Button color="inherit" href="/login">Login</Button><Button color="inherit" href="/register">Create account</Button></div>;
 }
