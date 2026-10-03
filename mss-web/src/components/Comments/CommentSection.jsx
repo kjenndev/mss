@@ -8,7 +8,7 @@ import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
-import Paper from '@mui/material/Paper';
+import styles from './CommentSection.module.css';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -116,17 +116,17 @@ function CommentThread({ artistId, eventId }) {
   }
 
   return (
-    <Box sx={{ mt: 4 }}>
-      <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
+    <Box className={styles.comments}>
+      <Typography component="h3" variant="h5" sx={{ fontSize: 20, fontWeight: 600, mb: 3 }}>
         Comments ({comments.length})
       </Typography>
 
-      <Paper elevation={0} sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, mb: 4, border: '1px solid rgba(255,255,255,0.05)' }}>
-        <Stack direction="row" spacing={2}>
+      <Box component="section" aria-label="Write a comment" className={styles.composer}>
+        <Stack direction="row" spacing={2} className={styles.composerRow}>
           <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.1)' }}>
             {(authorName || '?').charAt(0).toUpperCase()}
           </Avatar>
-          <Box sx={{ flexGrow: 1 }}>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <TextField
               fullWidth
               size="small"
@@ -142,6 +142,7 @@ function CommentThread({ artistId, eventId }) {
               fullWidth
               multiline
               minRows={3}
+              label="Comment"
               placeholder="Write a comment..."
               variant="outlined"
               value={newComment}
@@ -155,14 +156,14 @@ function CommentThread({ artistId, eventId }) {
                 onClick={handlePost}
                 disabled={posting || !newComment.trim() || !authorName.trim()}
                 startIcon={posting && <CircularProgress size={16} color="inherit" />}
-                sx={{ borderRadius: '12px', px: 4, textTransform: 'none', fontWeight: 700 }}
+                sx={{ borderRadius: '4px', minHeight: 44, px: 3, textTransform: 'none', fontWeight: 500 }}
               >
                 Post Comment
               </Button>
             </Box>
           </Box>
         </Stack>
-      </Paper>
+      </Box>
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
@@ -176,8 +177,8 @@ function CommentThread({ artistId, eventId }) {
                 <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.1)' }}>
                   {(comment.author_name || '?').charAt(0).toUpperCase()}
                 </Avatar>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                       {comment.author_name}
                     </Typography>
@@ -185,7 +186,7 @@ function CommentThread({ artistId, eventId }) {
                       {new Date(comment.created_at).toLocaleString()}
                     </Typography>
                   </Box>
-                  <Typography variant="body1" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                  <Typography variant="body1" sx={{ mt: 0.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                     {comment.content}
                   </Typography>
 
@@ -196,7 +197,7 @@ function CommentThread({ artistId, eventId }) {
                         color="error"
                         startIcon={<DeleteIcon />}
                         onClick={() => handleDelete(comment.id)}
-                        sx={{ textTransform: 'none', minWidth: 0, p: 0, opacity: 0.7, '&:hover': { opacity: 1 } }}
+                        sx={{ textTransform: 'none', minWidth: 44, minHeight: 44, px: 1, opacity: 0.85, '&:hover': { opacity: 1 } }}
                       >
                         Delete
                       </Button>
@@ -204,7 +205,7 @@ function CommentThread({ artistId, eventId }) {
                   )}
                 </Box>
               </Stack>
-              <Divider sx={{ mt: 3, opacity: 0.05 }} />
+              <Divider sx={{ mt: 3, borderColor: '#333' }} />
             </Box>
           ))}
           {nextCursor !== null && <Button startIcon={<ExpandMoreIcon aria-hidden="true" />} onClick={() => fetchComments(nextCursor)}>Load more comments</Button>}

@@ -1,0 +1,5 @@
+.comments { margin-top: 24px; min-width: 0; }
+.composer { padding: 20px 0 28px; margin-bottom: 28px; border-top: 1px solid #333; border-bottom: 1px solid #333; }
+.comments :global(.MuiOutlinedInput-root) { border-radius: 4px; }
+.comments :global(.MuiInputBase-input) { color: inherit; }
+@media (max-width: 520px) { .composerRow > :global(.MuiAvatar-root) { display: none; } .composerRow > :global(.MuiBox-root) { margin-left: 0; width: 100%; } }

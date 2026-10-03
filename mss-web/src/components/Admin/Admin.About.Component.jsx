@@ -2,7 +2,6 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { sanitizeRichText } from '../../sanitize';
 import { getImageUrl } from '../../config';
 import { useState, useEffect } from 'react';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -12,14 +11,17 @@ import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import SaveIcon from '@mui/icons-material/Save';
-import PhotoCamera from '@mui/icons-material/PhotoCamera';
 
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
+import styles from './Admin.About.Component.module.css';
+
 import * as helpers from '../../Data.Helper.Api';
 
 const darkTheme = createTheme({
+  shape: { borderRadius: 4 },
+  components: { MuiButton: { styleOverrides: { root: { minHeight: 44, textTransform: 'none' } } } },
   palette: {
     mode: 'dark',
     primary: {
@@ -134,10 +136,11 @@ export default function AdminAboutEditor() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 8 }}>
+    <Container maxWidth="md" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        <Paper elevation={4} sx={{ p: 4, borderRadius: 2, bgcolor: 'rgba(30,30,30,0.7)', backdropFilter: 'blur(10px)' }}>
-          <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>Edit About Page</Typography>
+        <Box>
+          <p className={styles.eyebrow}>Page Content</p>
+          <Typography component="h1" className={styles.title} gutterBottom>Edit About Page<span aria-hidden="true">.</span></Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
             Customize the content and appearance of your platform's About page.
           </Typography>
@@ -146,41 +149,33 @@ export default function AdminAboutEditor() {
           {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
           <Stack spacing={4}>
-            <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <Typography variant="h6" gutterBottom color="primary.main" sx={{ fontWeight: 700 }}>Cover Photo</Typography>
+            <Box component="section" aria-labelledby="about-cover-title" className={styles.section}>
+              <Typography component="h2" id="about-cover-title" variant="h6" gutterBottom color="primary.main" sx={{ fontWeight: 700 }}>Cover Photo</Typography>
 
               {coverPhoto && (
-                <Box sx={{ mb: 2, borderRadius: 2, overflow: 'hidden', height: 200, bgcolor: '#000' }}>
+                <Box sx={{ mb: 2, borderRadius: '4px', overflow: 'hidden', height: 200, bgcolor: '#000' }}>
                     <img src={getImageUrl(coverPhoto)} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </Box>
               )}
 
-              <Stack direction="row" spacing={2} alignItems="center">
-                <input
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    id="about-cover-upload"
-                    type="file"
-                    onChange={handleFileChange}
-                />
-                <label htmlFor="about-cover-upload">
-                    <Button variant="outlined" component="span" startIcon={<PhotoCamera />}>
-                        {file ? file.name : 'Choose New Photo'}
-                    </Button>
-                </label>
-                {file && <Typography variant="caption" color="text.secondary">Ready to upload</Typography>}
-              </Stack>
+              <div className={styles.upload}>
+                <label htmlFor="about-cover-upload">Choose New Photo</label>
+                <input accept="image/*" id="about-cover-upload" type="file" onChange={handleFileChange} />
+                {file && <Typography variant="caption" color="text.secondary">Ready to upload: {file.name}</Typography>}
+              </div>
             </Box>
 
-            <Box sx={{ bgcolor: '#fff', color: '#000', borderRadius: 2, overflow: 'hidden' }}>
+            <Box component="section" aria-labelledby="about-content-title" className={styles.section}>
+              <Typography component="h2" id="about-content-title" variant="h6" gutterBottom>Page Content</Typography>
+              <div className={styles.editor}>
               <ReactQuill
                 theme="snow"
                 value={sanitizeRichText(content)}
                 onChange={setContent}
                 modules={quillModules}
                 formats={['header', 'bold', 'italic', 'underline', 'strike', 'blockquote', 'list', 'link', 'code-block']}
-                style={{ height: '400px', marginBottom: '50px' }}
               />
+              </div>
             </Box>
 
             <Box display="flex" justifyContent="flex-end" sx={{ mt: 2 }}>
@@ -190,13 +185,13 @@ export default function AdminAboutEditor() {
                 startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
                 onClick={handleSave}
                 disabled={saving}
-                sx={{ borderRadius: '12px', px: 4 }}
+                sx={{ px: 4 }}
               >
                 {saving ? 'Saving...' : 'Save About Page'}
               </Button>
             </Box>
           </Stack>
-        </Paper>
+        </Box>
       </ThemeProvider>
     </Container>
   );

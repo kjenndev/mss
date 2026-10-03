@@ -1,32 +1,23 @@
-.container {
-  padding-top: 4rem;
-  padding-bottom: 4rem;
-}
-
-.mainPaper {
-  padding: 3rem;
-  background-color: rgba(30, 30, 30, 0.7) !important;
-  backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-}
-
-.sectionBox {
-  padding: 2rem;
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.sectionHeader {
-  margin-bottom: 1.5rem !important;
-  color: #90caf9;
-  font-weight: 500;
-}
-
-.formFooter {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding-top: 1rem;
+/* Open editorial workflow; scoped to these forms only. */
+.container { margin-top: 48px; margin-bottom: 64px; color: #f5f5f5; }
+.mainPaper { padding: 0; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+.eyebrow { color: #90caf9; font-size: 11px !important; text-transform: uppercase; letter-spacing: 2px !important; }
+.title { font-size: clamp(36px, 5vw, 58px) !important; font-weight: 700 !important; letter-spacing: -2px !important; line-height: 1.08 !important; margin: 10px 0 16px !important; overflow-wrap: anywhere; }
+.title span { color: #90caf9; }
+.sectionBox { min-width: 0; border-top: 1px solid #343434; padding-top: 24px; }
+.sectionHeader { font-size: 20px !important; font-weight: 600 !important; margin-bottom: 20px !important; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.fields > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.fields > :has(textarea) { grid-column: 1 / -1; }
+.formFooter { display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #343434; padding-top: 24px; }
+.container :global(.MuiButton-root) { min-height: 44px; border-radius: 4px; text-transform: none; }
+.container :global(.MuiIconButton-root) { min-height: 44px; min-width: 44px; }
+.container :global(.MuiOutlinedInput-root) { border-radius: 4px; }
+.container button:focus-visible, .container [role="button"]:focus-visible { outline: 2px solid #90caf9; outline-offset: 3px; }
+.headerRow { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+@media (max-width: 640px) {
+  .container { margin-top: 28px; margin-bottom: 40px; }
+  .fields { grid-template-columns: minmax(0, 1fr); }
+  .headerRow, .formFooter { flex-direction: column; align-items: stretch; }
+  .title { letter-spacing: -1px !important; }
 }

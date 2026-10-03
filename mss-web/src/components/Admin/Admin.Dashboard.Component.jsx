@@ -49,6 +49,12 @@ import * as helpers from '../../Data.Helper.Api';
 import styles from './Admin.Dashboard.Component.module.css';
 
 const darkTheme = createTheme({
+  shape: { borderRadius: 4 },
+  components: {
+    MuiButton: { styleOverrides: { root: { minHeight: 44, textTransform: 'none' } } },
+    MuiPaper: { styleOverrides: { root: { backgroundImage: 'none', boxShadow: 'none' } } },
+    MuiDialog: { styleOverrides: { paper: { border: '1px solid #333', margin: 16, width: 'calc(100% - 32px)' } } },
+  },
   palette: {
     mode: 'dark',
   },
@@ -175,15 +181,16 @@ export default function AdminDashboard() {
   return (
     <Container className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        <Paper elevation={3} className={styles.headerPaper}>
-          <Typography variant="h4">Admin Dashboard</Typography>
+        <header className={styles.header}>
+          <p className={styles.eyebrow}>Syndicate / Administration</p>
+          <Typography component="h1" className={styles.title}>Admin Dashboard<span aria-hidden="true">.</span></Typography>
           <Typography variant="body1" className={styles.subTitle}>
            Manage Syndicate artists and user accounts.
           </Typography>
-        </Paper>
+        </header>
 
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
-          <Tabs value={tab} onChange={(e, v) => setTab(v)}>
+          <Tabs aria-label="Administration" variant="scrollable" scrollButtons="auto" value={tab} onChange={(e, v) => setTab(v)}>
             <Tab label="Artists" />
             <Tab label="Users" />
             <Tab label="Server" />
@@ -192,11 +199,11 @@ export default function AdminDashboard() {
 
         {tab === 0 && (
           <>
-            <Paper elevation={3} className={styles.actionsPaper}>
+            <Box className={styles.actions}>
               <Button variant="contained" href="/artists/create" className={styles.createButton}>
                 Create New Artist
               </Button>
-            </Paper>
+            </Box>
 
             <Grid container spacing={3}>
               {artists.map((artist) => (
@@ -234,14 +241,14 @@ export default function AdminDashboard() {
 
         {tab === 1 && (
           <>
-            <Paper elevation={3} className={styles.actionsPaper}>
+            <Box className={styles.actions}>
               <Button variant="contained" href="/users/create" className={styles.createButton}>
                 Create New User
               </Button>
-            </Paper>
+            </Box>
 
-            <TableContainer component={Paper}>
-              <Table>
+            <TableContainer component="section" role="region" aria-label="User accounts" tabIndex={0} className={styles.tableRegion}>
+              <Table aria-label="User accounts" sx={{ minWidth: 720 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell>ID</TableCell>
@@ -292,7 +299,7 @@ export default function AdminDashboard() {
           <Box sx={{ mt: 2 }}>
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <Card sx={{ height: '100%', bgcolor: 'rgba(144, 202, 249, 0.05)' }}>
+                <Card className={styles.statCard} sx={{ height: '100%', bgcolor: 'rgba(144, 202, 249, 0.05)' }}>
                   <CardContent>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
                       <TimerIcon color="primary" />
@@ -312,7 +319,7 @@ export default function AdminDashboard() {
               </Grid>
 
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <Card sx={{ height: '100%', bgcolor: 'rgba(76, 175, 80, 0.05)' }}>
+                <Card className={styles.statCard} sx={{ height: '100%', bgcolor: 'rgba(76, 175, 80, 0.05)' }}>
                   <CardContent>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
                       <SensorsIcon color="success" />
@@ -329,7 +336,7 @@ export default function AdminDashboard() {
               </Grid>
 
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <Card sx={{ height: '100%', bgcolor: 'rgba(156, 39, 176, 0.05)' }}>
+                <Card className={styles.statCard} sx={{ height: '100%', bgcolor: 'rgba(156, 39, 176, 0.05)' }}>
                   <CardContent>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
                       <ComputerIcon color="secondary" />
@@ -346,7 +353,7 @@ export default function AdminDashboard() {
               </Grid>
 
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                <Card sx={{ height: '100%', bgcolor: 'rgba(255, 152, 0, 0.05)' }}>
+                <Card className={styles.statCard} sx={{ height: '100%', bgcolor: 'rgba(255, 152, 0, 0.05)' }}>
                   <CardContent>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
                       <MemoryIcon color="warning" />
@@ -372,8 +379,8 @@ export default function AdminDashboard() {
         )}
 
         {/* Edit User Modal */}
-        <Dialog open={Boolean(editUser)} onClose={() => setEditUser(null)} fullWidth maxWidth="xs">
-          <DialogTitle>Edit User: {editUser?.username}</DialogTitle>
+        <Dialog aria-labelledby="edit-user-title" open={Boolean(editUser)} onClose={() => setEditUser(null)} fullWidth maxWidth="xs">
+          <DialogTitle id="edit-user-title">Edit User: {editUser?.username}</DialogTitle>
           <DialogContent>
             <Stack spacing={3} sx={{ mt: 1 }}>
               <MuiTextField
@@ -397,8 +404,9 @@ export default function AdminDashboard() {
                 onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
               />
               <FormControl fullWidth>
-                <InputLabel>Role</InputLabel>
+                <InputLabel id="user-role-label">Role</InputLabel>
                 <Select
+                  labelId="user-role-label"
                   value={editUser?.role || 'artist'}
                   label="Role"
                   onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}

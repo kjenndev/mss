@@ -3,7 +3,6 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { getImageUrl } from '../../config';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -260,7 +259,7 @@ function ArtistEditor() {
   return (
     <Container maxWidth="md" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        <Paper elevation={4} className={styles.mainPaper}>
+        <Box className={styles.mainPaper}>
           {/* Cover Photo Preview */}
           <Box
             className={styles.coverPreview}
@@ -279,15 +278,16 @@ function ArtistEditor() {
           <Box className={styles.formContent}>
             <Stack spacing={4}>
               <Box>
-                <Typography variant="h4" gutterBottom>Update Artist Profile</Typography>
+                <Typography className={styles.eyebrow}>Artist management</Typography>
+                <Typography component="h1" className={styles.title}>Update Artist Profile<span aria-hidden="true">.</span></Typography>
                 <Typography variant="body2" color="text.secondary">
                   Manage your details, social links, and gallery.
                 </Typography>
               </Box>
 
               <Stack spacing={3}>
-                <Box>
-                  <Typography variant="h6" className={styles.galleryLabel}>Gallery Management</Typography>
+                <Box component="section" aria-label="Gallery Management" className={styles.sectionBox}>
+                  <Typography component="h2" variant="h6" className={styles.galleryLabel}>Gallery Management</Typography>
                   <Grid container spacing={2} className={styles.galleryGrid}>
                     {images.map((image) => (
                       <Grid size={{ xs: 6, sm: 4, md: 3 }} key={image.id}>
@@ -337,97 +337,103 @@ function ArtistEditor() {
                       </Grid>
                     ))}
                     <Grid size={{ xs: 6, sm: 4, md: 3 }}>
-                      <Card className={styles.uploadCard} onClick={() => fileInputRef.current?.click()}>
-                        {uploading ? <CircularProgress size={24} /> : <Typography variant="h3" color="text.secondary">+</Typography>}
+                      <Card component="button" type="button" aria-label="Upload gallery image" disabled={uploading} className={styles.uploadCard} onClick={() => fileInputRef.current?.click()}>
+                        {uploading ? <CircularProgress size={24} /> : <Typography component="span" color="text.secondary">Upload image</Typography>}
                       </Card>
                       <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" />
                     </Grid>
                   </Grid>
                 </Box>
 
-                <TextField
-                  fullWidth
-                  label="Artist Name"
-                  name="name"
-                  variant="outlined"
-                  value={artist.name}
-                  onChange={handleArtistChange}
-                  required
-                />
-                <TextField
-                  fullWidth
-                  label="Location"
-                  name="location"
-                  variant="outlined"
-                  value={artist.location || ''}
-                  onChange={handleArtistChange}
-                />
-                <TextField
-                  fullWidth
-                  label="Description"
-                  name="description"
-                  variant="outlined"
-                  multiline
-                  minRows={4}
-                  value={artist.description || ''}
-                  onChange={handleArtistChange}
-                />
-
-                <Box className={styles.sectionBox}>
-                  <Typography variant="h6" className={styles.sectionHeader}>Social & Streaming Links</Typography>
+                <Box component="section" aria-label="Artist details" className={styles.sectionBox}>
+                  <Typography component="h2" variant="h6" className={styles.sectionHeader}>Artist details</Typography>
+                  <Box className={styles.fields}>
+                    <TextField
+                      fullWidth
+                      label="Artist Name"
+                      name="name"
+                      variant="outlined"
+                      value={artist.name}
+                      onChange={handleArtistChange}
+                      required
+                    />
+                    <TextField
+                      fullWidth
+                      label="Location"
+                      name="location"
+                      variant="outlined"
+                      value={artist.location || ''}
+                      onChange={handleArtistChange}
+                    />
+                    <TextField
+                      fullWidth
+                      label="Description"
+                      name="description"
+                      variant="outlined"
+                      multiline
+                      minRows={4}
+                      value={artist.description || ''}
+                      onChange={handleArtistChange}
+                    />
+                  </Box>
                 </Box>
 
-                <TextField
-                  fullWidth
-                  label="Twitch Username"
-                  name="twitch"
-                  variant="outlined"
-                  value={artist.twitch || ''}
-                  onChange={handleArtistChange}
-                  placeholder="e.g. yourname"
-                />
-                <TextField
-                  fullWidth
-                  label="Streaming Platform Channel Name"
-                  name="channel_name"
-                  disabled={!isAdmin}
-                  helperText="Admin-only manual mapping. Use the exact existing SP channel; SP accounts are managed separately."
-                  variant="outlined"
-                  value={artist.channel_name || ''}
-                  onChange={handleArtistChange}
-                  placeholder="e.g. kyle-stream"
-                />
-                <TextField
-                  fullWidth
-                  label="SoundCloud URL"
-                  name="soundcloud"
-                  variant="outlined"
-                  value={artist.soundcloud || ''}
-                  onChange={handleArtistChange}
-                  placeholder="https://soundcloud.com/..."
-                />
-                <TextField
-                  fullWidth
-                  label="Mixcloud URL"
-                  name="mixcloud"
-                  variant="outlined"
-                  value={artist.mixcloud || ''}
-                  onChange={handleArtistChange}
-                  placeholder="https://mixcloud.com/..."
-                />
-                <TextField
-                  fullWidth
-                  label="YouTube URL"
-                  name="youtube"
-                  variant="outlined"
-                  value={artist.youtube || ''}
-                  onChange={handleArtistChange}
-                  placeholder="https://youtube.com/..."
-                />
+                <Box component="section" aria-label="Social & Streaming Links" className={styles.sectionBox}>
+                  <Typography component="h2" variant="h6" className={styles.sectionHeader}>Social & Streaming Links</Typography>
+                  <Box className={styles.fields}>
+                    <TextField
+                      fullWidth
+                      label="Twitch Username"
+                      name="twitch"
+                      variant="outlined"
+                      value={artist.twitch || ''}
+                      onChange={handleArtistChange}
+                      placeholder="e.g. yourname"
+                    />
+                    <TextField
+                      fullWidth
+                      label="Streaming Platform Channel Name"
+                      name="channel_name"
+                      disabled={!isAdmin}
+                      helperText="Admin-only manual mapping. Use the exact existing SP channel; SP accounts are managed separately."
+                      variant="outlined"
+                      value={artist.channel_name || ''}
+                      onChange={handleArtistChange}
+                      placeholder="e.g. kyle-stream"
+                    />
+                    <TextField
+                      fullWidth
+                      label="SoundCloud URL"
+                      name="soundcloud"
+                      variant="outlined"
+                      value={artist.soundcloud || ''}
+                      onChange={handleArtistChange}
+                      placeholder="https://soundcloud.com/..."
+                    />
+                    <TextField
+                      fullWidth
+                      label="Mixcloud URL"
+                      name="mixcloud"
+                      variant="outlined"
+                      value={artist.mixcloud || ''}
+                      onChange={handleArtistChange}
+                      placeholder="https://mixcloud.com/..."
+                    />
+                    <TextField
+                      fullWidth
+                      label="YouTube URL"
+                      name="youtube"
+                      variant="outlined"
+                      value={artist.youtube || ''}
+                      onChange={handleArtistChange}
+                      placeholder="https://youtube.com/..."
+                    />
+                  </Box>
+                </Box>
 
                 {isAdmin && (
-                  <Box className={styles.sectionBox}>
-                    <Typography variant="h6" className={styles.sectionHeader}>User Management</Typography>
+                  <Box component="section" aria-label="User Management" className={styles.sectionBox}>
+                  <Typography component="h2" variant="h6" className={styles.sectionHeader}>User Management</Typography>
                     <FormControl fullWidth variant="outlined">
                       <InputLabel id="user-label">Associated User (Admin Only)</InputLabel>
                       <Select
@@ -472,7 +478,7 @@ function ArtistEditor() {
               </Box>
             </Stack>
           </Box>
-        </Paper>
+        </Box>
       </ThemeProvider>
     </Container>
   );

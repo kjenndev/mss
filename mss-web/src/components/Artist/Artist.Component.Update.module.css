@@ -1,133 +1,37 @@
-.container {
-  margin-top: 32px;
-  margin-bottom: 48px;
+/* Open editorial workflow; scoped to these forms only. */
+.container { margin-top: 48px; margin-bottom: 64px; color: #f5f5f5; }
+.mainPaper { padding: 0; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+.eyebrow { color: #90caf9; font-size: 11px !important; text-transform: uppercase; letter-spacing: 2px !important; }
+.title { font-size: clamp(36px, 5vw, 58px) !important; font-weight: 700 !important; letter-spacing: -2px !important; line-height: 1.08 !important; margin: 10px 0 16px !important; overflow-wrap: anywhere; }
+.title span { color: #90caf9; }
+.sectionBox { min-width: 0; border-top: 1px solid #343434; padding-top: 24px; }
+.sectionHeader { font-size: 20px !important; font-weight: 600 !important; margin-bottom: 20px !important; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.fields > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.fields > :has(textarea) { grid-column: 1 / -1; }
+.formFooter { display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #343434; padding-top: 24px; }
+.container :global(.MuiButton-root) { min-height: 44px; border-radius: 4px; text-transform: none; }
+.container :global(.MuiIconButton-root) { min-height: 44px; min-width: 44px; }
+.container :global(.MuiOutlinedInput-root) { border-radius: 4px; }
+.container button:focus-visible, .container [role="button"]:focus-visible { outline: 2px solid #90caf9; outline-offset: 3px; }
+.headerRow { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+@media (max-width: 640px) {
+  .container { margin-top: 28px; margin-bottom: 40px; }
+  .fields { grid-template-columns: minmax(0, 1fr); }
+  .headerRow, .formFooter { flex-direction: column; align-items: stretch; }
+  .title { letter-spacing: -1px !important; }
 }
 
-.mainPaper {
-  border-radius: 16px !important;
-  overflow: hidden;
-  background-color: var(--background-paper) !important;
-}
-
-.coverPreview {
-  width: 100%;
-  height: 160px;
-  background-color: #1a1a1a;
-  background-size: cover;
-  background-position: center;
-  display: flex;
-  align-items: flex-end;
-  padding: 24px;
-}
-
-.avatarPreview {
-  background-color: var(--primary-main) !important;
-  border: 3px solid var(--background-paper);
-}
-
-.formContent {
-  padding: 32px;
-}
-
-.sectionBox {
-  padding-top: 8px;
-}
-
-.galleryLabel {
-  margin-bottom: 16px !important;
-  font-weight: 600 !important;
-}
-
-.galleryGrid {
-  margin-bottom: 24px !important;
-}
-
-.galleryCard {
-  position: relative;
-  border-radius: 8px !important;
-  overflow: hidden;
-}
-
-.galleryImage {
-  height: 120px;
-  object-fit: cover;
-}
-
-.imageActionsOverlay {
-  position: absolute;
-  top: 0;
-  right: 0;
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: rgba(0,0,0,0.5);
-  border-radius: 0 0 0 8px;
-}
-
-.profilePicBadge {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: var(--primary-main);
-  color: white;
-  text-align: center;
-  font-size: 0.6rem;
-  padding: 1px 0;
-}
-
-.coverPhotoBadge {
-  position: absolute;
-  left: 0;
-  right: 0;
-  background-color: var(--secondary-main);
-  color: white;
-  text-align: center;
-  font-size: 0.6rem;
-  padding: 1px 0;
-}
-
-/* Offset cover badge if profile pic badge is also present */
-.coverPhotoBadgeWithProfile {
-  bottom: 18px;
-}
-
-.coverPhotoBadgeAlone {
-  bottom: 0;
-}
-
-.uploadCard {
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px dashed #444 !important;
-  background-color: transparent !important;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.uploadCard:hover {
-  background-color: rgba(255,255,255,0.05) !important;
-}
-
-.sectionHeader {
-  margin-bottom: 8px !important;
-  font-weight: 600 !important;
-}
-
-.formFooter {
-  display: flex;
-  gap: 16px;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
-.cancelButton {
-  border-radius: 16px !important;
-}
-
-.saveButton {
-  border-radius: 16px !important;
-}
+.coverPreview { width: 100%; height: 180px; box-sizing: border-box; background-color: #23272b; background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 20px; border-radius: 4px; margin-bottom: 28px; }
+.avatarPreview { background-color: #343434 !important; border: 3px solid #171717; }
+.formContent { padding: 0; }
+.galleryLabel { font-size: 20px !important; margin-bottom: 20px !important; font-weight: 600 !important; }
+.galleryGrid { margin-bottom: 8px !important; }
+.galleryCard { position: relative; border-radius: 4px !important; overflow: hidden; box-shadow: none !important; }
+.galleryImage { height: 160px; object-fit: cover; }
+.imageActionsOverlay { padding: 4px; display: flex; flex-wrap: wrap; justify-content: center; background: #232323; }
+.profilePicBadge, .coverPhotoBadge { background: #23272b; color: #90caf9; font-size: 10px; letter-spacing: 1px; padding: 5px 8px; }
+.coverPhotoBadgeWithProfile, .coverPhotoBadgeAlone { position: static; }
+.uploadCard { width: 100%; min-height: 160px; display: flex; align-items: center; justify-content: center; border: 1px dashed #666 !important; border-radius: 4px !important; background: transparent !important; cursor: pointer; color: #90caf9; }
+.uploadCard:hover { background: #232323 !important; }
+.cancelButton, .saveButton { border-radius: 4px !important; }
