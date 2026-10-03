@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -72,18 +71,21 @@ export default function CreateUser() {
   }
 
   return (
-    <Container maxWidth="sm" className={styles.container}>
+    <Container className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        <Paper elevation={4} sx={{ p: 4, borderRadius: 2 }}>
+        <Box className={styles.content}>
           <Stack spacing={4}>
             <Box>
-              <Typography variant="h4" gutterBottom>Create New User</Typography>
+              <Typography className={styles.eyebrow}>User management</Typography>
+              <Typography component="h1" variant="h4" className={styles.title}>Create New User<span aria-hidden="true">.</span></Typography>
               <Typography variant="body2" color="text.secondary">
                 Manually create a new user account.
               </Typography>
             </Box>
 
-            <Stack spacing={3}>
+            <Box className={styles.groups}>
+              <Box component="fieldset" className={styles.group}>
+                <legend>Account details</legend>
               <TextField 
                 fullWidth
                 label="Username" 
@@ -102,6 +104,9 @@ export default function CreateUser() {
                 onChange={handleUserChange}
                 placeholder="Name shown in comments"
               />
+              </Box>
+              <Box component="fieldset" className={styles.group}>
+                <legend>Access</legend>
               <TextField 
                 fullWidth
                 label="Password" 
@@ -127,11 +132,12 @@ export default function CreateUser() {
                   <MenuItem value="user">Standard User</MenuItem>
                 </Select>
               </FormControl>
-            </Stack>
+              </Box>
+            </Box>
 
             {error && <Alert severity="error">{error}</Alert>}
 
-            <Box display="flex" justifyContent="flex-end" gap={2}>
+            <Box className={styles.footer}>
               <Button 
                 variant="outlined" 
                 onClick={() => navigate('/admin/dashboard')}
@@ -149,7 +155,7 @@ export default function CreateUser() {
               </Button>
             </Box>
           </Stack>
-        </Paper>
+        </Box>
       </ThemeProvider>
     </Container>
   );

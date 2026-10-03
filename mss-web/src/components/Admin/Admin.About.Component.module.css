@@ -1,0 +1,40 @@
+.container.container { margin-top: 36px; margin-bottom: 64px; color: #f5f5f5; min-width: 0; }
+.eyebrow { color: #90caf9; text-transform: uppercase; letter-spacing: 2px; font-size: 11px; margin: 0 0 12px; }
+.title.title { font-size: clamp(32px, 4vw, 48px); font-weight: 700; line-height: 1.12; letter-spacing: -1.5px; }
+.title span { color: #90caf9; }
+.section { border-top: 1px solid #333; padding-top: 24px; min-width: 0; overflow-wrap: anywhere; }
+.container :global(.MuiButton-root) { min-height: 44px; border-radius: 4px; text-transform: none; }
+.container :global(.MuiOutlinedInput-root) { border-radius: 4px; min-height: 44px; }
+.container :global(.MuiButton-root):focus-visible { outline: 2px solid #90caf9; outline-offset: 3px; }
+@media (max-width: 600px) { .container.container { margin-top: 24px; margin-bottom: 40px; } }
+.upload { display: grid; gap: 12px; min-width: 0; }
+.upload label { color: #bbb; font-size: 14px; }
+.upload input { max-width: 100%; min-height: 44px; color: #eee; font: inherit; }
+.upload input::file-selector-button { min-height: 44px; margin-right: 12px; background: transparent; color: #90caf9; border: 1px solid #58788f; border-radius: 4px; padding: 8px 16px; cursor: pointer; }
+.upload input:focus-visible { outline: 2px solid #90caf9; outline-offset: 3px; }
+.editor { background: #171717; color: #eee; border-radius: 4px; }
+.editor :global(.ql-toolbar) { border-radius: 4px 4px 0 0; }
+.editor :global(.ql-container) { border-radius: 0 0 4px 4px; font-size: 16px; }
+.editor :global(.ql-editor) { min-height: 320px; overflow-wrap: anywhere; }
+.editor :global(.ql-toolbar button), .editor :global(.ql-picker) { min-width: 44px; min-height: 44px; }
+.editor :global(.ql-picker-label) { display: flex; align-items: center; }
+.editor :global(.ql-tooltip) { left: 0 !important; max-width: 100%; white-space: normal; z-index: 2; }
+
+.editor :global(.ql-toolbar button) { display: inline-flex; align-items: center; justify-content: center; }
+.editor :global(.ql-toolbar button svg) { width: 20px; height: 20px; }
+.editor :global(.ql-picker-label) { min-height: 44px; }
+
+.editor :global(.ql-editor) { background: #171717; color: #eee; }
+.editor :global(.ql-toolbar), .editor :global(.ql-container) { border-color: #444; }
+.editor :global(.ql-toolbar) { background: #202020; }
+.editor :global(.ql-snow .ql-stroke) { stroke: #bbb; }
+.editor :global(.ql-snow .ql-fill) { fill: #bbb; }
+.editor :global(.ql-snow .ql-picker) { color: #ddd; }
+.editor :global(.ql-snow .ql-picker-options), .editor :global(.ql-snow .ql-tooltip) { background: #242424; color: #eee; border: 1px solid #555; box-shadow: none; }
+.editor :global(.ql-tooltip input) { background: #171717; color: #eee; border-color: #666; max-width: 100%; }
+.editor :global(.ql-toolbar button:hover .ql-stroke), .editor :global(.ql-toolbar button.ql-active .ql-stroke) { stroke: #90caf9; }
+.editor :global(.ql-toolbar button:hover .ql-fill), .editor :global(.ql-toolbar button.ql-active .ql-fill) { fill: #90caf9; }
+.editor :global(.ql-snow .ql-picker-item:hover), .editor :global(.ql-snow .ql-picker-item.ql-selected), .editor :global(.ql-snow a) { color: #90caf9; }
+.editor :global(.ql-editor.ql-blank)::before { color: #aaa; }
+.editor :global(.ql-toolbar button:focus-visible), .editor :global(.ql-picker-label:focus-visible) { outline: 2px solid #90caf9; outline-offset: -2px; }
+.editor :global(.ql-code-block-container) { background: #262626; color: #ddd; }

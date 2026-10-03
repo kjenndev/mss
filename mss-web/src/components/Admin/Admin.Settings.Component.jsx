@@ -1,6 +1,5 @@
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useState, useEffect } from 'react';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -10,12 +9,15 @@ import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
-import Divider from '@mui/material/Divider';
 import SaveIcon from '@mui/icons-material/Save';
+
+import styles from './Admin.Settings.Component.module.css';
 
 import * as helpers from '../../Data.Helper.Api';
 
 const darkTheme = createTheme({
+  shape: { borderRadius: 4 },
+  components: { MuiButton: { styleOverrides: { root: { minHeight: 44, textTransform: 'none' } } } },
   palette: {
     mode: 'dark',
     primary: {
@@ -90,10 +92,11 @@ export default function AdminSettings() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 8 }}>
+    <Container maxWidth="md" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        <Paper elevation={4} sx={{ p: 4, borderRadius: 2, bgcolor: 'rgba(30,30,30,0.7)', backdropFilter: 'blur(10px)' }}>
-          <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>System Settings</Typography>
+        <Box>
+          <p className={styles.eyebrow}>Site Settings</p>
+          <Typography component="h1" className={styles.title} gutterBottom>System Settings<span aria-hidden="true">.</span></Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
             Manage global configuration for the Midnight Sound Syndicate platform.
           </Typography>
@@ -104,28 +107,29 @@ export default function AdminSettings() {
 
           <Stack spacing={4}>
             {settings.map((setting) => (
-              <Box key={setting.key} sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
-                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+              <Box component="section" aria-labelledby={`setting-title-${setting.key}`} key={setting.key} className={styles.section}>
+                <Box className={styles.settingHeader}>
                   <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                    <Typography component="h2" id={`setting-title-${setting.key}`} variant="subtitle1" sx={{ fontWeight: 700, color: 'primary.main' }}>
                       {setting.key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography id={`setting-description-${setting.key}`} variant="body2" color="text.secondary">
                       {setting.description}
                     </Typography>
                   </Box>
-                  <Button 
-                    variant="contained" 
-                    size="small" 
+                  <Button
+                    variant="contained"
+                    size="small"
                     startIcon={saving === setting.key ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
                     onClick={() => handleSave(setting.key, setting.value)}
                     disabled={saving !== null}
-                    sx={{ borderRadius: '8px', textTransform: 'none' }}
+
                   >
                     Save
                   </Button>
                 </Box>
                 <TextField
+                  slotProps={{ htmlInput: { 'aria-labelledby': `setting-title-${setting.key}`, 'aria-describedby': `setting-description-${setting.key}` } }}
                   fullWidth
                   variant="outlined"
                   value={setting.value || ''}
@@ -136,7 +140,7 @@ export default function AdminSettings() {
               </Box>
             ))}
           </Stack>
-        </Paper>
+        </Box>
       </ThemeProvider>
     </Container>
   );

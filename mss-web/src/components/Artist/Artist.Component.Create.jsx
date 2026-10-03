@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -8,7 +7,6 @@ import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
-import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 
@@ -73,48 +71,54 @@ export default function CreateArtist() {
   return (
     <Container maxWidth="md" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        <Paper elevation={4} className={styles.mainPaper}>
+        <Box className={styles.mainPaper}>
           <Stack spacing={4}>
             <Box>
-              <Typography variant="h4" gutterBottom>Create New Artist Profile</Typography>
+              <Typography className={styles.eyebrow}>Artist management</Typography>
+              <Typography component="h1" className={styles.title}>Create New Artist Profile<span aria-hidden="true">.</span></Typography>
               <Typography variant="body2" color="text.secondary">
                 Enter the details for the new artist. You can link this profile to an existing user account.
               </Typography>
             </Box>
 
             <Stack spacing={3}>
-              <TextField
-                fullWidth
-                label="Artist Name"
-                name="name"
-                variant="outlined"
-                value={artist.name}
-                onChange={handleArtistChange}
-                required
-              />
-              <TextField
-                fullWidth
-                label="Location"
-                name="location"
-                variant="outlined"
-                value={artist.location}
-                onChange={handleArtistChange}
-              />
-              <TextField
-                fullWidth
-                label="Description"
-                name="description"
-                variant="outlined"
-                multiline
-                minRows={4}
-                value={artist.description}
-                onChange={handleArtistChange}
-              />
+              <Box component="section" aria-label="Artist details" className={styles.sectionBox}>
+                <Typography component="h2" variant="h6" className={styles.sectionHeader}>Artist details</Typography>
+                <Box className={styles.fields}>
+                  <TextField
+                    fullWidth
+                    label="Artist Name"
+                    name="name"
+                    variant="outlined"
+                    value={artist.name}
+                    onChange={handleArtistChange}
+                    required
+                  />
+                  <TextField
+                    fullWidth
+                    label="Location"
+                    name="location"
+                    variant="outlined"
+                    value={artist.location}
+                    onChange={handleArtistChange}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Description"
+                    name="description"
+                    variant="outlined"
+                    multiline
+                    minRows={4}
+                    value={artist.description}
+                    onChange={handleArtistChange}
+                  />
+                </Box>
+              </Box>
 
-              <Box className={styles.sectionBox}>
-                <Typography variant="h6" className={styles.sectionHeader}>Social & Streaming Links</Typography>
+              <Box component="section" aria-label="Social & Streaming Links" className={styles.sectionBox}>
+                  <Typography component="h2" variant="h6" className={styles.sectionHeader}>Social & Streaming Links</Typography>
 
-                <Stack spacing={3}>
+                <Stack className={styles.fields}>
                   <TextField
                     fullWidth
                     label="Twitch Username"
@@ -160,8 +164,8 @@ export default function CreateArtist() {
                 </Stack>
               </Box>
 
-              <Box className={styles.sectionBox}>
-                <Typography variant="h6" className={styles.sectionHeader}>User Management</Typography>
+              <Box component="section" aria-label="User Management" className={styles.sectionBox}>
+                  <Typography component="h2" variant="h6" className={styles.sectionHeader}>User Management</Typography>
                 <UserDropdown onUpdate={(userId) => setArtist({ ...artist, user_id: userId })} />
               </Box>
             </Stack>
@@ -186,7 +190,7 @@ export default function CreateArtist() {
               </Button>
             </Box>
           </Stack>
-        </Paper>
+        </Box>
       </ThemeProvider>
     </Container>
   );

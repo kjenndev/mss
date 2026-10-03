@@ -4,7 +4,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -59,6 +58,7 @@ function EventEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
+  const flyerInputRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -177,11 +177,12 @@ function EventEditor() {
   return (
     <Container maxWidth="md" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        <Paper elevation={4} className={styles.mainPaper}>
+        <Box className={styles.mainPaper}>
           <Stack spacing={4}>
-            <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box className={styles.headerRow}>
               <Box>
-                <Typography variant="h4" gutterBottom>Update Event</Typography>
+                <Typography className={styles.eyebrow}>Event management</Typography>
+              <Typography component="h1" className={styles.title}>Update Event<span aria-hidden="true">.</span></Typography>
                 <Typography variant="body2" color="text.secondary">
                   Update the details for this event.
                 </Typography>
@@ -190,51 +191,56 @@ function EventEditor() {
             </Box>
 
             <Stack spacing={3}>
-              <TextField
-                fullWidth
-                label="Event Title"
-                name="title"
-                variant="outlined"
-                value={event.title}
-                onChange={handleChange}
-                required
-              />
-              <DateTimePicker
-                label="Date & Time"
-                value={dateValue}
-                onChange={(value) => { setDateValue(value); const invalid = value !== null && !value.isValid(); setDateError(invalid); if (!invalid) setEvent({ ...event, date: value ? value.toISOString() : null }); }}
-                slotProps={{ textField: { fullWidth: true, variant: 'outlined' } }}
-              />
-              <TextField
-                fullWidth
-                label="Location"
-                name="location"
-                variant="outlined"
-                value={event.location}
-                onChange={handleChange}
-              />
-              <TextField
-                fullWidth
-                label="Description"
-                name="description"
-                variant="outlined"
-                multiline
-                minRows={4}
-                value={event.description}
-                onChange={handleChange}
-              />
-              <TextField
-                fullWidth
-                label="Ticket Link"
-                name="ticket_link"
-                variant="outlined"
-                value={event.ticket_link}
-                onChange={handleChange}
-              />
+              <Box component="section" aria-label="Event details" className={styles.sectionBox}>
+                <Typography component="h2" variant="h6" className={styles.sectionHeader}>Event details</Typography>
+                <Box className={styles.fields}>
+                  <TextField
+                    fullWidth
+                    label="Event Title"
+                    name="title"
+                    variant="outlined"
+                    value={event.title}
+                    onChange={handleChange}
+                    required
+                  />
+                  <DateTimePicker
+                    label="Date & Time"
+                    value={dateValue}
+                    onChange={(value) => { setDateValue(value); const invalid = value !== null && !value.isValid(); setDateError(invalid); if (!invalid) setEvent({ ...event, date: value ? value.toISOString() : null }); }}
+                    slotProps={{ textField: { fullWidth: true, variant: 'outlined' } }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Location"
+                    name="location"
+                    variant="outlined"
+                    value={event.location}
+                    onChange={handleChange}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Description"
+                    name="description"
+                    variant="outlined"
+                    multiline
+                    minRows={4}
+                    value={event.description}
+                    onChange={handleChange}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Ticket Link"
+                    name="ticket_link"
+                    variant="outlined"
+                    value={event.ticket_link}
+                    onChange={handleChange}
+                  />
+                </Box>
+              </Box>
 
-              <Box className={styles.sectionBox}>
-                <Typography variant="h6" className={styles.sectionHeader}>Flyer Artist Credit</Typography>
-                <Stack spacing={3}>
+              <Box component="section" aria-label="Flyer Artist Credit" className={styles.sectionBox}>
+                  <Typography component="h2" variant="h6" className={styles.sectionHeader}>Flyer Artist Credit</Typography>
+                <Stack className={styles.fields}>
                   <TextField
                     fullWidth
                     label="Flyer Artist Name"
@@ -254,25 +260,24 @@ function EventEditor() {
                 </Stack>
               </Box>
 
-              <Box className={styles.sectionBox}>
-                <Typography variant="h6" className={styles.sectionHeader}>Attached Artists</Typography>
+              <Box component="section" aria-label="Attached Artists" className={styles.sectionBox}>
+                  <Typography component="h2" variant="h6" className={styles.sectionHeader}>Attached Artists</Typography>
                 <ArtistDropdown selectedIds={event.artist_ids} onUpdate={handleArtistUpdate} />
               </Box>
 
-              <Box className={styles.sectionBox}>
-                <Typography variant="h6" className={styles.sectionHeader}>Event Flyer</Typography>
+              <Box component="section" aria-label="Event Flyer" className={styles.sectionBox}>
+                  <Typography component="h2" variant="h6" className={styles.sectionHeader}>Event Flyer</Typography>
                 <input
                   accept="image/*"
                   style={{ display: 'none' }}
                   id="flyer-upload"
+                  ref={flyerInputRef}
                   type="file"
                   onChange={handleFlyerChange}
                 />
-                <label htmlFor="flyer-upload">
-                  <Button startIcon={<CloudUploadIcon aria-hidden="true" />} variant="outlined" component="span">
+                <Button startIcon={<CloudUploadIcon aria-hidden="true" />} variant="outlined" onClick={() => flyerInputRef.current?.click()}>
                     {flyer ? flyer.name : 'Change Flyer Image'}
-                  </Button>
-                </label>
+                </Button>
               </Box>
             </Stack>
 
@@ -297,7 +302,7 @@ function EventEditor() {
               </Button>
             </Box>
           </Stack>
-        </Paper>
+        </Box>
       </ThemeProvider>
     </Container>
   );

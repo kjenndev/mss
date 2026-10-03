@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -47,18 +46,19 @@ export default function Login() {
     <Container className={styles.container}>
       <ThemeProvider theme={darkTheme}>
         <Box component="form" noValidate autoComplete="off" className={styles.loginBox}>
-          <Paper elevation={3} className={styles.loginPaper}>
+          <Box className={styles.content}>
             <Stack>
               {location.state?.message && <Typography role="status">{location.state.message}</Typography>}
-              <Typography className={styles.loginTitle} variant="h4">
-                Login
+              <Typography className={styles.eyebrow}>Account access</Typography>
+              <Typography component="h1" className={styles.loginTitle} variant="h4">
+                Login<span aria-hidden="true">.</span>
               </Typography>
               <TextField
                 id="username"
                 className={styles.inputField}
                 label="Username"
                 name="username"
-                variant="standard"
+                variant="outlined"
                 value={user.username}
                 onChange={handleAuthChange}
                 fullWidth
@@ -69,7 +69,7 @@ export default function Login() {
                 label="Password"
                 name="password"
                 type="password"
-                variant="standard"
+                variant="outlined"
                 value={user.password}
                 onChange={handleAuthChange}
                 fullWidth
@@ -77,7 +77,7 @@ export default function Login() {
               {error && <Typography color="error" className={styles.errorText}>{error}</Typography>}
               <Button disabled={loading} onClick={handleLogin} variant="contained" className={styles.loginButton}>Login</Button>
             </Stack>
-          </Paper>
+          </Box>
         </Box>
       </ThemeProvider>
     </Container>

@@ -1,7 +1,6 @@
 import SaveIcon from '@mui/icons-material/Save';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -124,10 +123,14 @@ export default function UserProfile() {
   return (
     <Container className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        <Paper elevation={4} className={styles.profilePaper}>
-          <Typography variant="h4" className={styles.title}>Account Settings</Typography>
+        <Box className={styles.content}>
+          <Typography className={styles.eyebrow}>Your account</Typography>
+          <Typography component="h1" variant="h4" className={styles.title}>Account Settings<span aria-hidden="true">.</span></Typography>
 
           <Stack spacing={3}>
+            <Box className={styles.groups}>
+            <Box component="fieldset" className={styles.group}>
+              <legend>Profile details</legend>
             <TextField
               label="Username"
               name="username"
@@ -149,6 +152,9 @@ export default function UserProfile() {
               helperText="This is the name that will show with your comments."
             />
 
+            </Box>
+            <Box component="fieldset" className={styles.group}>
+              <legend>Password</legend>
             <TextField
               label="New Password"
               name="password"
@@ -173,6 +179,9 @@ export default function UserProfile() {
               variant="outlined"
             />
 
+            </Box>
+            </Box>
+
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
             {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
@@ -195,7 +204,7 @@ export default function UserProfile() {
               </Button>
             </Box>
           </Stack>
-        </Paper>
+        </Box>
       </ThemeProvider>
     </Container>
   );
