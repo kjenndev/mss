@@ -17,7 +17,7 @@ it('uses the scoped library instead of profile embeds and gates live/video durin
  await screen.findByText('Live player');
  expect(screen.getByRole('region',{name:'Artist library'})).toBeTruthy();
  expect(api.GetMediaLibrary).toHaveBeenCalledWith(0,'1');
- expect(container.querySelectorAll('iframe')).toHaveLength(1);
+ expect(container.querySelectorAll('iframe')).toHaveLength(0);
  fireEvent.click(screen.getByRole('button',{name:'Select library audio'}));
  expect(screen.queryByText('Live player')).toBeNull();
  expect(container.querySelectorAll('iframe')).toHaveLength(1);
@@ -25,7 +25,7 @@ it('uses the scoped library instead of profile embeds and gates live/video durin
  fireEvent.click(screen.getByRole('button',{name:'Switch to artist video'}));
  expect(screen.queryByTitle('Mixcloud player')).toBeNull();
  expect(screen.getByText('Live player')).toBeTruthy();
- expect(container.querySelectorAll('iframe')).toHaveLength(1);
+ expect(container.querySelectorAll('iframe')).toHaveLength(0);
  cleanup();
 });
 function view(){return render(<MemoryRouter initialEntries={['/artists/1']}><Routes><Route path="/artists/:id" element={<Detail/>}/></Routes></MemoryRouter>);}
@@ -98,7 +98,7 @@ it('presents the editorial artist identity and collection before actual video',a
  const intro=screen.getByRole('heading',{name:'A space for the sound.'});
  const library=screen.getByRole('region',{name:'Artist library'});
  expect(intro.compareDocumentPosition(library)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
- expect(library.compareDocumentPosition(screen.getByTitle('YouTube video player'))&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ expect(screen.queryByTitle('YouTube video player')).toBeNull(); // channel is social-only
  expect(screen.getByRole('button',{name:'Listen to latest'}).disabled).toBe(true);
  fireEvent.click(screen.getByRole('button',{name:'Open gallery photo 1'}));
  expect(screen.getByRole('dialog',{name:'Artist gallery'})).toBeTruthy();

@@ -28,6 +28,7 @@ import Tooltip from '@mui/material/Tooltip';
 
 import * as helpers from '../../Data.Helper.Api';
 import styles from './Artist.Component.Update.module.css';
+import YouTubeLinks from '../Media/YouTubeLinks';
 
 const darkTheme = createTheme({
   palette: {
@@ -421,7 +422,7 @@ function ArtistEditor() {
                     />
                     <TextField
                       fullWidth
-                      label="YouTube URL"
+                      label="YouTube Channel URL"
                       name="youtube"
                       variant="outlined"
                       value={artist.youtube || ''}
@@ -430,6 +431,8 @@ function ArtistEditor() {
                     />
                   </Box>
                 </Box>
+
+                {helpers.CanEditArtist(id, artist.user_id) && <YouTubeLinks key={id} artistId={id} />}
 
                 {isAdmin && (
                   <Box component="section" aria-label="User Management" className={styles.sectionBox}>

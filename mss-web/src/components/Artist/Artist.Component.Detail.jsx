@@ -25,6 +25,8 @@ import LiveTvIcon from '@mui/icons-material/LiveTv';
 
 import * as helpers from '../../Data.Helper.Api';
 import MediaLibrary from '../Media/MediaLibrary';
+import YouTubeVideo from '../Media/YouTubeVideo';
+import { useLocalVideo } from '../Media/useLocalVideo';
 import { useMediaPlayer } from '../Media/MediaPlayerContext';
 import SyndicatePlayer from '../Stream/Syndicate.Player.Component';
 import CommentSection from '../Comments/CommentSection';
@@ -42,6 +44,7 @@ export default function ArtistDetail() {
 }
 function ArtistDetailContent({ id }) {
   const mediaPlayer = useMediaPlayer();
+  const { video, selectVideo, closeVideo } = useLocalVideo();
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [streamError, setStreamError] = useState('');
@@ -86,7 +89,7 @@ function ArtistDetailContent({ id }) {
     <Container maxWidth="lg" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
         <Box className={styles.breadcrumb}><a href="/artists">Artists</a><span aria-hidden="true"> / </span>{artist.name}</Box>
-        {artist.cover_photo && <img className={styles.coverPhoto} src={getImageUrl(artist.cover_photo)} alt={`${artist.name} cover`} />}
+        {video ? <YouTubeVideo item={video} onClose={closeVideo} /> : artist.cover_photo && <img className={styles.coverPhoto} src={getImageUrl(artist.cover_photo)} alt={`${artist.name} cover`} />}
         <Box className={styles.contentWrapper}>
           {streamError && <Alert severity="warning">{streamError}</Alert>}
           {artist.channel_name && !watchUrl(platformUrl, artist.channel_name) && <Alert severity="warning">Streaming platform is not configured.</Alert>}
@@ -220,17 +223,17 @@ function ArtistDetailContent({ id }) {
             <Grid size={{ xs: 12, md: 8, lg: 8 }}>
               <Box className={styles.mainArea}>
                 <Stack spacing={4}>
-                  <MediaLibrary artistId={id} renderIntro={({ canListen, listenToLatest }) => (
+                  <MediaLibrary artistId={id} onVideoSelect={selectVideo} selectedVideoId={video?.id} renderIntro={({ canListen, listenToLatest }) => (
                     <Box className={styles.editorial}>
                       <Typography className={styles.eyebrow}>The artist collection</Typography>
                       <Typography component="h2" className={styles.collectionTitle}>A space for the sound.</Typography>
-                      <Typography className={styles.collectionCopy}>Tracks and mixes, together.<br />Explore {artist.name}’s uploads across SoundCloud and Mixcloud.</Typography>
+                      <Typography className={styles.collectionCopy}>Tracks and mixes, together.<br />Explore {artist.name}’s audio and linked YouTube videos.</Typography>
                       <Button variant="contained" startIcon={<PlayArrowIcon aria-hidden="true" />} disabled={!canListen} onClick={listenToLatest}>Listen to latest</Button>
                     </Box>
                   )} />
                   <Box>
                     <Stack spacing={4}>
-                      {mediaPlayer?.item ? ((artist.youtube || (activeStream && watchUrl(platformUrl, artist.channel_name))) ? <Box><Typography>Artist video is paused while you listen to the library.</Typography><Button onClick={mediaPlayer.close}>Switch to artist video</Button></Box> : null) : <>
+                      {mediaPlayer?.item ? ((activeStream && watchUrl(platformUrl, artist.channel_name)) ? <Box><Typography>Artist video is paused while you listen to the library.</Typography><Button onClick={mediaPlayer.close}>Switch to artist video</Button></Box> : null) : !video && <>
                       {activeStream && watchUrl(platformUrl, artist.channel_name) && (
                         <Box className={styles.streamBox}>
                           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -253,23 +256,6 @@ function ArtistDetailContent({ id }) {
                             channelName={artist.channel_name}
                             isPaused={isStreamPaused}
                             onResume={() => setIsStreamPaused(false)}
-                          />
-                        </Box>
-                      )}
-                      {artist.youtube && (
-                        <Box className={styles.streamBox}>
-                          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                            YouTube
-                          </Typography>
-                          <iframe
-                            width="100%"
-                            height="500"
-                            src={artist.youtube.includes('watch?v=') ? artist.youtube.replace('watch?v=', 'embed/') : artist.youtube}
-                            title="YouTube video player"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            className={styles.streamIframe}
                           />
                         </Box>
                       )}

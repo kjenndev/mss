@@ -27,6 +27,7 @@ function Player({item,attempt,onReload}) {
 
 export function MediaPlayerProvider({children}) {
  const [queue,setQueue]=useState([]);
+ const [selectionVersion,setSelectionVersion]=useState(0);
  const [attempt,setAttempt]=useState(0);
  const [index,setIndex]=useState(-1);
  const item=queue[index] || null;
@@ -34,9 +35,10 @@ export function MediaPlayerProvider({children}) {
  const select=(entry,entries)=>{
   if(!playableUrl(entry)) return;
   const safe=entries.filter(candidate=>playableUrl(candidate));
+  setSelectionVersion(value=>value+1);
   setQueue(safe);setIndex(safe.findIndex(candidate=>candidate.id===entry.id));
  };
- return <MediaPlayerContext.Provider value={{item,select,close}}>
+ return <MediaPlayerContext.Provider value={{item,select,close,selectionVersion}}>
   {children}
   {item && <><div className={styles.playerSpace} aria-hidden="true"/><aside className={styles.player} aria-label="MSS audio player">
    <div className={styles.playerHeader}><div><h2>{item.title}</h2><p>{item.artistName} · {index+1} of {queue.length} in queue</p></div>

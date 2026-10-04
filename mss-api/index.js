@@ -12,6 +12,8 @@ import { initializeDB, getDb, hashPassword, verifyPassword } from './db.js';
 import { getActiveStreams, stopDiscovery, getStreamStats } from './streams.js';
 import 'dotenv/config';
 import { getMediaLibrary } from './media-library.js';
+import { youtubeMetadata, parseYouTubeUrl, youtubeVideoDto, YOUTUBE_LINK_LIMIT } from './youtube.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1115,6 +1117,51 @@ app.delete('/api/comments/:id', authMiddleware, async (req, res) => {
   }
 });
 
+const youtubeAccountBudget = budget(30, 60 * 60 * 1000);
+const youtubeGlobalBudget = budget(1000, 60 * 60 * 1000, 1);
+app.get('/api/artists/:id/youtube-videos', async (req, res) => {
+  const db = await getDb();
+  const artist = await db('artists').where({ id: req.params.id }).first();
+  if (!artist) return res.status(404).json({ error: 'Artist not found' });
+  const rows = await db('artist_youtube_videos').where({ artist_id: artist.id }).orderBy('published_at', 'desc');
+  res.json({ videos: rows.map(row => youtubeVideoDto(row, artist)), configured: youtubeMetadata.configured(), limit: YOUTUBE_LINK_LIMIT });
+});
+// Initial authorization precedes provider work; atomicHandler then revalidates
+// user/session and artist ownership after admission, before any write.
+async function prepareYouTubeVideo(req, res, next) {
+  if (!req.body || Object.keys(req.body).some(key => !['url', 'refresh'].includes(key)) || (req.body.refresh !== undefined && req.body.refresh !== true)) return res.status(400).json({ error: 'Use url and optional refresh:true only.' });
+  try {
+    const parsed = parseYouTubeUrl(req.body.url);
+    const db = await getDb();
+    const existing = await db('artist_youtube_videos').where({ artist_id: req.artist.id, video_id: parsed.videoId }).first();
+    if (existing && !req.body.refresh) return res.status(409).json({ error: 'This video is already linked to this artist.' });
+    if (!youtubeAccountBudget(req.user.id) || !youtubeGlobalBudget('all')) return res.status(429).json({ error: 'YouTube lookup limit reached. Try again later.' });
+    req.youtubeVideo = await youtubeMetadata.get(parsed.url);
+    next();
+  } catch (error) {
+    if (![400, 422, 503].includes(error.status)) throw error;
+    return res.status(error.status).json({ error: error.message, code: error.code });
+  }
+}
+app.post('/api/artists/:id/youtube-videos', authMiddleware, canManageArtist, prepareYouTubeVideo, async (req, res) => {
+  const video = req.youtubeVideo;
+  const where = { artist_id: req.artist.id, video_id: video.videoId };
+  const existing = await req.db('artist_youtube_videos').where(where).first();
+  if (existing && !req.body.refresh) return res.status(409).json({ error: 'This video is already linked to this artist.' });
+  const count = await req.db('artist_youtube_videos').where({ artist_id: req.artist.id }).count().first();
+  if (!existing && Number(count.count) >= YOUTUBE_LINK_LIMIT) return res.status(409).json({ error: `An artist can link up to ${YOUTUBE_LINK_LIMIT} YouTube videos. Remove one first.` });
+  const fields = { title: video.title, artwork_url: video.artworkUrl, duration_seconds: video.durationSeconds, published_at: video.publishedAt, fetched_at: req.db.fn.now() };
+  const [row] = existing
+    ? await req.db('artist_youtube_videos').where(where).update(fields).returning('*')
+    : await req.db('artist_youtube_videos').insert({ ...where, ...fields }).returning('*');
+  res.status(existing ? 200 : 201).json({ video: youtubeVideoDto(row, req.artist) });
+});
+app.delete('/api/artists/:id/youtube-videos/:videoId', authMiddleware, canManageArtist, async (req, res) => {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(req.params.videoId)) return res.status(400).json({ error: 'Invalid YouTube video ID.' });
+  await req.db('artist_youtube_videos').where({ artist_id: req.artist.id, video_id: req.params.videoId }).del();
+  res.json({ success: true });
+});
+
 app.get('/api/media-library', async (req, res) => {
   const query = req.query || {};
   const integer = (value, fallback) => value === undefined ? fallback : typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value) && Number.isSafeInteger(Number(value)) ? Number(value) : NaN;
@@ -1124,7 +1171,10 @@ app.get('/api/media-library', async (req, res) => {
   if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(limit) || limit < 1 || limit > 200) return res.status(400).json({ error: 'Use a nonnegative offset and limit from 1 to 200' });
   const db = req.db || await getDb();
   const artists = await db('artists').select('id', 'name', 'profile_picture', 'soundcloud', 'mixcloud').orderBy('id');
-  res.json(await getMediaLibrary(artists, { offset, limit, artistId }));
+  const videoRows = await db('artist_youtube_videos').select('*').orderBy('artist_id').orderBy('video_id');
+  const byId = new Map(artists.map(artist => [artist.id, artist]));
+  const videos = videoRows.filter(row => byId.has(row.artist_id)).map(row => youtubeVideoDto(row, byId.get(row.artist_id)));
+  res.json(await getMediaLibrary(artists, { offset, limit, artistId, videos }));
 });
 
 app.get('/api/feed', async (req, res) => {
