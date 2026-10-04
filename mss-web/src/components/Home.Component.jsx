@@ -5,8 +5,6 @@ import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -51,7 +49,6 @@ export default function Home() {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [previousEvents, setPreviousEvents] = useState([]);
   const [settings, setSettings] = useState({});
-  const [galleryExpanded, setGalleryExpanded] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pausedChannel, setPausedChannel] = useState(null);
@@ -148,8 +145,8 @@ export default function Home() {
           </section>
         </div>
         <section aria-labelledby="home-gallery">
-          <div className={styles.sectionHeading}><h2 id="home-gallery">In the frame</h2>{!contentError && validImages.length > 2 && <Button startIcon={galleryExpanded ? <ExpandLessIcon aria-hidden="true" /> : <ExpandMoreIcon aria-hidden="true" />} aria-expanded={galleryExpanded} aria-controls="home-photos" onClick={() => setGalleryExpanded(value => !value)}>{galleryExpanded ? 'Show fewer photos' : 'View all photos'}</Button>}</div>
-          {contentLoading ? <p role="status" className={styles.empty}>Loading photos…</p> : contentError ? <p className={styles.empty}>Gallery unavailable.</p> : validImages.length ? <div id="home-photos" className={styles.galleryGrid}>{(galleryExpanded ? validImages : validImages.slice(0,2)).map((image,index) => <button type="button" key={image.id} className={styles.galleryItem} aria-label={`Open photo ${index + 1}`} onClick={() => setSelectedImage(image.url)}><img src={getImageUrl(image.url)} alt="Syndicate upload" /></button>)}</div> : <p className={styles.empty}>No photos have been uploaded to the Syndicate yet.</p>}
+          <div className={styles.sectionHeading}><h2 id="home-gallery">In the frame</h2></div>
+          {contentLoading ? <p role="status" className={styles.empty}>Loading photos…</p> : contentError ? <p className={styles.empty}>Gallery unavailable.</p> : validImages.length ? <div id="home-photos" className={styles.galleryGrid}>{validImages.map((image,index) => <button type="button" key={image.id} className={styles.galleryItem} aria-label={`Open photo ${index + 1}`} onClick={() => setSelectedImage(image.url)}><img src={getImageUrl(image.url)} alt="Syndicate upload" /></button>)}</div> : <p className={styles.empty}>No photos have been uploaded to the Syndicate yet.</p>}
         </section>
       </div>
       <Dialog open={Boolean(selectedImage)} onClose={() => setSelectedImage(null)} maxWidth="lg" transitionDuration={0} slotProps={{ paper: { 'aria-label': 'Gallery photo' } }}>
