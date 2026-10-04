@@ -224,17 +224,20 @@ it.each([
  expect(document.querySelector('iframe')).toBeNull();
 });
 
-it('shows supplied SoundCloud and Mixcloud artwork inside the existing selection buttons',async()=>{
+it('shows supplied artwork as a decorative row background outside the selection content',async()=>{
  const items=[{...track('sc'),artworkUrl:'https://i1.sndcdn.com/synthetic-sc.jpg'}, {...track('mc','mixcloud'),artworkUrl:'https://thumbnailer.mixcloud.com/synthetic-mc.jpg'}];
  api.GetMediaLibrary.mockResolvedValue(response(items)); setup();
  for(const item of items) {
   const button=await screen.findByRole('button',{name:`Play ${item.title}`});
-  const image=button.querySelector('img');
+  const image=button.closest('li').querySelector('img');
   expect(image).not.toBeNull();
   expect(image.getAttribute('src')).toBe(item.artworkUrl);
   expect(image.alt).toBe('');
-  expect(image.width).toBe(48); expect(image.height).toBe(48);
-  fireEvent.click(image);
+  expect(image.parentElement.getAttribute('aria-hidden')).toBe('true');
+  expect(button.contains(image)).toBe(false);
+  expect(image.hasAttribute('width')).toBe(false);
+  expect(image.hasAttribute('height')).toBe(false);
+  fireEvent.click(button);
   expect(button.getAttribute('aria-pressed')).toBe('true');
   expect(screen.getByTitle(`${item.platform} player`)).toBeTruthy();
  }
@@ -253,7 +256,7 @@ it.each([
 ])('keeps %s unsafe/missing artwork inert without dropping the row (%j)',async(provider,artworkUrl)=>{
  api.GetMediaLibrary.mockResolvedValue(response([{...track('safe',provider),artworkUrl}])); setup();
  const button=await screen.findByRole('button',{name:'Play Track safe'});
- expect(button.querySelector('img')).toBeNull();
+ expect(button.closest('li').querySelector('img')).toBeNull();
  fireEvent.click(button); expect(screen.getByTitle(provider==='soundcloud'?'SoundCloud player':'Mixcloud player')).toBeTruthy();
 });
 
@@ -261,27 +264,28 @@ it('removes broken artwork without retrying on reload, but attempts a changed so
  const original={...track('sc'),artworkUrl:'https://i1.sndcdn.com/broken.jpg'};
  api.GetMediaLibrary.mockResolvedValue(response([original])); setup();
  const button=await screen.findByRole('button',{name:'Play Track sc'});
- const image=button.querySelector('img'); const slot=image.parentElement;
+ const image=button.closest('li').querySelector('img'); const slot=image.parentElement;
  fireEvent.error(image);
- expect(button.querySelector('img')).toBeNull(); expect(slot.isConnected).toBe(true);
+ expect(button.closest('li').querySelector('img')).toBeNull(); expect(slot.isConnected).toBe(true);
  fireEvent.click(button); const frame=screen.getByTitle('SoundCloud player');
  fireEvent.click(screen.getByRole('button',{name:'Reload library'})); await act(async()=>{});
- expect(button.querySelector('img')).toBeNull(); expect(screen.getByTitle('SoundCloud player')).toBe(frame);
+ expect(button.closest('li').querySelector('img')).toBeNull(); expect(screen.getByTitle('SoundCloud player')).toBe(frame);
  api.GetMediaLibrary.mockResolvedValue(response([{...original,artworkUrl:'https://i1.sndcdn.com/replacement.jpg'}]));
  fireEvent.click(screen.getByRole('button',{name:'Reload library'})); await act(async()=>{});
- expect(button.querySelector('img').getAttribute('src')).toBe('https://i1.sndcdn.com/replacement.jpg');
- expect(button.querySelector('img').parentElement).toBe(slot);
+ expect(button.closest('li').querySelector('img').getAttribute('src')).toBe('https://i1.sndcdn.com/replacement.jpg');
+ expect(button.closest('li').querySelector('img').parentElement).toBe(slot);
  expect(screen.getByTitle('SoundCloud player')).toBe(frame);
 });
 
-it.each([undefined, '1'])('places the single play control before artwork and title in library scope %s',async artistId=>{
+it.each([undefined, '1'])('places the single play control immediately before title with artwork behind the row in library scope %s',async artistId=>{
  api.GetMediaLibrary.mockResolvedValue(response([track('order')]));
  render(<MediaPlayerProvider><MediaLibrary artistId={artistId} /></MediaPlayerProvider>);
  const button=await screen.findByRole('button',{name:'Play Track order'});
  const icon=button.querySelector('[data-testid="PlayArrowIcon"]');
  expect(button.children[0]).toBe(icon.parentElement);
- expect(button.children[1].getAttribute('aria-hidden')).toBe('true');
- expect(button.children[2].querySelector('strong').textContent).toBe('Track order');
+ expect(button.children[1].querySelector('strong').textContent).toBe('Track order');
+ expect(button.children).toHaveLength(2);
+ expect(button.closest('li').firstElementChild.getAttribute('aria-hidden')).toBe('true');
  expect(button.closest('li').querySelectorAll('button')).toHaveLength(1);
  fireEvent.click(icon);
  expect(button.getAttribute('aria-pressed')).toBe('true');

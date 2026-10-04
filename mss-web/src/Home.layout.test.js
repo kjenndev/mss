@@ -18,3 +18,21 @@ it('keeps one modest 16px homepage-to-footer gap, not stacked spacing',()=>{
  expect(css).toMatch(/\.container\s*\{[^}]*padding:\s*0 20px 16px;/);
  expect(css).toMatch(/\.container \+ footer\s*\{[^}]*margin-top:\s*0;/);
 });
+
+it('keeps the photo gallery in three equal shrinkable columns at every breakpoint',()=>{
+ const css=readFileSync('src/components/Home.Component.module.css','utf8');
+ const galleryRules=[...css.matchAll(/\.galleryGrid\s*\{([^}]*)\}/g)];
+ expect(galleryRules).toHaveLength(1);
+ expect(galleryRules[0][1]).toMatch(/grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+});
+
+it('shows the full flyer width and clips only vertical overflow in event rows',()=>{
+ const css=readFileSync('src/components/Home.Component.module.css','utf8');
+ const backdrop=css.match(/\.eventBackdrop\s*\{([^}]*)\}/)[1];
+ expect(backdrop).toMatch(/width:\s*100%/);
+ expect(backdrop).toMatch(/height:\s*auto/);
+ expect(backdrop).toMatch(/top:\s*50%/);
+ expect(backdrop).toMatch(/transform:\s*translateY\(-50%\)/);
+ expect(backdrop).not.toMatch(/object-fit:\s*cover/);
+ expect(css).toMatch(/\.eventCard\s*\{[^}]*overflow:\s*hidden/);
+});

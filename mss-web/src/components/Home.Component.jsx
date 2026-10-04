@@ -24,17 +24,17 @@ import styles from './Home.Component.module.css';
 
 const darkTheme = createTheme({ palette: { mode: 'dark', primary: { main: '#90caf9' } } });
 
-function EventFlyer({src, title}) {
+function EventFlyer({src}) {
   const [failed, setFailed] = useState(false);
   if (!src || failed) return null;
-  return <img className={styles.eventFlyer} src={src} alt={`Flyer for ${title}`} loading="lazy" onError={() => setFailed(true)} />;
+  return <img className={styles.eventBackdrop} src={src} alt="" aria-hidden="true" loading="lazy" onError={() => setFailed(true)} />;
 }
 
 function EventList({ events }) {
   return <ul className={styles.list}>{events.map(event => <li key={event.id}>
     <Link className={styles.eventCard} to={`/events/${event.id}`}>
       <time className={styles.date} dateTime={event.date}><span>{new Date(event.date).toLocaleDateString([], {month:'short'})}</span><strong>{new Date(event.date).getDate()}</strong></time>
-      <EventFlyer key={event.flyer || 'no-flyer'} src={typeof event.flyer === 'string' ? getImageUrl(event.flyer) : ''} title={event.title} />
+      <EventFlyer key={event.flyer || 'no-flyer'} src={typeof event.flyer === 'string' ? getImageUrl(event.flyer) : ''} />
       <span><strong>{event.title}</strong><span className={styles.detail}>{new Date(event.date).toLocaleTimeString([], {timeStyle:'short'})} · {event.location || 'Location TBD'}</span></span>
     </Link>
   </li>)}</ul>;
