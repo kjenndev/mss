@@ -142,22 +142,12 @@ it('presents Cinema replay metadata and honest empty discovery sections',async()
  expect(screen.getByRole('link',{name:'All events'}).getAttribute('href')).toBe('/events');
 });
 
-it('expands gallery by default with a reversible preview toggle and lightbox',async()=>{
+it('always shows every gallery photo in order without a collapse control and preserves the lightbox',async()=>{
  mockHome(); api.GetAllImages.mockResolvedValue({ok:true,json:async()=>({images:Array.from({length:5},(_,i)=>({id:i,url:`/uploads/test-${i}.jpg`}))})});
  render(<MemoryRouter><Home/></MemoryRouter>); await act(async()=>{});
  expect(screen.getAllByRole('button',{name:/Open photo/})).toHaveLength(5);
- const toggle=screen.getByRole('button',{name:'Show fewer photos'});
- expect(toggle.getAttribute('aria-expanded')).toBe('true');
- expect(toggle.getAttribute('aria-controls')).toBe('home-photos');
- expect(toggle.querySelector('[data-testid="ExpandLessIcon"]')).toBeTruthy();
- fireEvent.click(toggle);
- expect(screen.getAllByRole('button',{name:/Open photo/})).toHaveLength(2);
- expect(screen.getByRole('button',{name:'View all photos'})).toBe(toggle);
- expect(toggle.getAttribute('aria-expanded')).toBe('false');
- expect(toggle.querySelector('[data-testid="ExpandMoreIcon"]')).toBeTruthy();
- fireEvent.click(toggle); expect(screen.getAllByRole('button',{name:/Open photo/})).toHaveLength(5);
- expect(toggle.getAttribute('aria-expanded')).toBe('true');
- expect(toggle.querySelector('[data-testid="ExpandLessIcon"]')).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Show fewer photos|View all photos/})).toBeNull();
+ expect(screen.getAllByRole('button',{name:/Open photo/}).map(button=>button.querySelector('img').getAttribute('src'))).toEqual(Array.from({length:5},(_,i)=>`/uploads/test-${i}.jpg`));
  fireEvent.click(screen.getByRole('button',{name:'Open photo 5'}));
  expect(screen.getByRole('dialog',{name:'Gallery photo'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Close photo'}));
