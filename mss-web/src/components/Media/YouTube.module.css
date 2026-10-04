@@ -1,0 +1,19 @@
+.video { width:100%; min-width:0; margin-bottom:24px; }
+.video iframe { display:block; width:100%; aspect-ratio:16 / 9; height:auto; border:0; background:#080b10; }
+.info { display:flex; justify-content:space-between; gap:20px; padding:18px 0; border-bottom:1px solid #ffffff24; }
+.info h1,.info h2 { margin:4px 0 8px; font-size:clamp(24px,3vw,36px); overflow-wrap:anywhere; }
+.info p { margin:6px 0; color:#b9c3d0; font-size:14px; }
+.actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.actions a { display:inline-flex; align-items:center; min-height:44px; color:#90caf9; }
+.manager { padding-top:24px; border-top:1px solid #ffffff24; min-width:0; }
+.manager h2 { margin-bottom:12px; }
+.add { display:flex; gap:12px; margin-top:20px; align-items:flex-start; }
+.add button { min-height:56px; flex-shrink:0; }
+.links { list-style:none; padding:0; margin:0; }
+.links li { border-top:1px solid #ffffff24; padding:16px 0; overflow-wrap:anywhere; }
+.links li>div:first-child { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.links strong { flex-basis:100%; }
+.links a { color:#90caf9; min-height:44px; display:inline-flex; align-items:center; }
+.links time { color:#b9c3d0; font-size:14px; }
+.links button { min-height:44px; }
+@media(max-width:600px) { .info,.add { flex-direction:column; } .add button { width:100%; } .info {gap:8px;} }

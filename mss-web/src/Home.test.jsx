@@ -132,7 +132,7 @@ it('retains an honest unavailable alert alongside the fallback and recovers on p
 it('presents Cinema replay metadata and honest empty discovery sections',async()=>{
  mockHome(); render(<MemoryRouter><Home/></MemoryRouter>);
  expect(await screen.findByRole('heading',{name:'DK Bean'})).toBeTruthy();
- expect(screen.getByText('Groovematics · July 4, 2021')).toBeTruthy();
+ expect(screen.getByText('Featured replay · YouTube')).toBeTruthy();
  expect(screen.getByRole('link',{name:/Watch on YouTube/}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
  expect(screen.getByRole('link',{name:/Watch on YouTube/}).getAttribute('href')).toBe('https://www.youtube.com/watch?v=z6aXbSXNiHE');
  for (const name of ['Artist library','Coming up','In the frame']) expect(screen.getByRole('region',{name})).toBeTruthy();

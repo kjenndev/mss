@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 // Public metadata only. No DB, startup, or environment-loading side effects.
 const PROVIDERS = ['mixcloud', 'soundcloud'];
 const iso = value => Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
@@ -210,7 +211,7 @@ export function createMediaLibrary({ fetchImpl = globalThis.fetch, now = Date.no
     })().finally(() => { state.inflight = null; });
     return state.inflight;
   }
-  return { async get(artists, { offset = 0, limit = 50, artistId } = {}) {
+  return { async get(artists, { offset = 0, limit = 50, artistId, videos = [] } = {}) {
     const signature = JSON.stringify(artists.map(a => [a.id, a.name, a.profile_picture, a.mixcloud, a.soundcloud]));
     if (!entry || entry.signature !== signature) entry = { signature };
     const state = entry;
@@ -221,7 +222,12 @@ export function createMediaLibrary({ fetchImpl = globalThis.fetch, now = Date.no
     const values = artistId === undefined ? null : [...state.results.values()].filter(r => r.source.artistId === artistId);
     const items = values && [...new Map(values.flatMap(r => r.items).map(item => [item.id, item])).values()].sort((a,b) => uploadTime(b.createdAt) - uploadTime(a.createdAt) || a.id.localeCompare(b.id));
     const result = values ? { ...state.snapshot, items, total: items.length, sources: values.map(r => r.source), complete: values.every(r => r.source.complete), cache: { ...state.snapshot.cache, stale: values.some(r => r.retained) } } : state.snapshot;
-    return { ...result, items: result.items.slice(offset, offset + limit), offset, limit, nextOffset: offset + limit < result.total ? offset + limit : null, cache: { ...result.cache, refreshing: !!state.inflight, stale: result.cache.stale || !!state.inflight } };
+    const scopedVideos = videos.filter(item => (artistId === undefined || item.artistId === artistId) && Number.isFinite(Date.parse(item.createdAt)));
+    const merged = [...new Map([...result.items, ...scopedVideos].map(item => [item.id, item])).values()].sort((a,b) => uploadTime(b.createdAt) - uploadTime(a.createdAt) || a.id.localeCompare(b.id));
+    // Catalog identity includes video association/content changes, so pagination resets
+    // after additions, removals or metadata refresh without flushing audio discovery.
+    const version = createHash('sha256').update(JSON.stringify([result.cache.fetchedAt, scopedVideos])).digest('hex');
+    return { ...result, total: merged.length, items: merged.slice(offset, offset + limit), offset, limit, nextOffset: offset + limit < merged.length ? offset + limit : null, cache: { ...result.cache, version, refreshing: !!state.inflight, stale: result.cache.stale || !!state.inflight } };
   } };
 }
 

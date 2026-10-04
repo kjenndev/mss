@@ -17,6 +17,8 @@ import { getImageUrl, watchUrl } from '../config';
 import * as helpers from '../Data.Helper.Api';
 import SyndicatePlayer from './Stream/Syndicate.Player.Component';
 import MediaLibrary from './Media/MediaLibrary';
+import YouTubeVideo from './Media/YouTubeVideo';
+import { useLocalVideo } from './Media/useLocalVideo';
 import { useMediaPlayer } from './Media/MediaPlayerContext';
 import styles from './Home.Component.module.css';
 
@@ -40,6 +42,7 @@ function EventList({ events }) {
 
 export default function Home() {
   const mediaPlayer = useMediaPlayer();
+  const { video, selectVideo, closeVideo } = useLocalVideo();
   const [contentLoading, setContentLoading] = useState(true);
   const [contentError, setContentError] = useState('');
   const [streamError, setStreamError] = useState('');
@@ -103,7 +106,7 @@ export default function Home() {
     <main className={styles.container}>
       {streamError && <Alert severity="warning">{streamError}</Alert>}
       {contentError && <Alert severity="error">{contentError}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => { setContentLoading(true); setContentError(''); setAttempt(n => n + 1); }}>Retry content</Button></Alert>}
-      {settings.show_live_section !== '0' && <section aria-label="Syndicate screen">
+      {video ? <YouTubeVideo item={video} onClose={closeVideo} heading /> : settings.show_live_section !== '0' && <section aria-label="Syndicate screen">
         {mediaPlayer?.item ? <div className={styles.videoDisabled}>
           <div className={styles.disabledMessage}>
             <PauseIcon className={styles.disabledIcon} aria-hidden="true" />
@@ -118,7 +121,7 @@ export default function Home() {
         </div>}
         <div className={`${styles.featureInfo} ${mediaPlayer?.item ? styles.featureDisabled : ''}`} inert={mediaPlayer?.item ? true : undefined} aria-disabled={mediaPlayer?.item ? true : undefined}>
           <div>
-            <p className={styles.label}>{currentLive ? 'Syndicate Live · On air' : 'Groovematics · July 4, 2021'}</p>
+            <p className={styles.label}>{currentLive ? 'Syndicate Live · On air' : 'Featured replay · YouTube'}</p>
             <h1>{currentLive ? currentLive.name : 'DK Bean'}</h1>
           </div>
           {currentLive ? <div className={styles.controls}>
@@ -133,7 +136,7 @@ export default function Home() {
         </div>
       </section>}
       <div className={styles.lower}>
-        <MediaLibrary fillHeight />
+        <MediaLibrary fillHeight onVideoSelect={selectVideo} selectedVideoId={video?.id} />
         <div className={styles.eventsColumn}>
           <section aria-labelledby="home-events">
             <div className={styles.sectionHeading}><h2 id="home-events">Coming up</h2><Link to="/events">All events</Link></div>

@@ -1,4 +1,7 @@
 import { API_BASE } from './config';
+export const GetArtistYouTubeVideos = id => request(`/artists/${id}/youtube-videos`, 'GET', null, false);
+export const AddArtistYouTubeVideo = (id, url, refresh = false) => request(`/artists/${id}/youtube-videos`, 'POST', { url, ...(refresh ? { refresh: true } : {}) });
+export const DeleteArtistYouTubeVideo = (id, videoId) => request(`/artists/${id}/youtube-videos/${encodeURIComponent(videoId)}`, 'DELETE');
 
 function dispatchAuthChange() {
   window.dispatchEvent(new CustomEvent('mss-auth-change'));
