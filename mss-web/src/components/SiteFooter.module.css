@@ -5,7 +5,7 @@
 .directory { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1.5fr); gap:40px; }
 .footer .brand { display:inline-flex; gap:12px; padding:0; font-size:17px; font-weight:700; color:#eff1f4; }
 .brand img { width:44px; height:44px; border-radius:4px; flex-shrink:0; }
-.brand small { display:block; color:#aab3bf; font-size:10px; letter-spacing:3px; margin-top:6px; font-weight:400; }
+.brand small { display:block; color:#b0b6bf; font-size:1em; letter-spacing:0.235em; line-height:1.2; margin-top:5px; font-weight:400; }
 .caption { color:#9da6b2; line-height:1.7; font-size:14px; max-width:280px; margin:20px 0; }
 .column { min-width:0; }
 .column h2 { color:#929daa; text-transform:uppercase; letter-spacing:2px; font-size:11px; font-weight:700; margin:0 0 12px; }

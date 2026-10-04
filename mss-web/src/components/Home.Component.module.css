@@ -27,12 +27,13 @@
 .list li { border-bottom: 1px solid #303236; padding: 14px 0; }
 .list li:first-child { padding-top: 0; }
 .eventCard > span { min-width: 0; flex:1; }
+.eventCard > span, .eventCard > time { position:relative; z-index:2; }
 .date { display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink: 0; width: 50px; height:88px; padding: 10px 4px; text-align: center; border: 1px solid #41454b; border-radius: 4px; }
-.date span { display: block; font-size: 10px; text-transform: uppercase; color: var(--text-secondary); }
+.date span { display: block; font-size: 10px; text-transform: uppercase; color: #f1f3f5; }
 .date strong { font-size: 23px; }
-.detail { display: block; color: var(--text-secondary); font-size: 12px; margin-top: 6px; line-height: 1.6; }
+.detail { display: block; color: #f1f3f5; font-size: 12px; margin-top: 6px; line-height: 1.6; }
 .empty { color: var(--text-secondary); font-size: 14px; line-height: 1.7; padding: 8px 0 20px; }
-.galleryGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.galleryGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
 .galleryItem { display: block; width: 100%; aspect-ratio: 2 / 1; min-height: 44px; padding: 0; border: 1px solid #36383c; border-radius: 4px; overflow: hidden; background: #050505; cursor: zoom-in; }
 .galleryItem img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .lightboxContent { text-align: right; }
@@ -52,8 +53,13 @@
 .featureDisabled { opacity:.4; filter:grayscale(1); pointer-events:none; user-select:none; }
 @media(max-width:600px) { .disabledMessage { gap:6px; padding:8px; } .disabledIcon { width:32px; height:32px; font-size:18px; } .disabledMessage strong { font-size:16px; } }
 
-.eventCard { display:flex; align-items:center; gap:12px; min-height:72px; color:var(--text-primary) !important; }
-.eventFlyer { display:block; width:64px; height:88px; flex-shrink:0; object-fit:contain; background:#0b0c0e; border:1px solid #36383c; border-radius:4px; }
+/* Keep flyer dimming on separate layers, never on the event text. */
+.eventCard { position:relative; isolation:isolate; overflow:hidden; display:flex; align-items:center; gap:12px; min-height:112px; padding:12px; border-radius:4px; background:#111418; color:#fff !important; }
+/* Scale to the row width without horizontal cropping; short wide art leaves dark bands. */
+.eventBackdrop { position:absolute; left:0; top:50%; transform:translateY(-50%); z-index:0; display:block; width:100%; height:auto; pointer-events:none; }
+.eventCard:has(.eventBackdrop)::before { content:""; position:absolute; inset:0; z-index:1; border-radius:inherit; background:linear-gradient(90deg,rgba(8,11,16,.78),rgba(8,11,16,.68) 45%,rgba(8,11,16,.60)); pointer-events:none; }
+.eventCard .date { background:rgba(8,11,16,.22); border-color:rgba(241,243,245,.35); }
+.eventCard:hover { box-shadow:inset 0 0 0 1px #90caf9; }
 
 /* The homepage supplies its own 16px footer gap; other routes keep their spacing. */
 .container + footer { margin-top:0; }

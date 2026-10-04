@@ -238,26 +238,31 @@ function assertIconOnly(button,name) {
  expect(parseFloat(getComputedStyle(button).minHeight)).toBeGreaterThanOrEqual(44);
 }
 
-it('shows the upcoming event flyer as part of its event link and removes broken images',async()=>{
+it.each([['Coming up','2099-01-01T12:00:00Z'],['Previous','2001-01-01T12:00:00Z']])('uses a decorative flyer background in %s and falls back on error',async(section,date)=>{
  mockHome();
- api.GetAllEvents.mockResolvedValue({ok:true,json:async()=>({events:[{id:41,title:'Flyer event',date:'2099-01-01T12:00:00Z',flyer:'/uploads/flyer.png',location:'Venue'}]})});
+ api.GetAllEvents.mockResolvedValue({ok:true,json:async()=>({events:[{id:41,title:'Flyer event',date,flyer:'/uploads/flyer.png',location:'Venue'}]})});
  render(<MemoryRouter><Home/></MemoryRouter>);
- const image=await screen.findByRole('img',{name:'Flyer for Flyer event'});
+ const link=await within(screen.getByRole('region',{name:section})).findByRole('link',{name:/Flyer event/});
+ const image=link.querySelector('img');
+ expect(image.getAttribute('alt')).toBe('');
+ expect(image.getAttribute('aria-hidden')).toBe('true');
+ expect(image.className).toContain('eventBackdrop');
  expect(image.getAttribute('src')).toBe('/uploads/flyer.png');
  expect(image.closest('a').getAttribute('href')).toBe('/events/41');
  expect(image.getAttribute('loading')).toBe('lazy');
- expect(image.previousElementSibling.tagName).toBe('TIME');
- expect(image.nextElementSibling.textContent).toContain('Flyer event');
+ expect(link.querySelector('time').getAttribute('dateTime')).toBe(date);
+ expect(link.textContent).toContain('Venue');
  expect(image.parentElement).toBe(image.closest('a'));
  fireEvent.error(image);
- expect(screen.queryByRole('img',{name:'Flyer for Flyer event'})).toBeNull();
+ expect(link.querySelector('img')).toBeNull();
+ expect(link.getAttribute('href')).toBe('/events/41');
  expect(screen.getByText('Flyer event')).toBeTruthy();
 });
 it.each([null,'javascript:alert(1)',{},'//unsafe.test/flyer.png'])('keeps event details without unsafe or missing flyers (%j)',async flyer=>{
  mockHome();api.GetAllEvents.mockResolvedValue({ok:true,json:async()=>({events:[{id:42,title:'No flyer event',date:'2099-01-01T12:00:00Z',flyer}]})});
  render(<MemoryRouter><Home/></MemoryRouter>);
  expect(await screen.findByText('No flyer event')).toBeTruthy();
- expect(screen.queryByRole('img',{name:'Flyer for No flyer event'})).toBeNull();
+ expect(screen.getByText('No flyer event').closest('a').querySelector('img')).toBeNull();
 });
 
 it('shows only the latest ten past events below Coming up using actual instants and preserves event links',async()=>{
@@ -274,10 +279,10 @@ it('shows only the latest ten past events below Coming up using actual instants 
  expect(links).toHaveLength(10);
  expect(links.map(link=>link.getAttribute('href'))).toEqual(['/events/91',...Array.from({length:9},(_,i)=>`/events/${i+1}`)]);
  expect(within(upcoming).getAllByRole('link').map(link=>link.getAttribute('href'))).toEqual(['/events','/events/92','/events/200']);
- const flyer=within(previous).getByRole('img',{name:'Flyer for Past 1'});
+ const flyer=links[1].querySelector('img');
  expect(flyer.closest('a').getAttribute('href')).toBe('/events/1');
- expect(flyer.previousElementSibling.tagName).toBe('TIME');
- expect(flyer.nextElementSibling.textContent).toContain('Venue');
+ expect(flyer.closest('a').querySelector('time')).toBeTruthy();
+ expect(flyer.closest('a').textContent).toContain('Venue');
  fireEvent.error(flyer); expect(within(previous).getByText('Past 1')).toBeTruthy();
  expect(screen.queryByText('Exact now')).toBeNull();
 });
