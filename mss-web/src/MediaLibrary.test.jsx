@@ -223,3 +223,67 @@ it.each([
  expect(screen.getByRole('button',{name:'Listen to latest'}).disabled).toBe(true);
  expect(document.querySelector('iframe')).toBeNull();
 });
+
+it('shows supplied SoundCloud and Mixcloud artwork inside the existing selection buttons',async()=>{
+ const items=[{...track('sc'),artworkUrl:'https://i1.sndcdn.com/synthetic-sc.jpg'}, {...track('mc','mixcloud'),artworkUrl:'https://thumbnailer.mixcloud.com/synthetic-mc.jpg'}];
+ api.GetMediaLibrary.mockResolvedValue(response(items)); setup();
+ for(const item of items) {
+  const button=await screen.findByRole('button',{name:`Play ${item.title}`});
+  const image=button.querySelector('img');
+  expect(image).not.toBeNull();
+  expect(image.getAttribute('src')).toBe(item.artworkUrl);
+  expect(image.alt).toBe('');
+  expect(image.width).toBe(48); expect(image.height).toBe(48);
+  fireEvent.click(image);
+  expect(button.getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByTitle(`${item.platform} player`)).toBeTruthy();
+ }
+ expect(document.querySelectorAll('iframe')).toHaveLength(1);
+});
+
+it.each([
+ ['soundcloud','http://i1.sndcdn.com/cover.jpg'],
+ ['soundcloud','https://sndcdn.com.evil.test/cover.jpg'],
+ ['soundcloud','https://user:pass@i1.sndcdn.com/cover.jpg'],
+ ['soundcloud','https://i1.sndcdn.com:444/cover.jpg'],
+ ['soundcloud','https://thumbnailer.mixcloud.com/cover.jpg'],
+ ['mixcloud','https://i1.sndcdn.com/cover.jpg'],
+ ['mixcloud','javascript:alert(1)'], ['mixcloud','data:image/svg+xml,unsafe'],
+ ['mixcloud','/uploads/private.jpg'], ['mixcloud',null], ['mixcloud',{}],
+])('keeps %s unsafe/missing artwork inert without dropping the row (%j)',async(provider,artworkUrl)=>{
+ api.GetMediaLibrary.mockResolvedValue(response([{...track('safe',provider),artworkUrl}])); setup();
+ const button=await screen.findByRole('button',{name:'Play Track safe'});
+ expect(button.querySelector('img')).toBeNull();
+ fireEvent.click(button); expect(screen.getByTitle(provider==='soundcloud'?'SoundCloud player':'Mixcloud player')).toBeTruthy();
+});
+
+it('removes broken artwork without retrying on reload, but attempts a changed source',async()=>{
+ const original={...track('sc'),artworkUrl:'https://i1.sndcdn.com/broken.jpg'};
+ api.GetMediaLibrary.mockResolvedValue(response([original])); setup();
+ const button=await screen.findByRole('button',{name:'Play Track sc'});
+ const image=button.querySelector('img'); const slot=image.parentElement;
+ fireEvent.error(image);
+ expect(button.querySelector('img')).toBeNull(); expect(slot.isConnected).toBe(true);
+ fireEvent.click(button); const frame=screen.getByTitle('SoundCloud player');
+ fireEvent.click(screen.getByRole('button',{name:'Reload library'})); await act(async()=>{});
+ expect(button.querySelector('img')).toBeNull(); expect(screen.getByTitle('SoundCloud player')).toBe(frame);
+ api.GetMediaLibrary.mockResolvedValue(response([{...original,artworkUrl:'https://i1.sndcdn.com/replacement.jpg'}]));
+ fireEvent.click(screen.getByRole('button',{name:'Reload library'})); await act(async()=>{});
+ expect(button.querySelector('img').getAttribute('src')).toBe('https://i1.sndcdn.com/replacement.jpg');
+ expect(button.querySelector('img').parentElement).toBe(slot);
+ expect(screen.getByTitle('SoundCloud player')).toBe(frame);
+});
+
+it.each([undefined, '1'])('places the single play control before artwork and title in library scope %s',async artistId=>{
+ api.GetMediaLibrary.mockResolvedValue(response([track('order')]));
+ render(<MediaPlayerProvider><MediaLibrary artistId={artistId} /></MediaPlayerProvider>);
+ const button=await screen.findByRole('button',{name:'Play Track order'});
+ const icon=button.querySelector('[data-testid="PlayArrowIcon"]');
+ expect(button.children[0]).toBe(icon.parentElement);
+ expect(button.children[1].getAttribute('aria-hidden')).toBe('true');
+ expect(button.children[2].querySelector('strong').textContent).toBe('Track order');
+ expect(button.closest('li').querySelectorAll('button')).toHaveLength(1);
+ fireEvent.click(icon);
+ expect(button.getAttribute('aria-pressed')).toBe('true');
+ expect(screen.getByTitle('SoundCloud player')).toBeTruthy();
+});

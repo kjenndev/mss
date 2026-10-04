@@ -64,3 +64,19 @@
 .playerControls svg { width:22px; height:22px; }
 
 .library button:not(.selectTrack) { display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+
+/* The homepage row supplies the height; only its track list absorbs free space.
+   A small minimum keeps sparse rows usable without making uploads size the row.
+   Stacked/mobile layouts and artist profiles retain the normal compact library. */
+@media (min-width:801px) {
+ .fillHeight { display:flex; flex-direction:column; min-height:0; }
+ .fillHeight > :not(.tracks) { flex-shrink:0; }
+ .fillHeight .tracks { flex:1 1 0; min-height:240px; max-height:none; margin-bottom:0; }
+ .fillHeight > button:last-child { margin-top:16px; align-self:flex-start; }
+}
+
+/* Reserve artwork space even when a provider has no cover or it fails to load. */
+.artwork { display:block; width:48px; height:48px; flex-shrink:0; overflow:hidden; border-radius:3px; background:#272c32; }
+.artwork img { display:block; width:48px; height:48px; object-fit:cover; }
+.trackTitle { flex:1; min-width:0; overflow-wrap:anywhere; }
+.selectTrack { gap:12px; }

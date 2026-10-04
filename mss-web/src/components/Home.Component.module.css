@@ -1,4 +1,4 @@
-.container { margin: 0; padding: 0 clamp(20px, 4.45vw, 80px) 48px; color: var(--text-primary); overflow-wrap: anywhere; }
+.container { margin: 0; padding: 0 clamp(20px, 4.45vw, 80px) 16px; color: var(--text-primary); overflow-wrap: anywhere; }
 .container *, .container *::before, .container *::after { box-sizing: border-box; }
 .container h1, .container h2, .container h3, .container p { margin: 0; }
 .container a { color: var(--primary-main); text-decoration: none; }
@@ -18,7 +18,8 @@
 .muted { color: var(--text-secondary); font-size: 13px; }
 .outlineLink { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 14px; border: 1px solid #41454b; border-radius: 4px; font-size: 12px; }
 .lower { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 34px; border-top: 1px solid #303236; margin-top: 28px; padding-top: 22px; }
-.lower > section { min-width: 0; }
+.lower > * { min-width: 0; }
+.eventsColumn { display: flex; flex-direction: column; gap: 28px; }
 .sectionHeading { gap: 8px; min-height: 44px; margin-bottom: 12px; }
 .sectionHeading h2 { font-size: 19px; letter-spacing: -.4px; }
 .sectionHeading a, .sectionHeading button { font-size: 13px; min-height: 44px; display: inline-flex; align-items: center; }
@@ -37,9 +38,9 @@
 .lightboxContent { text-align: right; }
 .lightboxImage { max-width: 100%; max-height: 75vh; display: block; }
 @media (max-width: 800px) {
-  .container { padding: 0 20px 40px; }
+  .container { padding: 0 20px 16px; }
   .lower { grid-template-columns: minmax(0,1fr); gap: 20px; }
-  .lower > section + section { border-top: 1px solid #303236; padding-top: 16px; }
+  .lower > * + * { border-top: 1px solid #303236; padding-top: 16px; }
   .controls { justify-content: flex-start; }
 }
 
@@ -53,3 +54,6 @@
 
 .eventCard { display:flex; align-items:center; gap:12px; min-height:72px; color:var(--text-primary) !important; }
 .eventFlyer { display:block; width:64px; height:88px; flex-shrink:0; object-fit:contain; background:#0b0c0e; border:1px solid #36383c; border-radius:4px; }
+
+/* The homepage supplies its own 16px footer gap; other routes keep their spacing. */
+.container + footer { margin-top:0; }

@@ -30,6 +30,16 @@ function EventFlyer({src, title}) {
   return <img className={styles.eventFlyer} src={src} alt={`Flyer for ${title}`} loading="lazy" onError={() => setFailed(true)} />;
 }
 
+function EventList({ events }) {
+  return <ul className={styles.list}>{events.map(event => <li key={event.id}>
+    <Link className={styles.eventCard} to={`/events/${event.id}`}>
+      <time className={styles.date} dateTime={event.date}><span>{new Date(event.date).toLocaleDateString([], {month:'short'})}</span><strong>{new Date(event.date).getDate()}</strong></time>
+      <EventFlyer key={event.flyer || 'no-flyer'} src={typeof event.flyer === 'string' ? getImageUrl(event.flyer) : ''} title={event.title} />
+      <span><strong>{event.title}</strong><span className={styles.detail}>{new Date(event.date).toLocaleTimeString([], {timeStyle:'short'})} · {event.location || 'Location TBD'}</span></span>
+    </Link>
+  </li>)}</ul>;
+}
+
 export default function Home() {
   const mediaPlayer = useMediaPlayer();
   const [contentLoading, setContentLoading] = useState(true);
@@ -39,6 +49,7 @@ export default function Home() {
   const [live, setLive] = useState([]);
   const [images, setImages] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [previousEvents, setPreviousEvents] = useState([]);
   const [settings, setSettings] = useState({});
   const [galleryExpanded, setGalleryExpanded] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -68,7 +79,12 @@ export default function Home() {
       const [settingsData, eventData, imageData] = await Promise.all(responses.map(response => response.json()));
       if (active) {
         setSettings(settingsData.settings || {}); setImages(imageData.images || []);
-        setUpcomingEvents((eventData.events || []).filter(event => event.date && new Date(event.date) > new Date()).sort((a,b) => new Date(a.date) - new Date(b.date)).slice(0,3));
+        // Compare full canonical event timestamps, including their timezone offsets.
+        // GetAllEvents returns the complete, unpaginated catalog.
+        const now = Date.now();
+        const datedEvents = (eventData.events || []).filter(event => typeof event?.date === 'string' && Number.isFinite(Date.parse(event.date)));
+        setUpcomingEvents(datedEvents.filter(event => Date.parse(event.date) > now).sort((a,b) => Date.parse(a.date) - Date.parse(b.date)).slice(0,3));
+        setPreviousEvents(datedEvents.filter(event => Date.parse(event.date) < now).sort((a,b) => Date.parse(b.date) - Date.parse(a.date) || a.id - b.id).slice(0,10));
         setContentError(''); setContentLoading(false);
       }
     }).catch(() => { if (active) { setContentLoading(false); setContentError('Unable to load home content.'); } });
@@ -114,23 +130,23 @@ export default function Home() {
             <Button aria-label="Next" title="Next" sx={{ minWidth: 44, minHeight: 44, p: 0 }} disabled={live.length <= 1} onClick={() => setCurrentIndex((selectedIndex + 1) % live.length)}><ChevronRightIcon aria-hidden="true" /></Button>
             {watchUrl(settings.streaming_platform_url, currentLive.channelName) && <Button startIcon={<OpenInNewIcon aria-hidden="true" />} variant="outlined" onClick={() => handleJoinChat(currentLive.channelName)}>Open platform player</Button>}
           </div> : <div className={styles.controls}>
-            <span className={styles.muted}>Featured replay · No autoplay</span>
+            <span className={styles.muted}>Featured replay</span>
             <a className={styles.outlineLink} href="https://www.youtube.com/watch?v=z6aXbSXNiHE" target="_blank" rel="noopener noreferrer">Watch on YouTube <OpenInNewIcon aria-hidden="true" fontSize="small" /></a>
           </div>}
         </div>
       </section>}
       <div className={styles.lower}>
-        <MediaLibrary />
-        <section aria-labelledby="home-events">
-          <div className={styles.sectionHeading}><h2 id="home-events">Coming up</h2><Link to="/events">All events</Link></div>
-          {contentLoading ? <p role="status" className={styles.empty}>Loading events…</p> : contentError ? <p className={styles.empty}>Events unavailable.</p> : upcomingEvents.length ? <ul className={styles.list}>{upcomingEvents.map(event => <li key={event.id}>
-            <Link className={styles.eventCard} to={`/events/${event.id}`}>
-              <time className={styles.date} dateTime={event.date}><span>{new Date(event.date).toLocaleDateString([], {month:'short'})}</span><strong>{new Date(event.date).getDate()}</strong></time>
-              <EventFlyer key={event.flyer || 'no-flyer'} src={typeof event.flyer === 'string' ? getImageUrl(event.flyer) : ''} title={event.title} />
-              <span><strong>{event.title}</strong><span className={styles.detail}>{new Date(event.date).toLocaleTimeString([], {timeStyle:'short'})} · {event.location || 'Location TBD'}</span></span>
-            </Link>
-          </li>)}</ul> : <p className={styles.empty}>No upcoming events announced.</p>}
-        </section>
+        <MediaLibrary fillHeight />
+        <div className={styles.eventsColumn}>
+          <section aria-labelledby="home-events">
+            <div className={styles.sectionHeading}><h2 id="home-events">Coming up</h2><Link to="/events">All events</Link></div>
+            {contentLoading ? <p role="status" className={styles.empty}>Loading events…</p> : contentError ? <p className={styles.empty}>Events unavailable.</p> : upcomingEvents.length ? <EventList events={upcomingEvents} /> : <p className={styles.empty}>No upcoming events announced.</p>}
+          </section>
+          <section aria-labelledby="home-previous">
+            <div className={styles.sectionHeading}><h2 id="home-previous">Previous</h2></div>
+            {contentLoading ? <p role="status" className={styles.empty}>Loading previous events…</p> : contentError ? <p className={styles.empty}>Previous events unavailable.</p> : previousEvents.length ? <EventList events={previousEvents} /> : <p className={styles.empty}>No previous events.</p>}
+          </section>
+        </div>
         <section aria-labelledby="home-gallery">
           <div className={styles.sectionHeading}><h2 id="home-gallery">In the frame</h2>{!contentError && validImages.length > 2 && <Button startIcon={galleryExpanded ? <ExpandLessIcon aria-hidden="true" /> : <ExpandMoreIcon aria-hidden="true" />} aria-expanded={galleryExpanded} aria-controls="home-photos" onClick={() => setGalleryExpanded(value => !value)}>{galleryExpanded ? 'Show fewer photos' : 'View all photos'}</Button>}</div>
           {contentLoading ? <p role="status" className={styles.empty}>Loading photos…</p> : contentError ? <p className={styles.empty}>Gallery unavailable.</p> : validImages.length ? <div id="home-photos" className={styles.galleryGrid}>{(galleryExpanded ? validImages : validImages.slice(0,2)).map((image,index) => <button type="button" key={image.id} className={styles.galleryItem} aria-label={`Open photo ${index + 1}`} onClick={() => setSelectedImage(image.url)}><img src={getImageUrl(image.url)} alt="Syndicate upload" /></button>)}</div> : <p className={styles.empty}>No photos have been uploaded to the Syndicate yet.</p>}

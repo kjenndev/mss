@@ -8,7 +8,7 @@
 .logoLink { display: flex; align-items: center; gap: 13px; text-decoration: none; flex-shrink: 0; }
 .logoImage { width: 44px; height: 44px; object-fit: contain; border-radius: 4px; }
 .logoText { font-size: 16px; font-weight: 700; line-height: 1.2; color: var(--text-primary); white-space: nowrap; }
-.wordmark { display: block; margin-top: 5px; font-size: 11px; font-weight: 400; letter-spacing: 3px; color: #b0b6bf; }
+.wordmark { display: block; margin-top: 5px; font-size: 1em; font-weight: 400; letter-spacing: 0.235em; color: #b0b6bf; }
 .navLinksContainer { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .navButton { min-width: 0 !important; min-height: 44px; padding: 6px 12px !important; border-radius: 0 !important; color: #b7bdc6 !important; text-transform: none !important; font-weight: 400 !important; }
 .logoLink:focus-visible { outline: 2px solid #90caf9; outline-offset: 5px; }
@@ -20,7 +20,7 @@
   .logoLink { margin-right: auto; gap: 9px; }
   .logoImage { width: 32px; height: 32px; }
   .logoText { font-size: 12px; }
-  .wordmark { font-size: 8px; letter-spacing: 2px; margin-top: 4px; }
+  .wordmark { margin-top: 4px; }
   .menuToggle { display: inline-flex !important; }
   .navLinksContainer { display: none; order: 3; width: 100%; margin-left: 0; flex-wrap: wrap; gap: 4px; padding-top: 8px; }
   .guestLinks { display: none; order: 4; width: 100%; border-top: 1px solid #303339; padding-top: 8px; }
