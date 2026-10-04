@@ -89,6 +89,6 @@
    The neutral layer also covers missing/failed images without reserving a slot. */
 .artwork { position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; background:#222830; }
 .artwork img { position:absolute; display:block; left:0; top:50%; width:100%; height:auto; max-width:none; transform:translateY(-50%); }
-.artwork::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(10,15,21,.90) 0%, rgba(10,15,21,.78) 52%, rgba(10,15,21,.65) 100%); }
+.artwork::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(10,15,21,.90) 0%, rgba(10,15,21,.78) 52%, rgba(10,15,21,.74) 100%); }
 .trackTitle { flex:1; min-width:0; overflow-wrap:anywhere; }
 .selectTrack { gap:12px; }
