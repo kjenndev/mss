@@ -9,6 +9,7 @@ import './index.css'
 import { MediaPlayerProvider } from './components/Media/MediaPlayerProvider';
 import MediaNavigation from './components/Media/MediaNavigation';
 import App from './App.jsx'
+import SiteFooter from './components/SiteFooter';
 import RouteGuard from './RouteGuard.jsx'
 
 import ArtistList from './components/Artist/Artist.Component.List'
@@ -65,6 +66,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/admin/about" element={<RouteGuard admin><AdminAboutEditor /></RouteGuard>} />
           <Route path="/account" element={<RouteGuard><UserProfile /></RouteGuard>} />
         </Routes>
+        <SiteFooter />
         </MediaPlayerProvider></MediaNavigation>
       </BrowserRouter>
     </LocalizationProvider>

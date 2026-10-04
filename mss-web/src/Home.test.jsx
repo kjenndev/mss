@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import {it,expect,vi,beforeEach,afterEach} from 'vitest';
-import {render,screen,cleanup,fireEvent,act} from '@testing-library/react';
+import {render,screen,cleanup,fireEvent,act,within} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
 import { MediaPlayerProvider } from './components/Media/MediaPlayerProvider';
 import Home from './components/Home.Component';
+import MediaLibrary from './components/Media/MediaLibrary';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
 vi.mock('./components/Stream/Syndicate.Player.Component',()=>({default:({isPaused})=><div>{isPaused?'Paused':'Playing'}</div>}));
@@ -18,7 +19,7 @@ it('places library below video before events and releases video playback while a
  expect(video.compareDocumentPosition(library) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
  const events=screen.getByRole('region',{name:'Coming up'});
  const gallery=screen.getByRole('region',{name:'In the frame'});
- expect(library.parentElement).toBe(events.parentElement);
+ expect(library.parentElement).toBe(events.parentElement.parentElement);
  expect(library.compareDocumentPosition(events) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
  expect(events.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
  expect(screen.queryByRole('region',{name:'Latest content'})).toBeNull();
@@ -257,4 +258,57 @@ it.each([null,'javascript:alert(1)',{},'//unsafe.test/flyer.png'])('keeps event 
  render(<MemoryRouter><Home/></MemoryRouter>);
  expect(await screen.findByText('No flyer event')).toBeTruthy();
  expect(screen.queryByRole('img',{name:'Flyer for No flyer event'})).toBeNull();
+});
+
+it('shows only the latest ten past events below Coming up using actual instants and preserves event links',async()=>{
+ mockHome();
+ const now=Date.parse('2026-10-03T12:00:00Z'); vi.spyOn(Date,'now').mockReturnValue(now);
+ const past=Array.from({length:12},(_,i)=>({id:i+1,title:`Past ${i+1}`,date:new Date(now-(i+1)*86400000).toISOString(),location:'Venue',flyer:'/uploads/past.png'}));
+ const boundary=[{id:90,title:'Exact now',date:new Date(now).toISOString()},{id:91,title:'Offset past',date:'2026-10-03T12:59:59+01:00'},{id:92,title:'Offset future',date:'2026-10-03T08:00:01-04:00'}];
+ api.GetAllEvents.mockResolvedValue({ok:true,json:async()=>({events:[...past.reverse(),...boundary,...[null,'','invalid'].map((date,i)=>({id:100+i,title:`Unknown ${i}`,date})),{id:200,title:'Future',date:'2099-01-01T00:00:00Z'}]})});
+ render(<MemoryRouter><Home/></MemoryRouter>); await act(async()=>{});
+ const previous=screen.getByRole('region',{name:'Previous'}), upcoming=screen.getByRole('region',{name:'Coming up'});
+ expect(upcoming.compareDocumentPosition(previous)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ expect(previous.parentElement).toBe(upcoming.parentElement);
+ const links=within(previous).getAllByRole('link');
+ expect(links).toHaveLength(10);
+ expect(links.map(link=>link.getAttribute('href'))).toEqual(['/events/91',...Array.from({length:9},(_,i)=>`/events/${i+1}`)]);
+ expect(within(upcoming).getAllByRole('link').map(link=>link.getAttribute('href'))).toEqual(['/events','/events/92','/events/200']);
+ const flyer=within(previous).getByRole('img',{name:'Flyer for Past 1'});
+ expect(flyer.closest('a').getAttribute('href')).toBe('/events/1');
+ expect(flyer.previousElementSibling.tagName).toBe('TIME');
+ expect(flyer.nextElementSibling.textContent).toContain('Venue');
+ fireEvent.error(flyer); expect(within(previous).getByText('Past 1')).toBeTruthy();
+ expect(screen.queryByText('Exact now')).toBeNull();
+});
+
+it('opts the homepage library into stretched desktop layout without changing its shared default',async()=>{
+ mockHome(); render(<MemoryRouter><Home/></MemoryRouter>); await act(async()=>{});
+ expect(screen.getByRole('region',{name:'Artist library'}).className).toContain('fillHeight');
+ cleanup(); render(<MemoryRouter><MediaLibrary /></MemoryRouter>); await act(async()=>{});
+ expect(screen.getByRole('region',{name:'Artist library'}).className).not.toContain('fillHeight');
+});
+it('distinguishes previous-event loading, failure, retry and genuinely empty results',async()=>{
+ mockHome(); let resolve; api.GetAllEvents.mockReturnValue(new Promise(r=>{resolve=r;}));
+ render(<MemoryRouter><Home/></MemoryRouter>);
+ expect(screen.getByText('Loading previous events…')).toBeTruthy();
+ expect(screen.queryByText('No previous events.')).toBeNull();
+ await act(async()=>resolve({ok:false}));
+ expect(screen.getByText('Previous events unavailable.')).toBeTruthy();
+ expect(screen.queryByText('No previous events.')).toBeNull();
+ api.GetAllEvents.mockResolvedValue({ok:true,json:async()=>({events:[]})});
+ fireEvent.click(screen.getByRole('button',{name:'Retry content'}));
+ expect(await screen.findByText('No previous events.')).toBeTruthy();
+});
+
+it.each(['1969-12-31T12:00:00Z','2026-10-03T12:00:00Z'])('keeps the three earliest future events and strict millisecond boundaries at %s',async instant=>{
+ mockHome(); const now=Date.parse(instant); vi.spyOn(Date,'now').mockReturnValue(now);
+ const events=[5,2,4,1,3,0,-1].map(offset=>({id:10+offset,title:`Boundary ${offset}`,date:new Date(now+offset).toISOString()}));
+ events.push(...[null,'',undefined,'not-a-date',0,{}].map((date,i)=>({id:100+i,title:`Unknown ${i}`,date})));
+ api.GetAllEvents.mockResolvedValue({ok:true,json:async()=>({events})});
+ render(<MemoryRouter><Home/></MemoryRouter>); await act(async()=>{});
+ const upcoming=screen.getByRole('region',{name:'Coming up'}),previous=screen.getByRole('region',{name:'Previous'});
+ expect(within(upcoming).getAllByRole('link').map(link=>link.getAttribute('href'))).toEqual(['/events','/events/11','/events/12','/events/13']);
+ expect(within(previous).getAllByRole('link').map(link=>link.getAttribute('href'))).toEqual(['/events/9']);
+ expect(screen.queryByText('Boundary 0')).toBeNull();
 });
