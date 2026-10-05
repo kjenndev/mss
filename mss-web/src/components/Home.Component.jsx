@@ -1,10 +1,5 @@
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
-import PauseIcon from '@mui/icons-material/Pause';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -13,11 +8,10 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { poll } from '../poll';
-import { getImageUrl, watchUrl } from '../config';
+import { getImageUrl } from '../config';
 import * as helpers from '../Data.Helper.Api';
-import SyndicatePlayer from './Stream/Syndicate.Player.Component';
+import HomeScreen from './Media/HomeScreen';
 import MediaLibrary from './Media/MediaLibrary';
-import YouTubeVideo from './Media/YouTubeVideo';
 import { useLocalVideo } from './Media/useLocalVideo';
 import { useMediaPlayer } from './Media/MediaPlayerContext';
 import styles from './Home.Component.module.css';
@@ -48,13 +42,12 @@ export default function Home() {
   const [streamError, setStreamError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const [live, setLive] = useState([]);
+  const [liveLoading, setLiveLoading] = useState(true);
   const [images, setImages] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [previousEvents, setPreviousEvents] = useState([]);
   const [settings, setSettings] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [pausedChannel, setPausedChannel] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -64,10 +57,11 @@ export default function Home() {
         if (!response.ok) throw new Error();
         const data = await response.json();
         if (active) {
-          setLive((data.streams || []).map(stream => ({ id: stream.artistId, name: stream.artistName, channelName: stream.channelName })));
+          setLive((data.streams || []).map(stream => ({ id: stream.artistId, name: stream.artistName, channelName: stream.channelName, artworkUrl: stream.artistImage })));
           setStreamError('');
         }
       } catch { if (active) { setLive([]); setStreamError('Live status unavailable. Retrying automatically.'); } }
+      finally { if (active) setLiveLoading(false); }
     });
     return () => { active = false; stop(); };
   }, []);
@@ -91,50 +85,13 @@ export default function Home() {
     return () => { active = false; };
   }, [attempt]);
 
-  const handleJoinChat = (channelName) => {
-    const url = watchUrl(settings.streaming_platform_url, channelName);
-    if (!url) return;
-    setPausedChannel(channelName);
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-  const selectedIndex = live.length ? currentIndex % live.length : 0;
-  const currentLive = live[selectedIndex] || null;
-
   const validImages = images.filter(image => image && getImageUrl(image.url));
 
   return <ThemeProvider theme={darkTheme}>
     <main className={styles.container}>
       {streamError && <Alert severity="warning">{streamError}</Alert>}
       {contentError && <Alert severity="error">{contentError}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => { setContentLoading(true); setContentError(''); setAttempt(n => n + 1); }}>Retry content</Button></Alert>}
-      {video ? <YouTubeVideo item={video} onClose={closeVideo} heading /> : settings.show_live_section !== '0' && <section aria-label="Syndicate screen">
-        {mediaPlayer?.item ? <div className={styles.videoDisabled}>
-          <div className={styles.disabledMessage}>
-            <PauseIcon className={styles.disabledIcon} aria-hidden="true" />
-            <strong>Video disabled</strong>
-            <p>While you listen to the artist library.</p>
-            <Button startIcon={<PlayArrowIcon aria-hidden="true" />} variant="outlined" onClick={mediaPlayer.close}>Return to video</Button>
-          </div>
-        </div> : currentLive ? <div className={styles.livePlayer}>
-          <SyndicatePlayer key={currentLive.channelName} channelName={currentLive.channelName} isPaused={pausedChannel === currentLive.channelName} onResume={() => setPausedChannel(null)} />
-        </div> : <div className={styles.iframeWrapper}>
-          <iframe title="Featured Syndicate video" src="https://www.youtube-nocookie.com/embed/z6aXbSXNiHE" allow="encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
-        </div>}
-        <div className={`${styles.featureInfo} ${mediaPlayer?.item ? styles.featureDisabled : ''}`} inert={mediaPlayer?.item ? true : undefined} aria-disabled={mediaPlayer?.item ? true : undefined}>
-          <div>
-            <p className={styles.label}>{currentLive ? 'Syndicate Live · On air' : 'Featured replay · YouTube'}</p>
-            <h1>{currentLive ? currentLive.name : 'DK Bean'}</h1>
-          </div>
-          {currentLive ? <div className={styles.controls}>
-            <span className={styles.muted}>Stream {selectedIndex + 1} of {live.length}</span>
-            <Button aria-label="Prev" title="Prev" sx={{ minWidth: 44, minHeight: 44, p: 0 }} disabled={live.length <= 1} onClick={() => setCurrentIndex((selectedIndex - 1 + live.length) % live.length)}><ChevronLeftIcon aria-hidden="true" /></Button>
-            <Button aria-label="Next" title="Next" sx={{ minWidth: 44, minHeight: 44, p: 0 }} disabled={live.length <= 1} onClick={() => setCurrentIndex((selectedIndex + 1) % live.length)}><ChevronRightIcon aria-hidden="true" /></Button>
-            {watchUrl(settings.streaming_platform_url, currentLive.channelName) && <Button startIcon={<OpenInNewIcon aria-hidden="true" />} variant="outlined" onClick={() => handleJoinChat(currentLive.channelName)}>Open platform player</Button>}
-          </div> : <div className={styles.controls}>
-            <span className={styles.muted}>Featured replay</span>
-            <a className={styles.outlineLink} href="https://www.youtube.com/watch?v=z6aXbSXNiHE" target="_blank" rel="noopener noreferrer">Watch on YouTube <OpenInNewIcon aria-hidden="true" fontSize="small" /></a>
-          </div>}
-        </div>
-      </section>}
+      <HomeScreen liveLoading={liveLoading} live={live} settings={settings} video={video} closeVideo={closeVideo} player={mediaPlayer} />
       <div className={styles.lower}>
         <MediaLibrary fillHeight onVideoSelect={selectVideo} selectedVideoId={video?.id} />
         <div className={styles.eventsColumn}>

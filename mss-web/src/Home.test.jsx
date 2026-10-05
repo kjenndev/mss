@@ -8,13 +8,13 @@ import MediaLibrary from './components/Media/MediaLibrary';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
 vi.mock('./components/Stream/Syndicate.Player.Component',()=>({default:({isPaused})=><div>{isPaused?'Paused':'Playing'}</div>}));
-beforeEach(()=>{cleanup();vi.resetAllMocks();});
+beforeEach(()=>{cleanup();vi.resetAllMocks();api.GetHomeFeaturedVideos.mockResolvedValue({ok:true,json:async()=>({canAdd:true,videos:[{id:'youtube:z6aXbSXNiHE',provider:'youtube',title:'DK Bean',url:'https://www.youtube.com/watch?v=z6aXbSXNiHE',createdAt:'2020-01-02T00:00:00Z',durationSeconds:123}]})});});
 afterEach(()=>{cleanup();vi.useRealTimers();vi.restoreAllMocks();});
 it('places library below video before events and releases video playback while audio is selected',async()=>{
  mockHome();
  api.GetMediaLibrary.mockResolvedValue({ok:true,json:async()=>({items:[{id:'a',provider:'mixcloud',title:'Library show',artistName:'DJ',url:'https://www.mixcloud.com/dj/show/'}],total:1,nextOffset:null,sources:[],complete:true,cache:{}})});
  render(<MemoryRouter><MediaPlayerProvider><Home/></MediaPlayerProvider></MemoryRouter>);
- const video=screen.getByTitle('Featured Syndicate video');
+ const video=await screen.findByTitle('Featured: DK Bean');
  const library=screen.getByRole('region',{name:'Artist library'});
  expect(video.compareDocumentPosition(library) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
  const events=screen.getByRole('region',{name:'Coming up'});
@@ -35,9 +35,9 @@ it('places library below video before events and releases video playback while a
  expect(screen.getByTitle('Mixcloud player')).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Return to video'}));
  expect(screen.queryByTitle('Mixcloud player')).toBeNull();
- expect(screen.getByTitle('Featured Syndicate video')).toBeTruthy();
+ expect(screen.getByTitle('Featured: DK Bean')).toBeTruthy();
 });
-const videoTitle = 'Featured Syndicate video';
+const videoTitle = 'Featured: DK Bean';
 function mockHome({streams = [], settings = {}} = {}) {
  api.GetActiveSyndicateStreams.mockResolvedValue({ok:true,json:async()=>({streams})});
  api.GetSettings.mockResolvedValue({ok:true,json:async()=>({settings})});
@@ -48,7 +48,7 @@ it('shows a responsive click-to-play YouTube fallback when no streams are live',
  render(<MemoryRouter><Home/></MemoryRouter>);
  const iframe = await screen.findByTitle(videoTitle);
  expect(iframe.tagName).toBe('IFRAME');
- expect(iframe.getAttribute('src')).toBe('https://www.youtube-nocookie.com/embed/z6aXbSXNiHE');
+ expect(iframe.getAttribute('src')).toBe('https://www.youtube-nocookie.com/embed/z6aXbSXNiHE?autoplay=0&rel=0');
  expect(iframe.getAttribute('allow') || '').not.toContain('autoplay');
  expect(iframe.hasAttribute('allowfullscreen')).toBe(true);
  expect(screen.getByRole('region',{name:'Syndicate screen'}).contains(iframe)).toBe(true);
@@ -132,7 +132,7 @@ it('retains an honest unavailable alert alongside the fallback and recovers on p
 it('presents Cinema replay metadata and honest empty discovery sections',async()=>{
  mockHome(); render(<MemoryRouter><Home/></MemoryRouter>);
  expect(await screen.findByRole('heading',{name:'DK Bean'})).toBeTruthy();
- expect(screen.getByText('Featured replay · YouTube')).toBeTruthy();
+ expect(screen.getByText('Featured selection · YouTube')).toBeTruthy();
  expect(screen.getByRole('link',{name:/Watch on YouTube/}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
  expect(screen.getByRole('link',{name:/Watch on YouTube/}).getAttribute('href')).toBe('https://www.youtube.com/watch?v=z6aXbSXNiHE');
  for (const name of ['Artist library','Coming up','In the frame']) expect(screen.getByRole('region',{name})).toBeTruthy();
@@ -158,7 +158,7 @@ it('distinguishes pending discovery from empty content and retries failed conten
  mockHome(); let resolve; api.GetAllEvents.mockReturnValue(new Promise(r=>{resolve=r;}));
  api.GetActiveSyndicateStreams.mockReturnValue(new Promise(()=>{}));
  render(<MemoryRouter><Home/></MemoryRouter>);
- expect(screen.queryByText('Checking live status…')).toBeNull();
+ expect(screen.getByText('Checking live status…')).toBeTruthy();
  expect(screen.getByText('Loading events…')).toBeTruthy();
  expect(screen.getByText('Loading photos…')).toBeTruthy();
  expect(screen.queryByText('No upcoming events announced.')).toBeNull();
@@ -178,8 +178,8 @@ it('keeps carousel numbering and controls valid when the stream list shrinks',as
  expect(screen.getByRole('heading',{name:'Artist 3'})).toBeTruthy();
  api.GetActiveSyndicateStreams.mockResolvedValue({ok:true,json:async()=>({streams:[{artistId:1,artistName:'Artist 1',channelName:'channel1'}]})});
  await act(async()=>{await vi.advanceTimersByTimeAsync(10000);});
- expect(screen.getByText('Stream 1 of 1')).toBeTruthy();
- expect(screen.getByRole('button',{name:'Next'}).disabled).toBe(true);
+ expect(screen.queryByRole('button',{name:'Next'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Select Artist 1'})).toBeNull();
  expect(screen.getByRole('heading',{name:'Artist 1'})).toBeTruthy();
  expect(screen.queryByText('Groovematics · July 4, 2021')).toBeNull();
 });
@@ -204,8 +204,8 @@ it('keeps live video details visible but inert during library selection',async()
  expect(screen.getByRole('button',{name:'Open platform player'}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
  expect(screen.getByText('Video disabled')).toBeTruthy();
  expect(screen.getByTestId('PauseIcon').getAttribute('aria-hidden')).toBe('true');
- expect(screen.getByRole('button',{name:'Return to video'}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
- fireEvent.click(screen.getByRole('button',{name:'Return to video'}));
+ expect(screen.getByRole('button',{name:'Return to live'}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Return to live'}));
  expect(screen.getByText('Playing')).toBeTruthy();
  expect(screen.queryByTitle('Mixcloud player')).toBeNull();
 });

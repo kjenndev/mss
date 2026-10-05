@@ -13,6 +13,7 @@ import { getActiveStreams, stopDiscovery, getStreamStats } from './streams.js';
 import 'dotenv/config';
 import { getMediaLibrary } from './media-library.js';
 import { youtubeMetadata, parseYouTubeUrl, youtubeVideoDto, YOUTUBE_LINK_LIMIT } from './youtube.js';
+import { featuredUrls, featuredDto, prepareFeatured } from './home-featured.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -947,6 +948,42 @@ app.get('/api/streams', async (req, res) => {
     if (['23503', '23505', '23514', '22P02', '22007'].includes(error.code)) throw error;
     res.status(500).json({ error: 'Failed to fetch streams' });
   }
+});
+
+const featuredAccountBudget = budget(200, 60 * 60 * 1000);
+const featuredGlobalBudget = budget(1000, 60 * 60 * 1000, 1);
+function featuredProvider(req) {return {get:async url=>{
+ if(!featuredAccountBudget(req.user.id) || !featuredGlobalBudget('all')) throw Object.assign(new Error('YouTube lookup limit reached. Try again later.'),{status:429});
+ return youtubeMetadata.get(url);
+}};}
+const featuredLookup = handler => async (req,res,next)=>{
+ try {await handler(req,res,next);} catch(error) {
+  if(![400,422,429,503].includes(error.status)) throw error;
+  res.status(error.status).json({error:error.message,code:error.code});
+ }
+};
+// Homepage curation is separate from the chronologically sorted artist catalog.
+app.get('/api/home-featured-videos', async (req, res) => {
+ const db=req.db || await getDb();
+ res.json({videos:(await db('home_featured_videos').orderBy('position')).map(featuredDto),canAdd:youtubeMetadata.configured()});
+});
+app.post('/api/home-featured-videos/preview', authMiddleware, adminOnly, featuredLookup(async (req,res,next)=>{
+ if(Object.keys(req.body || {}).some(key=>key!=='url')) return res.status(400).json({error:'Only a video URL is accepted.'});
+ parseYouTubeUrl(req.body?.url);
+ const metadata=await featuredProvider(req).get(req.body.url);
+ req.featuredPreview=featuredDto({video_id:metadata.videoId,title:metadata.title,artwork_url:metadata.artworkUrl,duration_seconds:metadata.durationSeconds,published_at:metadata.publishedAt,fetched_at:new Date().toISOString()});
+ next();
+}), async (req,res)=>res.json({video:req.featuredPreview}));
+app.put('/api/home-featured-videos', authMiddleware, adminOnly, featuredLookup(async (req,res,next)=>{
+ const parsed=featuredUrls(req.body);
+ const db=req.db || await getDb();
+ req.featuredRows=await prepareFeatured(parsed,await db('home_featured_videos').select('*'),featuredProvider(req));
+ next();
+}), async (req,res)=>{
+ // Shared atomic wrapper revalidates admin/session after advisory -> user -> session locks.
+ await req.db('home_featured_videos').del();
+ if(req.featuredRows.length) await req.db('home_featured_videos').insert(req.featuredRows);
+ res.json({videos:req.featuredRows.map(featuredDto)});
 });
 
 app.get('/api/settings', async (req, res) => {

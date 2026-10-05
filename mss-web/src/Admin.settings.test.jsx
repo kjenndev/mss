@@ -6,6 +6,7 @@ import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
 beforeEach(() => { vi.resetAllMocks(); });
 afterEach(cleanup);
+it('links to the dedicated homepage curation settings',async()=>{api.GetSettings.mockResolvedValue({ok:true,json:async()=>({raw:[]})});render(<AdminSettings/>);expect((await screen.findByRole('link',{name:'Homepage featured videos'})).getAttribute('href')).toBe('/admin/homepage');});
 const response = raw => ({ ok: true, json: async () => ({ raw }) });
 it.each([
  ['network failure', () => Promise.reject(new Error('offline'))],
