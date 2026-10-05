@@ -30,6 +30,7 @@ function harness({ rows = {}, artists = [], connect, read, dbError, env = {}, ti
   });
   return { ...api, clients, options };
 }
+test('live discovery includes the existing public artist artwork',async()=>{const api=harness({rows:{channel:row()},artists:[{id:1,name:'Fixture',channel_name:'channel',profile_picture:'/uploads/public.webp'}]});assert.equal((await api.getActiveStreams())[0].artistImage,'/uploads/public.webp');await api.stopDiscovery();});
 test('concurrent discovery waits for one ready client with a safe error listener', async () => {
   let release;
   const pending = new Promise(resolve => { release = resolve; });

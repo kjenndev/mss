@@ -31,6 +31,7 @@ import Register from './components/Auth/Register';
 import VerifyEmail from './components/Auth/VerifyEmail';
 import ResendVerification from './components/Auth/ResendVerification';
 import LegalPage from './components/Auth/LegalPage';
+import AdminFeatured from './components/Admin/AdminFeatured';
 import AdminEmail from './components/Admin/Admin.Email';
 import UserProfile from './components/User/User.Component.Profile'
 
@@ -59,6 +60,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/resend-verification" element={<ResendVerification />} />
           <Route path="/terms" element={<LegalPage kind="terms" />} />
           <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+          <Route path="/admin/homepage" element={<RouteGuard admin><AdminFeatured /></RouteGuard>} />
           <Route path="/admin/email" element={<RouteGuard admin><AdminEmail /></RouteGuard>} />
           <Route path="/login" element={<Login key={window.location.pathname} />} />
           <Route path="/admin/dashboard" element={<RouteGuard admin><AdminDashboard /></RouteGuard>} />

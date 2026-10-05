@@ -80,7 +80,7 @@ export async function getStreamDiscovery() {
     const db = await getDb();
     const artists = await db('artists')
       .whereIn('channel_name', channelNames)
-      .select('id', 'name', 'channel_name', 'twitch');
+      .select('id', 'name', 'channel_name', 'twitch', 'profile_picture');
     
     const mappings = new Map();
     for (const artist of artists) {
@@ -114,6 +114,7 @@ export async function getStreamDiscovery() {
       streams.push({
         artistId: artist.id,
         artistName: artist.name,
+        artistImage: artist.profile_picture || null,
         channelName: channel,
         startedAt: new Date(liveData.startTime).toISOString(),
         ...(mediaBase ? {

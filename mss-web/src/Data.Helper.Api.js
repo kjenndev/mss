@@ -1,4 +1,7 @@
 import { API_BASE } from './config';
+export const GetHomeFeaturedVideos = () => request('/home-featured-videos', 'GET', null, false);
+export const PreviewHomeFeaturedVideo = url => request('/home-featured-videos/preview', 'POST', {url});
+export const SaveHomeFeaturedVideos = urls => request('/home-featured-videos', 'PUT', {urls});
 export const GetArtistYouTubeVideos = id => request(`/artists/${id}/youtube-videos`, 'GET', null, false);
 export const AddArtistYouTubeVideo = (id, url, refresh = false) => request(`/artists/${id}/youtube-videos`, 'POST', { url, ...(refresh ? { refresh: true } : {}) });
 export const DeleteArtistYouTubeVideo = (id, videoId) => request(`/artists/${id}/youtube-videos/${encodeURIComponent(videoId)}`, 'DELETE');
