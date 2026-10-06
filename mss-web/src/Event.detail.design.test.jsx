@@ -100,3 +100,8 @@ it('refreshes gallery data after a successful upload', async () => {
  await waitFor(() => expect(api.GetEventById).toHaveBeenCalledTimes(2));
  expect(await screen.findByRole('heading', { level: 1, name: event.title })).toBeTruthy();
 });
+
+it('shares the event flyer rather than its gallery',async()=>{
+ mount();fireEvent.click(await screen.findByRole('button',{name:'Share event'}));
+ expect(screen.getByAltText('Night Assembly event flyer')).toHaveAttribute('src','/uploads/flyer.png');
+});

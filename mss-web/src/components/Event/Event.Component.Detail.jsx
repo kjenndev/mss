@@ -1,3 +1,4 @@
+import ShareSheet from '../Sharing/ShareSheet';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditIcon from '@mui/icons-material/Edit';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -146,6 +147,7 @@ function EventDetail({ id }) {
                 <div><dt>Where</dt><dd>{event.location || 'Location TBD'}</dd></div>
               </dl>
               <div className={styles.actions}>
+                <ShareSheet kind="events" entity={event} />
                 {event.ticket_link && (
                   <Button variant="contained" href={event.ticket_link} target="_blank" rel="noopener noreferrer">Get Tickets</Button>
                 )}

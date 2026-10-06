@@ -45,3 +45,12 @@ it('retains exact microsecond ordering, ties by ID and keeps unknown dates after
  api.GetComments.mockResolvedValue(response({comments:[row(1,'2026-01-01T00:00:00.000002Z'),row(4,'2026-01-01T00:00:00.000001Z'),row(2,'1960-01-01'),row(3,null),row(5,'2026-01-01T00:00:00.000001Z')]}));
  render(<Comments artistId={1}/>);await screen.findByText('Row 1');expect(order()).toEqual(['Row 1','Row 5','Row 4','Row 2','Row 3']);
 });
+
+it('merges an exact POST timestamp above an older GET row within the same millisecond',async()=>{
+ api.GetComments.mockResolvedValue(response({comments:[row(1,'2026-01-01T00:00:00.123100Z')]}));
+ api.PostComment.mockResolvedValue(response({comment:row(2,'2026-01-01T00:00:00.123900Z')}));
+ render(<Comments artistId={1}/>);await screen.findByText('Row 1');await screen.findByDisplayValue('Account');
+ fireEvent.change(screen.getByRole('textbox',{name:'Comment'}),{target:{value:'Row 2'}});
+ fireEvent.click(screen.getByRole('button',{name:'Post Comment'}));await screen.findByText('Row 2',{selector:'p'});
+ expect(order()).toEqual(['Row 2','Row 1']);
+});

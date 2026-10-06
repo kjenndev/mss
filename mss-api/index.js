@@ -1,3 +1,4 @@
+import { createSharingRouter } from './sharing.js';
 import { createRegistrationRouter } from './registration.js';
 import { decodeImage } from './uploads.js';
 import express from 'express';
@@ -218,6 +219,15 @@ for (const origin of corsOrigins) {
 }
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(express.json());
+app.use(createSharingRouter({
+  origin: process.env.PUBLIC_SITE_ORIGIN,
+  loadEntity: async (kind, id) => {
+    const db = await getDb();
+    const fields = kind === 'artists' ? ['id', 'name', 'location', 'profile_picture'] : ['id', 'title', 'date', 'location', 'flyer'];
+    return db(kind).select(fields).where({ id }).first();
+  },
+  loadIndex: () => fs.promises.readFile(path.join(__dirname, '../mss-web/dist/index.html'), 'utf8'),
+}));
 app.use(createRegistrationRouter({ getDb, hashPassword, verifyPassword }));
 app.use('/uploads', (req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
@@ -1180,7 +1190,9 @@ app.post('/api/comments', authMiddleware, async (req, res) => {
     }).returning('id');
 
     const commentId = typeof commentIdObj === 'object' ? commentIdObj.id : commentIdObj;
-    const comment = await db('comments').where('id', commentId).first();
+    // Match newest GET precision before pg can truncate created_at to a JS Date.
+    const comment = await db('comments').where('id', commentId)
+      .select('*', db.raw(`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at`)).first();
 
     res.status(201).json({ comment: (await publicComments(db, [comment]))[0] });
   } catch (err) {
