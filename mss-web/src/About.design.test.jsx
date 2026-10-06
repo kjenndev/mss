@@ -22,6 +22,15 @@ it('renders identity beside sanitized saved content and real cover, with admin e
  expect(await screen.findByRole('heading',{name:'About editor'})).toBeTruthy();
 });
 
+it.each([false, true])('omits About breadcrumbs for admin=%s while retaining the page heading',async(isAdmin)=>{
+ api.IsAdmin.mockReturnValue(isAdmin);
+ api.GetSettings.mockResolvedValue(settings({about_content:'<p>Saved story</p>'}));mount();
+ expect(await screen.findByRole('heading',{level:1,name:'About MSS'})).toBeTruthy();
+ expect(screen.queryByRole('navigation',{name:/breadcrumb/i})).toBeNull();
+ expect(screen.getByRole('link',{name:/Explore events/i}).getAttribute('href')).toBe('/events');
+ expect(Boolean(screen.queryByRole('button',{name:'Edit Page'}))).toBe(isAdmin);
+});
+
 it('keeps an honest empty state and hides editing for visitors',async()=>{
  api.GetSettings.mockResolvedValue(settings({about_content:null,about_cover_photo:null}));mount();
  expect(await screen.findByText('About content has not been added yet.')).toBeTruthy();

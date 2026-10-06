@@ -11,7 +11,9 @@ const cardCss=readFileSync('src/components/Event/Event.Component.List.module.css
 it('stretches the native details link over the card while keeping Edit independent',async()=>{
  const {container}=view();
  const card=(await screen.findByRole('heading',{name:'Later night'})).closest('article');
- const details=within(card).getByRole('link',{name:'Details'});
+ expect(within(card).queryByText(/^Details$|^View details$/i)).toBeNull();
+ const details=within(card).getByRole('link',{name:'Later night'});
+ expect(within(card).getByRole('heading',{name:'Later night'}).contains(details)).toBe(true);
  const edit=within(card).getByRole('link',{name:'Edit'});
  expect(details.classList.contains(styles.cardLink)).toBe(true);
  expect(edit.classList.contains(styles.secondaryAction)).toBe(true);
@@ -51,7 +53,7 @@ it('offers searchable event grid with date sorting, counts, and permission-gated
  expect(screen.getAllByRole('article').map(x=>within(x).getByRole('heading').textContent)).toEqual(['Later night','Earlier night','Undated']);
  expect(screen.getByRole('link',{name:'Create Event'}).getAttribute('href')).toBe('/events/create');
  expect(screen.getByRole('link',{name:'Edit'}).getAttribute('href')).toBe('/events/1/update');
- expect(screen.getAllByRole('link',{name:'Details'})).toHaveLength(3);
+ expect(screen.getAllByRole('article').map(card=>within(card).getByRole('link',{name:within(card).getByRole('heading').textContent}).getAttribute('href'))).toEqual(['/events/1','/events/2','/events/3']);
  fireEvent.change(screen.getByRole('searchbox',{name:'Search events'}),{target:{value:'aUsTiN'}});
  expect(screen.getAllByRole('article')).toHaveLength(1);expect(screen.getByText('1 of 3 events')).toBeTruthy();
  fireEvent.change(screen.getByRole('searchbox'),{target:{value:''}});

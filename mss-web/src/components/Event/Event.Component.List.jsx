@@ -1,6 +1,5 @@
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditIcon from '@mui/icons-material/Edit';
-import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 import AddIcon from '@mui/icons-material/Add';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import Alert from '@mui/material/Alert';
@@ -39,7 +38,7 @@ export default function EventList(){
    const time=eventTime(event),date=Number.isFinite(time)?new Date(time):null;
    return <article key={event.id} className={styles.event}>
     <div className={styles.flyer}>{getImageUrl(event.flyer)&&failedFlyers[event.id]!==event.flyer?<img src={getImageUrl(event.flyer)} alt={event.title} loading="lazy" onError={()=>setFailedFlyers(previous=>({...previous,[event.id]:event.flyer}))}/>:<div className={styles.noFlyer}><CalendarMonthIcon aria-hidden="true"/><span>No flyer available</span></div>}</div>
-    <div className={styles.info}><p className={styles.date}>{date?<time dateTime={date.toISOString()}>{date.toLocaleDateString([],{dateStyle:'medium'})} · {date.toLocaleTimeString([],{timeStyle:'short'})}</time>:'Date to be announced'}</p><h2>{event.title}</h2><p className={styles.location}>{event.location || 'Location to be announced'}</p><div className={styles.bottom}><a className={`${styles.action} ${styles.cardLink}`} href={`/events/${event.id}`}>Details <ArrowOutwardIcon aria-hidden="true" fontSize="small"/></a>{helpers.CanEditEvent(event)&&<a className={`${styles.action} ${styles.secondaryAction}`} href={`/events/${event.id}/update`}><EditIcon aria-hidden="true" fontSize="small"/>Edit</a>}</div></div>
+    <div className={styles.info}><p className={styles.date}>{date?<time dateTime={date.toISOString()}>{date.toLocaleDateString([],{dateStyle:'medium'})} · {date.toLocaleTimeString([],{timeStyle:'short'})}</time>:'Date to be announced'}</p><h2><a className={styles.cardLink} href={`/events/${event.id}`}>{event.title}</a></h2><p className={styles.location}>{event.location || 'Location to be announced'}</p><div className={styles.bottom}>{helpers.CanEditEvent(event)&&<a className={`${styles.action} ${styles.secondaryAction}`} href={`/events/${event.id}/update`}><EditIcon aria-hidden="true" fontSize="small"/>Edit</a>}</div></div>
    </article>;
   })}</div>}
  </section>;

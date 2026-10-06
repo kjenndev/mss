@@ -11,6 +11,7 @@
 .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 24px; }
 .event { min-width: 0; position: relative; isolation: isolate; }
 /* The native details link covers the card; secondary controls stay above it. */
+.cardLink { color: inherit; text-decoration: none; }
 .cardLink::after { content: ''; position: absolute; inset: 0; z-index: 1; border-radius: 5px; }
 .cardLink:focus-visible::after { outline: 2px solid #90caf9; outline-offset: 3px; }
 .secondaryAction { position: relative; z-index: 2; }

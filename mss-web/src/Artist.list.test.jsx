@@ -12,7 +12,9 @@ it('stretches the native profile link over the card with independent provider an
  api.CanEditArtist.mockReturnValue(true);
  const {container}=render(<ArtistList/>);
  const card=(await screen.findByRole('heading',{name:'Alpha Test'})).closest('article');
- const details=within(card).getByRole('link',{name:'View Profile'});
+ expect(within(card).queryByText(/^Details$|^View details$|^View Profile$/i)).toBeNull();
+ const details=within(card).getByRole('link',{name:'Alpha Test'});
+ expect(within(card).getByRole('heading',{name:'Alpha Test'}).contains(details)).toBe(true);
  const edit=within(card).getByRole('link',{name:'Edit'});
  expect(details.classList.contains(styles.cardLink)).toBe(true);
  expect(edit.classList.contains(styles.secondaryAction)).toBe(true);
@@ -64,7 +66,7 @@ it('renders the portrait directory with semantic identity and existing owner act
   expect(screen.getByRole('img', { name: 'Zulu Test' }).getAttribute('src')).toBe('/uploads/fixture.jpg');
   expect(screen.getByText('AT')).toBeTruthy();
   expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe('/artists/1/update');
-  expect(screen.getAllByRole('link', { name: /View profile/i }).map(a => a.getAttribute('href'))).toEqual(['/artists/1', '/artists/2']);
+  expect(cards.map(card => within(card).getByRole('link', { name: within(card).getByRole('heading').textContent }).getAttribute('href'))).toEqual(['/artists/1', '/artists/2']);
   expect(container.querySelector('.MuiPaper-root')).toBeNull();
 });
 

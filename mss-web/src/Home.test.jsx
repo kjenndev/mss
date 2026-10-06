@@ -187,6 +187,8 @@ it('keeps carousel numbering and controls valid when the stream list shrinks',as
 it('omits the title and no-live banner above the player',async()=>{
  mockHome(); render(<MemoryRouter><Home/></MemoryRouter>);
  await act(async()=>{});
+ expect(screen.queryByRole('heading',{name:'Featured'})).toBeNull();
+ expect(screen.getByTitle(videoTitle).parentElement).toBe(screen.getByRole('region',{name:'Syndicate screen'}).firstElementChild);
  expect(screen.queryByText('Syndicate screen')).toBeNull();
  expect(screen.queryByText('No live streams · Enjoy a replay')).toBeNull();
  expect(screen.getByTitle(videoTitle)).toBeTruthy();
@@ -306,4 +308,22 @@ it.each(['1969-12-31T12:00:00Z','2026-10-03T12:00:00Z'])('keeps the three earlie
  expect(within(upcoming).getAllByRole('link').map(link=>link.getAttribute('href'))).toEqual(['/events','/events/11','/events/12','/events/13']);
  expect(within(previous).getAllByRole('link').map(link=>link.getAttribute('href'))).toEqual(['/events/9']);
  expect(screen.queryByText('Boundary 0')).toBeNull();
+});
+
+it('keeps home library reload beside its heading without the chronology subtitle while artist defaults remain',async()=>{
+ mockHome();
+ api.GetMediaLibrary.mockResolvedValue({ok:true,json:async()=>({items:[],total:0,nextOffset:null,sources:[],complete:true,cache:{}})});
+ render(<MemoryRouter><Home/></MemoryRouter>);
+ const reload=await screen.findByRole('button',{name:'Reload library'});
+ expect(screen.queryByText(/Newest published first/)).toBeNull();
+ const heading=screen.getByRole('heading',{name:'Artist library'});
+ expect(heading.parentElement.contains(reload)).toBe(true);
+ assertIconOnly(reload,'Reload library');
+ const before=api.GetMediaLibrary.mock.calls.length;
+ fireEvent.click(reload); await act(async()=>{});
+ expect(api.GetMediaLibrary.mock.calls.length).toBe(before+1);
+ cleanup(); render(<MemoryRouter><MediaLibrary artistId={7}/></MemoryRouter>);
+ await screen.findByRole('button',{name:'Reload library'});
+ expect(screen.getByText(/Newest published first/)).toBeTruthy();
+ expect(screen.getByRole('heading',{name:'Artist library'})).toBeTruthy();
 });

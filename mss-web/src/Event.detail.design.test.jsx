@@ -35,6 +35,16 @@ it('places event identity and actions beside the portrait with photos and conver
  expect(await screen.findByText('Event editor')).toBeTruthy();
 });
 
+it('omits event breadcrumbs while retaining the event heading and lineup links', async () => {
+ mount();
+ expect(await screen.findByRole('heading', { level: 1, name: event.title })).toBeTruthy();
+ expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
+ expect(screen.queryByRole('link', { name: 'Events' })).toBeNull();
+ expect(screen.getAllByText(event.title, { exact: true })).toHaveLength(1);
+ expect(screen.getByRole('link', { name: 'Performer' }).getAttribute('href')).toBe('/artists/3');
+ expect(screen.getByText('Comments for 7')).toBeTruthy();
+});
+
 it('keeps a truthful fallback when the flyer cannot load', async () => {
  mount();
  fireEvent.error(await screen.findByAltText(event.title));

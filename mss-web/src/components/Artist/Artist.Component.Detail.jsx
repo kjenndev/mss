@@ -88,7 +88,6 @@ function ArtistDetailContent({ id }) {
   return (
     <Container maxWidth="lg" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        <Box className={styles.breadcrumb}><a href="/artists">Artists</a><span aria-hidden="true"> / </span>{artist.name}</Box>
         {video ? <YouTubeVideo item={video} onClose={closeVideo} /> : artist.cover_photo && <img className={styles.coverPhoto} src={getImageUrl(artist.cover_photo)} alt={`${artist.name} cover`} />}
         <Box className={styles.contentWrapper}>
           {streamError && <Alert severity="warning">{streamError}</Alert>}
@@ -226,8 +225,6 @@ function ArtistDetailContent({ id }) {
                   <MediaLibrary artistId={id} onVideoSelect={selectVideo} selectedVideoId={video?.id} renderIntro={({ canListen, listenToLatest }) => (
                     <Box className={styles.editorial}>
                       <Typography className={styles.eyebrow}>The artist collection</Typography>
-                      <Typography component="h2" className={styles.collectionTitle}>A space for the sound.</Typography>
-                      <Typography className={styles.collectionCopy}>Tracks and mixes, together.<br />Explore {artist.name}’s audio and linked YouTube videos.</Typography>
                       <Button variant="contained" startIcon={<PlayArrowIcon aria-hidden="true" />} disabled={!canListen} onClick={listenToLatest}>Listen to latest</Button>
                     </Box>
                   )} />

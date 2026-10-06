@@ -4,8 +4,6 @@
   font-family: "Segoe UI", system-ui, sans-serif;
 }
 .container :global(.MuiTypography-root), .container :global(.MuiButton-root) { font-family: inherit; }
-.breadcrumb { color: #aaa; font-size: 12px; margin-bottom: 32px; overflow-wrap: anywhere; }
-.breadcrumb a { color: #90caf9; text-decoration: none; }
 .contentWrapper, .sidebar, .mainArea { min-width: 0; width: 100%; }
 .container .eyebrow { color: #90caf9; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
 .container .artistName { font-size: clamp(48px, 6.5vw, 92px); font-weight: 750; line-height: 1; letter-spacing: -3px; margin: 20px 0 16px; overflow-wrap: anywhere; }
@@ -27,9 +25,7 @@
 .galleryItem:focus-visible { outline: 2px solid #90caf9; outline-offset: 3px; }
 .galleryImage { height: 100%; width: 100%; object-fit: cover; display: block; }
 .coverPhoto { display: block; width: 100%; height: 300px; object-fit: cover; object-position: center; background: #1e1e1e; margin-bottom: 32px; border-radius: 4px; }
-.editorial { border-bottom: 1px solid #414141; padding-bottom: 26px; }
-.container .collectionTitle { font-size: clamp(28px, 3vw, 36px); font-weight: 650; line-height: 1.2; letter-spacing: -0.8px; margin: 12px 0; }
-.container .collectionCopy { color: #b5b5bd; line-height: 1.7; margin-bottom: 22px; overflow-wrap: anywhere; }
+.editorial { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; border-bottom: 1px solid #414141; padding-bottom: 26px; }
 .editorial button { min-height: 44px; text-transform: none; }
 .streamBox { width: 100%; min-width: 0; }
 .streamBox > :global(.MuiBox-root) { flex-wrap: wrap; gap: 12px; }

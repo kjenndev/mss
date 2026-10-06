@@ -93,7 +93,7 @@ export default function Home() {
       {contentError && <Alert severity="error">{contentError}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => { setContentLoading(true); setContentError(''); setAttempt(n => n + 1); }}>Retry content</Button></Alert>}
       <HomeScreen liveLoading={liveLoading} live={live} settings={settings} video={video} closeVideo={closeVideo} player={mediaPlayer} />
       <div className={styles.lower}>
-        <MediaLibrary fillHeight onVideoSelect={selectVideo} selectedVideoId={video?.id} />
+        <MediaLibrary compactHeader fillHeight onVideoSelect={selectVideo} selectedVideoId={video?.id} />
         <div className={styles.eventsColumn}>
           <section aria-labelledby="home-events">
             <div className={styles.sectionHeading}><h2 id="home-events">Coming up</h2><Link to="/events">All events</Link></div>
