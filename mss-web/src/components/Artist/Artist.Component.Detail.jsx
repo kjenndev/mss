@@ -1,3 +1,4 @@
+import ShareSheet from '../Sharing/ShareSheet';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditIcon from '@mui/icons-material/Edit';
@@ -98,6 +99,7 @@ function ArtistDetailContent({ id }) {
               <Box className={styles.sidebar}>
                 <Typography className={styles.eyebrow}>Midnight Sound Syndicate</Typography>
                 <Typography component="h1" className={styles.artistName}>{artist.name}<span aria-hidden="true">.</span></Typography>
+                <ShareSheet kind="artists" entity={artist} />
                 <Typography color="text.secondary" className={styles.location}>{artist.location || 'Location not set'}</Typography>
                 {artist.profile_picture && failedPortrait !== artist.profile_picture ? <img onError={() => setFailedPortrait(artist.profile_picture)} className={styles.portrait} src={getImageUrl(artist.profile_picture)} alt={artist.name} /> : <Box className={styles.portraitFallback}><span aria-hidden="true">{artist.name?.charAt(0)}</span><Typography>No artist photo yet</Typography></Box>}
                 {helpers.CanEditArtist(id, artist.user_id) && <Button startIcon={<EditIcon aria-hidden="true" />} variant="outlined" onClick={() => navigate(`/artists/${id}/update`)} className={styles.editButton}>Edit Profile</Button>}

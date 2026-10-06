@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import knex from 'knex';
+import express from 'express';
+import fs from 'node:fs';
+import vm from 'node:vm';
 import { harness,response } from './harness.js';
 const database=process.env.MSS_REGISTRATION_TEST_DB;
 test('newest chronology uses stable exact timestamp/id cursor, preserves legacy pagination', {skip:!database},async()=>{
@@ -36,4 +39,47 @@ test('newest chronology uses stable exact timestamp/id cursor, preserves legacy 
  assert.deepEqual(Array.from(page.body.comments,c=>c.id),[nullRows[0].id]);assert.equal(page.body.has_more,true);
  page=await get({order:'newest',before:page.body.next_cursor});assert.deepEqual(Array.from(page.body.comments,c=>c.id),[rows[4].id]);
  }finally{await db.destroy();}
+});
+
+// Exercise the actual authenticated/atomic POST handlers over HTTP, never index startup.
+test('mixed newest GET and real POST retain same-millisecond microseconds', {skip:!database}, async t => {
+ assert.match(database,/^mss_registration_test_[a-z0-9_]+$/);
+ const db=knex({client:'pg',connection:{host:'/var/run/postgresql',user:'postgres',database}});
+ let server;
+ try {
+  await db.migrate.latest({directory:new URL('../migrations',import.meta.url).pathname});
+  const [user]=await db('users').insert({username:'Precision account',password:'unused',role:'artist',profile_picture:'/uploads/synthetic-account.webp'}).returning('*');
+  const [artist]=await db('artists').insert({name:'Precision artist',user_id:user.id,profile_picture:'/uploads/synthetic-artist.webp'}).returning('*');
+  const token='synthetic-precision-session';
+  await db('sessions').insert({token,user_id:user.id,expires_at:'2099-01-01'});
+  const olderDate='2026-01-01T00:00:00.123100Z', newerDate='2026-01-01T00:00:00.123900Z';
+  const [older]=await db('comments').insert({artist_id:artist.id,content:'Older',author_name:'Historical',created_at:olderDate}).returning('*');
+  // A deterministic DB default still exercises the real insert and pg Date conversion.
+  await db.raw("ALTER TABLE comments ALTER COLUMN created_at SET DEFAULT '2026-01-01T00:00:00.123900Z'::timestamptz");
+  const h=await harness({getDb:async()=>db}); const app=express();app.use(express.json());
+  for(const method of ['get','post'])app[method]('/api/comments',...h.route(method,'/api/comments').handlers);
+  app.use(h.app.middleware.flat().find(f=>typeof f==='function'&&f.length===4));
+  server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
+  const base=`http://127.0.0.1:${server.address().port}`;
+  const get=async()=>{const r=await fetch(`${base}/api/comments?artist_id=${artist.id}&order=newest`);assert.equal(r.status,200);return r.json();};
+  const loaded=await get();assert.equal(loaded.comments[0].created_at,olderDate);
+  const result=await fetch(`${base}/api/comments`,{method:'POST',headers:{authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({artist_id:artist.id,content:'Newer'})});
+  assert.equal(result.status,201);const {comment}=await result.json();
+  const stored=await db('comments').where({id:comment.id}).select(db.raw(`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as exact`)).first();
+  assert.equal(stored.exact,newerDate);
+  // Run the shipped comparator, not a test-only approximation of its precision rules.
+  const source=fs.readFileSync(new URL('../../mss-web/src/components/Comments/CommentSection.jsx',import.meta.url),'utf8');
+  const comparator=source.slice(source.indexOf('function newestFirst('),source.indexOf('export default function'));
+  const compare=vm.runInNewContext(comparator+';newestFirst');
+  assert.deepEqual([...loaded.comments,comment].sort(compare).map(c=>c.id),[comment.id,older.id]);
+  assert.equal(comment.created_at,stored.exact);
+  const refreshed=await get();assert.equal(refreshed.comments[0].created_at,comment.created_at);
+  assert.equal(comment.user_id,user.id);assert.equal(comment.author_name,artist.name);
+  assert.equal(comment.author_artist_name,artist.name);assert.equal(comment.author_artist_id,artist.id);
+  assert.equal(comment.author_profile_picture,user.profile_picture);assert.equal(comment.author_artist_profile_picture,artist.profile_picture);
+  assert.ok(!('chronology' in comment)&&!('password' in comment)&&!('exact' in comment));
+ } finally {
+  if(server){const port=server.address().port;await new Promise(r=>server.close(r));await assert.rejects(fetch(`http://127.0.0.1:${port}`,{signal:AbortSignal.timeout(1000)}));t.diagnostic('Disposable HTTP port closed');}
+  await db.destroy();
+ }
 });

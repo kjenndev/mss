@@ -143,3 +143,9 @@ it.each(['Ansibl', 'Another artist'])('omits editorial intro copy for %s while r
  fireEvent.click(action);
  expect(screen.getByTitle('Mixcloud player')).toBeTruthy();
 });
+
+it('shares the real artist portrait rather than the cover',async()=>{
+ api.GetArtistById.mockResolvedValue({ok:true,json:async()=>({artist:{id:1,name:'Share artist',profile_picture:'/uploads/portrait.png',cover_photo:'/uploads/cover.png'}})});
+ view(); fireEvent.click(await screen.findByRole('button',{name:'Share artist'}));
+ expect(screen.getByAltText('Share artist artist portrait')).toHaveAttribute('src','/uploads/portrait.png');
+});
