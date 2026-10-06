@@ -243,11 +243,15 @@ async function GetArtistEvents(artistId) {
   return await request(`/artists/${artistId}/events`, 'GET', null, false);
 }
 
-async function GetComments({ artist_id, event_id, after_id, offset, limit } = {}) {
+async function GetComments({ artist_id, event_id, after_id, offset, limit, order, before } = {}) {
   // Cursor paging is deletion-safe; retain offset for legacy callers.
-  const params = { artist_id, event_id, after_id, offset, limit };
+  const params = { artist_id, event_id, after_id, offset, limit, order, before };
   const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null)).toString();
   return await request(`/comments?${query}`, 'GET', null, false);
+}
+
+async function GetCommentIdentities() {
+  return await request('/comments/identities', 'GET');
 }
 
 async function PostComment(data) {
@@ -321,6 +325,7 @@ export {
   Authenticate,
   Logout,
   GetCurrentUser,
+  GetCommentIdentities,
   UpdateMyProfile,
   GetAllArtists,
   GetMyArtists,

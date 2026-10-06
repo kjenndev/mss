@@ -113,7 +113,9 @@ test('native account avatars', { skip: !database, timeout: 60000 }, async t => {
     await t.test('comments expose current account avatar only, preserving historical author name and null legacy authors', async () => {
       const u = await user(); const [artist] = await db('artists').insert({ name: 'Avatar comments', slug: 'avatar-comments' }).returning('*');
       const avatar = (await upload(u)).body.user.profile_picture;
-      const created = await call('POST', '/api/comments', u.token, { artist_id: artist.id, content: 'hello', author_profile_picture: 'evil', author_name: 'spoof' });
+      const forged = await call('POST', '/api/comments', u.token, { artist_id: artist.id, content: 'hello', author_profile_picture: 'evil', author_name: 'spoof' });
+      assert.equal(forged.status, 400);
+      const created = await call('POST', '/api/comments', u.token, { artist_id: artist.id, content: 'hello' });
       assert.equal(created.status, 201); assert.equal(created.body.comment.author_profile_picture, avatar);
       const name = created.body.comment.author_name;
       await db('comments').insert({ artist_id: artist.id, content: 'legacy', author_name: 'Historical' });

@@ -8,13 +8,13 @@ async function invoke(h, body, token) {
  for(const handler of h.route('post','/api/comments').handlers){let next=false;await handler(req,res,e=>{if(e)throw e;next=true;});if(!next)break;}return res;
 }
 test('anonymous and invalid sessions cannot create comments',async()=>{
- for(const token of [undefined,'invalid']){const db=fixture();const h=await harness({getDb:async()=>db});const res=await invoke(h,{content:'hello',artist_id:1,author_name:'Forged'},token);assert.equal(res.code,401);assert.equal(db.state().comments.length,0);}
+ for(const token of [undefined,'invalid']){const db=fixture();const h=await harness({getDb:async()=>db});const res=await invoke(h,{content:'hello',artist_id:1},token);assert.equal(res.code,401);assert.equal(db.state().comments.length,0);}
 });
 
-test('authenticated artist and event comments and replies use the database username, never supplied identity',async()=>{
+test('ordinary-user artist and event comments and replies use the database username',async()=>{
  for(const target of [{artist_id:1},{event_id:1}]){const db=fixture();const h=await harness({getDb:async()=>db});
  const first=await invoke(h,{content:'First',...target},'valid');assert.equal(first.code,201);assert.equal(first.body.comment.user_id,7);assert.equal(first.body.comment.author_name,'StoredName');
- const reply=await invoke(h,{content:'Reply',...target,parent_id:first.body.comment.id,author_name:'Spoof',user_id:8},'valid');assert.equal(reply.code,201);assert.equal(reply.body.comment.user_id,7);assert.equal(reply.body.comment.author_name,'StoredName');assert.equal(reply.body.comment.parent_id,first.body.comment.id);
+ const reply=await invoke(h,{content:'Reply',...target,parent_id:first.body.comment.id},'valid');assert.equal(reply.code,201);assert.equal(reply.body.comment.user_id,7);assert.equal(reply.body.comment.author_name,'StoredName');assert.equal(reply.body.comment.parent_id,first.body.comment.id);
  }
 });
 

@@ -4,7 +4,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import Comments from './components/Comments/CommentSection';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
-beforeEach(()=>{cleanup();vi.resetAllMocks();api.HasSession.mockReturnValue(true);api.GetCurrentUser.mockResolvedValue({ok:true,json:async()=>({user:{id:7,username:'StoredName',display_name:'Different'}})});api.GetComments.mockResolvedValue({ok:true,json:async()=>({comments:[]})});});
+beforeEach(()=>{cleanup();vi.resetAllMocks();api.GetCommentIdentities.mockResolvedValue({ok:true,json:async()=>({identities:[]})});api.HasSession.mockReturnValue(true);api.GetCurrentUser.mockResolvedValue({ok:true,json:async()=>({user:{id:7,username:'StoredName',display_name:'Different'}})});api.GetComments.mockResolvedValue({ok:true,json:async()=>({comments:[]})});});
 it('presents an accessible open composer with labeled comment field',async()=>{
  render(<Comments eventId={1}/>);
  expect(await screen.findByRole('region',{name:'Write a comment'})).toBeTruthy();

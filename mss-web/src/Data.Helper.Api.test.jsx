@@ -84,3 +84,10 @@ it('sends email-first public contracts without auth and authenticates only email
   expect(localStorage.length).toBe(1);
   expect(localStorage.getItem('mss-token')).toBe('session-fixture');
 });
+
+it('encodes newest comment ordering and exact older-page cursor without legacy fields',async()=>{
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true}));
+ const before=JSON.stringify({date:'2026-01-01T00:00:00.000001Z',id:7});
+ await api.GetComments({event_id:3,order:'newest',before,limit:100});
+ expect(Object.fromEntries(new URL(fetch.mock.calls[0][0],'http://localhost').searchParams)).toEqual({event_id:'3',order:'newest',before,limit:'100'});
+});

@@ -37,7 +37,7 @@ beforeEach(()=>{
  api.GetCurrentUser.mockResolvedValue(response({user:{id:1,username:'fixture'}}));
  api.GetAllUsers.mockResolvedValue(response({users:[{id:1,username:'fixture',role:'admin',artist_ids:[]}]}));
  api.GetSettings.mockResolvedValue(response({settings:{},raw:[]}));
- api.GetComments.mockResolvedValue(response({comments:[{id:1,content:'Fixture comment'}],has_more:true,next_cursor:1}));
+ api.GetComments.mockResolvedValue(response({comments:[{id:1,content:'Fixture comment'}],has_more:true,next_cursor:JSON.stringify({date:null,id:1})}));
  api.GetActiveSyndicateStreams.mockResolvedValue(response({streams:[]}));
 });
 afterEach(cleanup);

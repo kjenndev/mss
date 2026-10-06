@@ -80,6 +80,12 @@ function validationError(req, method, route) {
   const body = req.body;
   if (body !== undefined && (body === null || typeof body !== 'object' || Array.isArray(body))) return 'JSON object required';
   const b = body || {};
+  if (method === 'post' && route === '/api/comments') {
+    if (Object.keys(b).some(key => !['content', 'artist_id', 'event_id', 'parent_id', 'author_artist_id'].includes(key))) return 'Invalid comment fields';
+    for (const key of ['artist_id', 'event_id', 'parent_id', 'author_artist_id']) {
+      if (b[key] != null && ((!['number', 'string'].includes(typeof b[key])) || !/^[1-9][0-9]*$/.test(String(b[key])) || !Number.isSafeInteger(Number(b[key])))) return `Invalid ${key}`;
+    }
+  }
   if (route === '/api/auth/me' && (Object.keys(b).some(key => !['username', 'password', 'display_name', 'email_alerts_opt_in'].includes(key)) || (b.email_alerts_opt_in !== undefined && typeof b.email_alerts_opt_in !== 'boolean'))) return 'Invalid profile fields';
   const settingValue = value => value === null || (typeof value === 'string' && value.length <= 10000);
   if (route === '/api/settings/:key' && !settingValue(b.value)) return 'Setting value must be text or null';
@@ -1070,22 +1076,62 @@ app.get('/api/admin/stats', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-// One bounded author lookup per page, never one query per comment or private user columns.
+// Bounded public profile lookups per page, never per-comment queries or private columns.
 async function publicComments(db, rows) {
   const ids = [...new Set(rows.map(row => row.user_id).filter(id => id != null))];
   const authors = ids.length ? await db('users').whereIn('id', ids).select('id', 'profile_picture') : [];
   const pictures = new Map(authors.map(author => [Number(author.id), author.profile_picture ?? null]));
-  const fields = ['id', 'content', 'user_id', 'artist_id', 'event_id', 'parent_id', 'author_name', 'created_at', 'updated_at'];
+  const artistIds = [...new Set(rows.map(row => row.author_artist_id).filter(id => id != null))];
+  const artists = artistIds.length ? await db('artists').whereIn('id', artistIds).select('id', 'profile_picture') : [];
+  const artistPictures = new Map(artists.map(artist => [Number(artist.id), artist.profile_picture ?? null]));
+  const fields = ['id', 'content', 'user_id', 'artist_id', 'event_id', 'parent_id', 'author_name', 'author_artist_id', 'author_artist_name', 'created_at', 'updated_at'];
   return rows.map(row => ({
     ...Object.fromEntries(fields.filter(key => key in row).map(key => [key, row[key]])),
     author_profile_picture: pictures.get(Number(row.user_id)) ?? null,
+    author_artist_profile_picture: artistPictures.get(Number(row.author_artist_id)) ?? null,
   }));
 }
+
+app.get('/api/comments/identities', authMiddleware, async (req, res) => {
+  const db = req.db || await getDb();
+  const identities = ['artist', 'admin'].includes(req.user.role)
+    ? await db('artists').where({ user_id: req.user.id }).orderBy('id', 'asc').select('id', 'name') : [];
+  res.json({ identities: identities.map(({ id, name }) => ({ id, name })) });
+});
 
 app.get('/api/comments', async (req, res) => {
   const { artist_id, event_id } = req.query;
   const limit = Number(req.query.limit ?? 100), offset = Number(req.query.offset ?? 0);
   if (Boolean(artist_id) === Boolean(event_id) || !/^[1-9][0-9]*$/.test(String(artist_id || event_id)) || !Number.isSafeInteger(Number(artist_id || event_id)) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger(offset) || offset < 0) return res.status(400).json({ error: 'One valid target and limit 1–100 / offset >= 0 required' });
+  // Opt-in chronological pagination leaves the legacy ascending ID API unchanged.
+  const newest = req.query.order === 'newest';
+  if ((req.query.order !== undefined && !newest) || (!newest && req.query.before !== undefined)) return res.status(400).json({ error: 'Invalid comment ordering' });
+  if (newest) {
+    if (req.query.after_id !== undefined || req.query.offset !== undefined) return res.status(400).json({ error: 'Use before with newest ordering, not after_id or offset' });
+    let before;
+    if (req.query.before !== undefined) {
+      try {
+        if (typeof req.query.before !== 'string' || req.query.before.length > 160) throw new Error();
+        before = JSON.parse(req.query.before);
+        if (!before || !Number.isSafeInteger(before.id) || before.id < 1 || (before.date !== null && (typeof before.date !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(before.date) || !Number.isFinite(Date.parse(before.date)) || new Date(before.date).toISOString().slice(0, 19) !== before.date.slice(0, 19) || before.date.startsWith('0000')))) throw new Error();
+      } catch { return res.status(400).json({ error: 'Invalid comment cursor' }); }
+    }
+    const db = req.db || await getDb();
+    // Keep PostgreSQL microseconds: JS Date would lose cursor precision.
+    const query = db('comments').select('*', db.raw(`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as chronology`))
+      .where(artist_id ? 'artist_id' : 'event_id', artist_id || event_id)
+      .orderBy('created_at', 'desc', 'last').orderBy('id', 'desc').limit(limit + 1);
+    if (before) {
+      if (before.date === null) query.whereNull('created_at').where('id', '<', before.id);
+      else query.where(function () {
+        this.where('created_at', '<', before.date).orWhere(function () { this.where('created_at', before.date).where('id', '<', before.id); }).orWhereNull('created_at');
+      });
+    }
+    const rows = await query, has_more = rows.length > limit;
+    const page = rows.slice(0, limit).map(({ chronology, ...row }) => ({ ...row, created_at: chronology }));
+    const comments = await publicComments(db, page), last = page.at(-1);
+    return res.json({ comments, has_more, next_offset: null, next_cursor: has_more ? JSON.stringify({ date: last.created_at, id: last.id }) : null });
+  }
   const cursor = req.query.after_id;
   if (cursor !== undefined && (req.query.offset !== undefined || !/^(0|[1-9][0-9]*)$/.test(String(cursor)) || !Number.isSafeInteger(Number(cursor)))) return res.status(400).json({ error: 'Use after_id >= 0 or offset, not both' });
   const db = req.db || await getDb();
@@ -1113,10 +1159,21 @@ app.post('/api/comments', authMiddleware, async (req, res) => {
       const parent = await db('comments').where({ id: parent_id }).first();
       if (!parent || Number(parent.artist_id || 0) !== Number(artist_id || 0) || Number(parent.event_id || 0) !== Number(event_id || 0)) return res.status(400).json({ error: 'Parent must belong to the same discussion' });
     }
+    // Called inside atomicHandler: session/role revalidated after advisory -> user -> session locks.
+    // Actual association only, never admin edit-any permission.
+    const identities = ['artist', 'admin'].includes(req.user.role)
+      ? await db('artists').where({ user_id: req.user.id }).orderBy('id', 'asc').forUpdate().select('id', 'name') : [];
+    const selectedId = req.body.author_artist_id;
+    const identity = selectedId != null
+      ? identities.find(artist => Number(artist.id) === Number(selectedId))
+      : identities.find(artist => Number(artist.id) === Number(artist_id)) || identities[0];
+    if (selectedId != null && !identity) return res.status(403).json({ error: 'Comment identity is no longer available. Refresh your posting identities.' });
     const [commentIdObj] = await db('comments').insert({
       content,
       user_id: req.user.id,
-      author_name: req.user.username,
+      author_name: identity?.name ?? req.user.username,
+      author_artist_id: identity?.id ?? null,
+      author_artist_name: identity?.name ?? null,
       artist_id: artist_id || null,
       event_id: event_id || null,
       parent_id: parent_id || null,
