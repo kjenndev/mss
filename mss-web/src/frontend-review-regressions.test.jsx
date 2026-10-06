@@ -34,17 +34,17 @@ it('successful event deletion must navigate to event list',async()=>{
 it('deleting a loaded comment must not skip the first unseen comment',async()=>{
  vi.spyOn(window,'confirm').mockReturnValue(true);api.IsAdmin.mockReturnValue(true);
  let rows=Array.from({length:101},(_,i)=>({id:i+1,content:`Comment-${i+1}`,author_name:'Guest'}));
- api.GetComments.mockImplementation(async({offset=0,after_id,limit})=>{
-  const remaining=after_id === undefined ? rows.slice(offset) : rows.filter(row=>row.id>after_id);
+ api.GetComments.mockImplementation(async({before,limit})=>{
+  const remaining=rows.filter(row=>!before || row.id<JSON.parse(before).id).sort((a,b)=>b.id-a.id);
   const comments=remaining.slice(0,limit);const has_more=remaining.length>limit;
-  return {ok:true,json:async()=>({comments,has_more,next_offset:has_more?offset+limit:null,next_cursor:has_more?comments.at(-1).id:null})};
+  return {ok:true,json:async()=>({comments,has_more,next_cursor:has_more?JSON.stringify({date:null,id:comments.at(-1).id}):null})};
  });
  api.DeleteComment.mockImplementation(async id=>{rows=rows.filter(row=>row.id!==id);return {ok:true};});
- render(<Comments artistId={1}/>);await screen.findByText('Comment-1');
- fireEvent.click(screen.getAllByRole('button',{name:'Delete'})[0]);await waitFor(()=>expect(screen.queryByText('Comment-1')).toBeNull());
+ render(<Comments artistId={1}/>);await screen.findByText('Comment-101');
+ fireEvent.click(screen.getAllByRole('button',{name:'Delete'})[0]);await waitFor(()=>expect(screen.queryByText('Comment-101')).toBeNull());
  fireEvent.click(screen.getByRole('button',{name:'Load more comments'}));
- expect(await screen.findByText('Comment-101')).toBeTruthy();
- expect(api.GetComments).toHaveBeenLastCalledWith({artist_id:1,after_id:100,limit:100});
+ expect(await screen.findByText('Comment-1')).toBeTruthy();
+ expect(api.GetComments).toHaveBeenLastCalledWith({artist_id:1,order:'newest',before:JSON.stringify({date:null,id:2}),limit:100});
 });
 it('sanitized real Quill bullet lists must preserve the selected format',()=>{
  const host=document.createElement('div');document.body.appendChild(host);const editor=new Quill(host);

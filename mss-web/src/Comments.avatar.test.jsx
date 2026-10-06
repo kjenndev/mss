@@ -4,7 +4,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import Comments from './components/Comments/CommentSection';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
-beforeEach(()=>{cleanup();vi.resetAllMocks();api.HasSession.mockReturnValue(true);api.GetCurrentUser.mockResolvedValue({ok:true,json:async()=>({user:{username:'Listener',profile_picture:'/uploads/me.webp'}})});api.GetComments.mockResolvedValue({ok:true,json:async()=>({comments:[{id:1,author_name:'Author',author_profile_picture:'/uploads/author.webp',content:'Hello'},{id:2,author_name:'Historical',author_profile_picture:null,content:'Old'}]})});});
+beforeEach(()=>{cleanup();vi.resetAllMocks();api.GetCommentIdentities.mockResolvedValue({ok:true,json:async()=>({identities:[]})});api.HasSession.mockReturnValue(true);api.GetCurrentUser.mockResolvedValue({ok:true,json:async()=>({user:{username:'Listener',profile_picture:'/uploads/me.webp'}})});api.GetComments.mockResolvedValue({ok:true,json:async()=>({comments:[{id:1,author_name:'Author',author_profile_picture:'/uploads/author.webp',content:'Hello'},{id:2,author_name:'Historical',author_profile_picture:null,content:'Old'}]})});});
 it('shows current user and author pictures with initials on absent or broken images',async()=>{
  render(<Comments artistId={1}/>);
  expect(await screen.findByRole('img',{name:"Listener's profile picture"})).toHaveAttribute('src','/uploads/me.webp');

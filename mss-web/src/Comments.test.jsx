@@ -4,7 +4,7 @@ import {render,screen,cleanup,fireEvent,act} from '@testing-library/react';
 import Comments from './components/Comments/CommentSection';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
-beforeEach(()=>{cleanup();vi.resetAllMocks();api.HasSession.mockReturnValue(true);api.GetCurrentUser.mockResolvedValue({ok:true,json:async()=>({user:{id:7,username:"StoredName"}})});});
+beforeEach(()=>{cleanup();vi.resetAllMocks();api.GetCommentIdentities.mockResolvedValue({ok:true,json:async()=>({identities:[]})});api.HasSession.mockReturnValue(true);api.GetCurrentUser.mockResolvedValue({ok:true,json:async()=>({user:{id:7,username:"StoredName"}})});});
 it('distinguishes failed comment loading from emptiness and retries',async()=>{
  api.GetComments.mockResolvedValueOnce({ok:false}).mockResolvedValue({ok:true,json:async()=>({comments:[]})});
  render(<Comments artistId={1}/>);
@@ -20,7 +20,7 @@ it('failed deletion is visible and retains the comment',async()=>{
 });
 
 it('offers explicit pagination instead of silently truncating comments',async()=>{
- api.GetComments.mockResolvedValueOnce({ok:true,json:async()=>({comments:[{id:1,content:'First'}],has_more:true,next_cursor:1})}).mockResolvedValue({ok:true,json:async()=>({comments:[{id:2,content:'Second'}],has_more:false})});
+ api.GetComments.mockResolvedValueOnce({ok:true,json:async()=>({comments:[{id:1,content:'First'}],has_more:true,next_cursor:JSON.stringify({date:null,id:1})})}).mockResolvedValue({ok:true,json:async()=>({comments:[{id:2,content:'Second'}],has_more:false})});
  render(<Comments artistId={1}/>);fireEvent.click(await screen.findByRole('button',{name:'Load more comments'}));
  expect(await screen.findByText('Second')).toBeTruthy();expect(screen.getByText('First')).toBeTruthy();
 });
@@ -47,7 +47,7 @@ it('concurrent post and delete completions preserve both changes',async()=>{
  expect(await screen.findByDisplayValue('StoredName')).toHaveAttribute('readonly');
  fireEvent.change(screen.getByPlaceholderText('Write a comment...'),{target:{value:'New comment'}});
  fireEvent.click(screen.getByRole('button',{name:'Post Comment'}));
- fireEvent.click(screen.getAllByRole('button',{name:'Delete'})[0]);
+ fireEvent.click(screen.getAllByRole('button',{name:'Delete'})[1]);
  await act(async()=>post({ok:true,json:async()=>({comment:{id:3,content:'New comment'}})}));
  await act(async()=>del({ok:true}));
  expect(screen.getByText('New comment')).toBeTruthy();expect(screen.getByText('Keep me')).toBeTruthy();expect(screen.queryByText('Remove me')).toBeNull();
