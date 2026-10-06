@@ -78,3 +78,11 @@ it('washes gallery images blue on hover and focus without a highlighted edge',()
  expect(css).toMatch(/\.container button:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--primary-main\)/);
  expect(css).toMatch(/\.galleryItem img\s*\{[^}]*width:\s*100%[^}]*height:\s*100%[^}]*object-fit:\s*cover/);
 });
+
+it('keeps the homepage heading and nonshrinking reload in one flex row at narrow widths',()=>{
+ const css=readFileSync('src/components/Media/Media.module.css','utf8');
+ expect(css).toMatch(/\.compactHeading\s*\{[^}]*display:\s*flex/);
+ expect(css).toMatch(/\.compactHeading\s*\{[^}]*align-items:\s*center/);
+ expect(css).toMatch(/\.compactHeading button\s*\{[^}]*flex-shrink:\s*0/);
+ expect(css).toMatch(/\.compactHeading h2\s*\{[^}]*margin:\s*0/);
+});

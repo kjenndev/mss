@@ -45,7 +45,6 @@ export default function About() {
   return (
     <div className={styles.container}>
       <div className={styles.toolbar}>
-        <nav aria-label="Breadcrumb"><Link to="/">Home</Link><span aria-hidden="true"> / </span><span>About</span></nav>
         {isAdmin && <Button variant="outlined" startIcon={<EditIcon aria-hidden="true" />} onClick={() => navigate('/admin/about')}>Edit Page</Button>}
       </div>
       <div className={styles.identity}>

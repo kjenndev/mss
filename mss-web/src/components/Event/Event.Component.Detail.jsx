@@ -119,9 +119,6 @@ function EventDetail({ id }) {
     <Container maxWidth="lg" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
         <div className={styles.detail}>
-          <nav aria-label="Breadcrumb" className={styles.breadcrumb}>
-            <Link to="/events">Events</Link><span aria-hidden="true"> / </span><span>{event.title}</span>
-          </nav>
           {error && <Alert severity="error">{error}</Alert>}
           <div className={styles.hero}>
             <aside className={styles.flyerColumn}>

@@ -27,10 +27,10 @@ const newestFirst = (a,b) => {
  if(aKnown!==bKnown) return aKnown ? -1 : 1;
  return (aKnown ? bTime-aTime : 0) || a.id.localeCompare(b.id);
 };
-export default function MediaLibrary({ artistId, renderIntro, fillHeight = false, onVideoSelect, selectedVideoId } = {}) {
- return <ScopedMediaLibrary key={artistId ?? 'all'} artistId={artistId} renderIntro={renderIntro} fillHeight={fillHeight} onVideoSelect={onVideoSelect} selectedVideoId={selectedVideoId} />;
+export default function MediaLibrary({ artistId, renderIntro, fillHeight = false, compactHeader = false, onVideoSelect, selectedVideoId } = {}) {
+ return <ScopedMediaLibrary key={artistId ?? 'all'} artistId={artistId} renderIntro={renderIntro} fillHeight={fillHeight} compactHeader={compactHeader} onVideoSelect={onVideoSelect} selectedVideoId={selectedVideoId} />;
 }
-function ScopedMediaLibrary({ artistId, renderIntro, fillHeight, onVideoSelect, selectedVideoId }) {
+function ScopedMediaLibrary({ artistId, renderIntro, fillHeight, compactHeader, onVideoSelect, selectedVideoId }) {
  const player=useMediaPlayer();
  const [snapshot,setSnapshot]=useState(null);
  const snapshotId=useRef(null);
@@ -76,8 +76,9 @@ function ScopedMediaLibrary({ artistId, renderIntro, fillHeight, onVideoSelect, 
  const load=(offset)=>{setError(false);setLoading(true);setRequest(previous=>({offset,attempt:previous.attempt+1}));};
  const latest=items.find(item=>playableUrl(item) && item.playable!==false && item.providerAccess!=='blocked');
  const canListen=Boolean(player && latest && !loading && !error);
+ const reload = snapshot && <button aria-label="Reload library" title="Reload library" style={{ minWidth: 44, minHeight: 44 }} disabled={loading} onClick={()=>{refreshAttempts.current=0;load(0);}}><RefreshIcon aria-hidden="true" /></button>;
  return <>{renderIntro?.({canListen,listenToLatest:()=>{if(canListen) player.select(latest,items);}})}<section className={`${styles.library} ${fillHeight ? styles.fillHeight : ''}`} aria-label="Artist library">
-  <header className={styles.libraryHeader}><div><p className={styles.eyebrow}>{artistId === undefined ? 'From the artists' : 'From this artist'}</p><h2>Artist library</h2><p className={styles.subtitle}>SoundCloud, Mixcloud &amp; artist-linked YouTube videos. Newest published first.</p></div>{snapshot && <div><span className={styles.count}>{items.length} of {snapshot.total} uploads</span> <button aria-label="Reload library" title="Reload library" style={{ minWidth: 44, minHeight: 44 }} disabled={loading} onClick={()=>{refreshAttempts.current=0;load(0);}}><RefreshIcon aria-hidden="true" /></button></div>}</header>
+  <header className={styles.libraryHeader}><div><p className={styles.eyebrow}>{artistId === undefined ? 'From the artists' : 'From this artist'}</p><div className={compactHeader ? styles.compactHeading : undefined}><h2>Artist library</h2>{compactHeader && reload}</div><p className={styles.subtitle}>SoundCloud, Mixcloud &amp; artist-linked YouTube videos.{!compactHeader && ' Newest published first.'}</p></div>{snapshot && <div><span className={styles.count}>{items.length} of {snapshot.total} uploads</span> {!compactHeader && reload}</div>}</header>
   {snapshot?.complete===false && <div role="status"><p>Some artist sources are unavailable or incomplete.</p><ul>{snapshot.sources.filter(source=>source.status!=='ok').map((source,index)=><li key={`${source.artistId}:${source.provider}:${index}`}>{source.artistName} · {source.provider}: {source.message}</li>)}</ul></div>}
   {snapshot?.cache?.stale && <p role="status">Showing cached uploads{snapshot.cache.refreshing ? ' while sources refresh.' : '; some sources could not be refreshed.'}</p>}
   {unsafe && <p role="alert">Some uploads could not be displayed safely.</p>}

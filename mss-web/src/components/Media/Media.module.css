@@ -92,3 +92,8 @@
 .artwork::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(10,15,21,.90) 0%, rgba(10,15,21,.78) 52%, rgba(10,15,21,.65) 100%); }
 .trackTitle { flex:1; min-width:0; overflow-wrap:anywhere; }
 .selectTrack { gap:12px; }
+
+/* Homepage-only title row: keep reload alongside the title even at 320px. */
+.compactHeading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:5px 0 12px; }
+.compactHeading h2 { margin:0; min-width:0; overflow-wrap:anywhere; }
+.compactHeading button { flex-shrink:0; }

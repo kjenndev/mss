@@ -30,6 +30,17 @@ it('uses the scoped library instead of profile embeds and gates live/video durin
 });
 function view(){return render(<MemoryRouter initialEntries={['/artists/1']}><Routes><Route path="/artists/:id" element={<Detail/>}/></Routes></MemoryRouter>);}
 beforeEach(()=>{cleanup();vi.resetAllMocks();api.GetMediaLibrary.mockResolvedValue({ok:true,json:async()=>({items:[],sources:[],total:0,nextOffset:null,complete:true})});vi.useRealTimers();api.GetArtistImages.mockResolvedValue({ok:true,json:async()=>({images:[]})});api.GetSettings.mockResolvedValue({ok:true,json:async()=>({settings:{streaming_platform_url:'https://sp.test'}})});api.GetActiveSyndicateStreams.mockResolvedValue({ok:true,json:async()=>({streams:[]})});});
+it('omits artist breadcrumbs while retaining the artist heading and scoped library',async()=>{
+ api.GetArtistById.mockResolvedValue({ok:true,json:async()=>({artist:{id:1,name:'Breadcrumb-free artist'}})});
+ view();
+ expect(await screen.findByRole('heading',{level:1,name:'Breadcrumb-free artist'})).toBeTruthy();
+ expect(screen.queryByRole('link',{name:'Artists'})).toBeNull();
+ expect(screen.queryByRole('navigation',{name:/breadcrumb/i})).toBeNull();
+ expect(screen.getAllByText('Breadcrumb-free artist',{exact:true})).toHaveLength(1);
+ expect(screen.getByRole('region',{name:'Artist library'})).toBeTruthy();
+ expect(api.GetMediaLibrary).toHaveBeenCalledWith(0,'1');
+});
+
 it('offers a retry after artist load failure',async()=>{
  api.GetArtistById.mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ok:true,json:async()=>({artist:{id:1,name:'Artist'}})});
  view();fireEvent.click(await screen.findByRole('button',{name:'Retry'}));expect(await screen.findByRole('heading',{level:1,name:'Artist'})).toBeTruthy();
@@ -95,9 +106,9 @@ it('presents the editorial artist identity and collection before actual video',a
  expect(screen.getByRole('img',{name:'Real artist cover'}).getAttribute('src')).toContain('/uploads/cover.jpg');
  expect(screen.getByRole('img',{name:'Real artist cover'}).compareDocumentPosition(heading)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
  expect(screen.getByRole('button',{name:'Edit Profile'})).toBeTruthy();
- const intro=screen.getByRole('heading',{name:'A space for the sound.'});
+ const action=screen.getByRole('button',{name:'Listen to latest'});
  const library=screen.getByRole('region',{name:'Artist library'});
- expect(intro.compareDocumentPosition(library)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ expect(action.compareDocumentPosition(library)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
  expect(screen.queryByTitle('YouTube video player')).toBeNull(); // channel is social-only
  expect(screen.getByRole('button',{name:'Listen to latest'}).disabled).toBe(true);
  fireEvent.click(screen.getByRole('button',{name:'Open gallery photo 1'}));
@@ -113,4 +124,22 @@ it('uses an honest photo fallback when the artist image cannot load',async()=>{
  expect(screen.getByText('No biography available.')).toBeTruthy();
  expect(screen.getByText('No additional photos yet')).toBeTruthy();
  expect(screen.queryByTitle('YouTube video player')).toBeNull();
+});
+
+it.each(['Ansibl', 'Another artist'])('omits editorial intro copy for %s while retaining the latest playback action',async(name)=>{
+ const item={id:'latest',provider:'mixcloud',title:'Latest show',url:'https://www.mixcloud.com/test/latest/',publishedAt:'2026-01-02T00:00:00Z',playable:true};
+ api.GetArtistById.mockResolvedValue({ok:true,json:async()=>({artist:{id:1,name}})});
+ api.GetMediaLibrary.mockResolvedValue({ok:true,json:async()=>({items:[item],sources:[],total:1,nextOffset:null,complete:true})});
+ render(<MemoryRouter initialEntries={['/artists/1']}><MediaPlayerProvider><Routes><Route path="/artists/:id" element={<Detail/>}/></Routes></MediaPlayerProvider></MemoryRouter>);
+ await screen.findByRole('heading',{level:1,name});
+ await screen.findByText('Latest show');
+ expect(screen.queryByText('A space for the sound.')).toBeNull();
+ expect(screen.queryByText(/Tracks and mixes, together\./)).toBeNull();
+ expect(screen.queryByText(new RegExp(`Explore ${name}’s audio and linked YouTube videos\\.`))).toBeNull();
+ const action=screen.getByRole('button',{name:'Listen to latest'});
+ expect(action.disabled).toBe(false);
+ expect(api.GetMediaLibrary.mock.calls).toEqual([[0,'1']]);
+ expect(screen.queryByRole('button',{name:'Edit Profile'})).toBeNull();
+ fireEvent.click(action);
+ expect(screen.getByTitle('Mixcloud player')).toBeTruthy();
 });

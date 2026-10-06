@@ -1,6 +1,5 @@
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditIcon from '@mui/icons-material/Edit';
-import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import { useState, useEffect } from 'react';
@@ -62,14 +61,13 @@ export default function ArtistList() {
           {getImageUrl(artist.profile_picture) && failedPortraits[artist.id] !== artist.profile_picture ? <img src={getImageUrl(artist.profile_picture)} alt={artist.name} loading="lazy" onError={() => setFailedPortraits(current => ({ ...current, [artist.id]: artist.profile_picture }))} /> : <span aria-hidden="true">{artist.name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span>}
         </div>
         <div className={styles.info}>
-          <h2>{artist.name}</h2>
+          <h2><a className={styles.cardLink} href={`/artists/${artist.id}`}>{artist.name}</a></h2>
           {artist.location && <p className={styles.location}>{artist.location}</p>}
           <div className={styles.bottom}>
             <div className={styles.providers}>{providers.map(([key, label]) => {
               const href = providerUrl(key, artist[key]);
               return href ? <a key={key} className={styles.secondaryAction} href={href} target="_blank" rel="noopener noreferrer">{label}</a> : null;
             })}</div>
-            <a className={`${styles.action} ${styles.cardLink}`} href={`/artists/${artist.id}`}>View Profile <ArrowOutwardIcon aria-hidden="true" fontSize="small" /></a>
             {helpers.CanEditArtist(artist.id, artist.user_id) && <a className={`${styles.action} ${styles.secondaryAction}`} href={`/artists/${artist.id}/update`}><EditIcon aria-hidden="true" fontSize="small" />Edit</a>}
           </div>
         </div>
