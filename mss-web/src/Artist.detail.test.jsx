@@ -149,3 +149,26 @@ it('shares the real artist portrait rather than the cover',async()=>{
  view(); fireEvent.click(await screen.findByRole('button',{name:'Share artist'}));
  expect(screen.getByAltText('Share artist artist portrait')).toHaveAttribute('src','/uploads/portrait.png');
 });
+
+it('keeps sharing beside latest playback throughout loading, empty and failed libraries',async()=>{
+ let resolveLibrary;
+ api.GetArtistById.mockResolvedValue({ok:true,json:async()=>({artist:{id:1,name:'Action artist',profile_picture:'/uploads/action.png',cover_photo:'/uploads/cover.png'}})});
+ api.GetMediaLibrary.mockImplementationOnce(()=>new Promise(resolve=>{resolveLibrary=resolve;}));
+ view();
+ const share=await screen.findByRole('button',{name:'Share artist'});
+ const listen=screen.getByRole('button',{name:'Listen to latest'});
+ expect(listen.parentElement.contains(share)).toBe(true);
+ expect(listen.disabled).toBe(true);
+ expect(share.disabled).toBe(false);
+ fireEvent.click(share);
+ expect(screen.getByAltText('Action artist artist portrait')).toHaveAttribute('src','/uploads/action.png');
+ fireEvent.click(screen.getByRole('button',{name:'Close sharing'}));
+ await act(async()=>resolveLibrary({ok:true,json:async()=>({items:[],sources:[],total:0,nextOffset:null,complete:true})}));
+ expect(listen.parentElement.contains(share)).toBe(true);
+ expect(share.disabled).toBe(false);
+ api.GetMediaLibrary.mockRejectedValueOnce(new Error('offline'));
+ fireEvent.click(await screen.findByRole('button',{name:'Reload library'}));
+ await screen.findByText(/Unable to load the artist library/);
+ expect(listen.disabled).toBe(true);
+ expect(screen.getByRole('button',{name:'Share artist'}).disabled).toBe(false);
+});

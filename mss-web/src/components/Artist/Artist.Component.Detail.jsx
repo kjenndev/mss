@@ -1,3 +1,4 @@
+import ArtistName from './ArtistName';
 import ShareSheet from '../Sharing/ShareSheet';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -98,8 +99,7 @@ function ArtistDetailContent({ id }) {
             <Grid size={{ xs: 12, md: 4, lg: 4 }}>
               <Box className={styles.sidebar}>
                 <Typography className={styles.eyebrow}>Midnight Sound Syndicate</Typography>
-                <Typography component="h1" className={styles.artistName}>{artist.name}<span aria-hidden="true">.</span></Typography>
-                <ShareSheet kind="artists" entity={artist} />
+                <ArtistName name={artist.name} />
                 <Typography color="text.secondary" className={styles.location}>{artist.location || 'Location not set'}</Typography>
                 {artist.profile_picture && failedPortrait !== artist.profile_picture ? <img onError={() => setFailedPortrait(artist.profile_picture)} className={styles.portrait} src={getImageUrl(artist.profile_picture)} alt={artist.name} /> : <Box className={styles.portraitFallback}><span aria-hidden="true">{artist.name?.charAt(0)}</span><Typography>No artist photo yet</Typography></Box>}
                 {helpers.CanEditArtist(id, artist.user_id) && <Button startIcon={<EditIcon aria-hidden="true" />} variant="outlined" onClick={() => navigate(`/artists/${id}/update`)} className={styles.editButton}>Edit Profile</Button>}
@@ -227,7 +227,10 @@ function ArtistDetailContent({ id }) {
                   <MediaLibrary artistId={id} onVideoSelect={selectVideo} selectedVideoId={video?.id} renderIntro={({ canListen, listenToLatest }) => (
                     <Box className={styles.editorial}>
                       <Typography className={styles.eyebrow}>The artist collection</Typography>
-                      <Button variant="contained" startIcon={<PlayArrowIcon aria-hidden="true" />} disabled={!canListen} onClick={listenToLatest}>Listen to latest</Button>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, width: '100%', '& button:focus-visible': { outline: '2px solid #90caf9', outlineOffset: '3px' } }}>
+                        <Button variant="contained" startIcon={<PlayArrowIcon aria-hidden="true" />} disabled={!canListen} onClick={listenToLatest}>Listen to latest</Button>
+                        <Box sx={{ marginLeft: 'auto' }}><ShareSheet kind="artists" entity={artist} /></Box>
+                      </Box>
                     </Box>
                   )} />
                   <Box>
