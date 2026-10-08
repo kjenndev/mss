@@ -10,11 +10,11 @@ export function getImageUrl(path) {
   return `${assetBase}${path}`;
 }
 
-export function watchUrl(platform, channel) {
+export function watchUrl(platform, channel, videoOnly = false) {
   if (!platform || !channel) return '';
   try {
     const url = new URL(platform);
     if (!['http:', 'https:'].includes(url.protocol)) return '';
-    return `${platform.replace(/\/+$/, '')}/watch/${encodeURIComponent(channel)}`;
+    return `${platform.replace(/\/+$/, '')}/${videoOnly ? 'embed' : 'watch'}/${encodeURIComponent(channel)}`;
   } catch { return ''; }
 }
