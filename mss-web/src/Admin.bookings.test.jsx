@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, Link } from 'react-router-dom';
 import AdminBookings, { BookingDetail } from './components/Bookings/AdminBookings';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api', () => ({ GetBookings: vi.fn(), GetBooking: vi.fn(), AddBookingComment: vi.fn(), RetryBookingNotifications: vi.fn() }));
@@ -11,43 +11,30 @@ const response = data => ({ ok: true, json: async () => data });
 const record = { id: 1, reference: 'MSS-001', venue_name: '<img src=x onerror=alert(1)>', contact_name: 'Sam', email: 'sam@example.com', phone: '555-0100', services: ['djs', 'lasers'], message: '<script>bad()</script>', event_date: '2026-12-01', created_at: '2026-10-10T10:00:00Z' };
 const detail = { booking: record, comments: [], notification: { status: 'failed', sent: 0, total: 2, can_retry: true } };
 function showDetail() { return render(<MemoryRouter initialEntries={['/admin/bookings/1']}><Routes><Route path="/admin/bookings/:id" element={<BookingDetail />} /></Routes></MemoryRouter>); }
-it('polls pending delivery without losing drafts and supports manual recovery refresh', async () => {
+it('omits delivery controls and never polls or retries notifications while preserving drafts', async () => {
   vi.useFakeTimers();
   try {
-    api.GetBooking.mockResolvedValue(response({ ...detail, notification: { status: 'pending', sent: 0, total: 2 } }));
+    api.GetBooking.mockResolvedValue(response({ ...detail, notification: { status: 'pending', sent: 0, total: 2, can_retry: true, retry_scheduled: true } }));
     showDetail(); await act(async () => {});
+    expect(screen.queryByRole('region', { name: 'Email notifications' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /notification|delivery/i })).toBeNull();
     fireEvent.change(screen.getByLabelText('Internal comment'), { target: { value: 'Keep this draft' } });
-    api.GetBooking.mockResolvedValue(response({ ...detail, notification: { status: 'partial', sent: 1, total: 2 } }));
-    await act(async () => vi.advanceTimersByTimeAsync(5000));
-    expect(screen.getByText('Email delivery: partial')).toBeTruthy();
-    expect(screen.getByLabelText('Internal comment').value).toBe('Keep this draft');
-    api.GetBooking.mockResolvedValue(response({ ...detail, notification: { status: 'sent', sent: 2, total: 2 } }));
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh notification status' }));
-    await act(async () => {});
-    expect(screen.getByText('Email delivery: sent')).toBeTruthy();
-    const calls = api.GetBooking.mock.calls.length;
-    await act(async () => vi.advanceTimersByTimeAsync(10000));
-    expect(api.GetBooking).toHaveBeenCalledTimes(calls);
+    await act(async () => vi.advanceTimersByTimeAsync(30000));
+    expect(api.GetBooking).toHaveBeenCalledTimes(1);
+    expect(api.RetryBookingNotifications).not.toHaveBeenCalled();
+    expect(api.AddBookingComment).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Internal comment').value).toBe('Keep this draft');
   } finally { cleanup(); vi.useRealTimers(); }
 });
-it('cancels late polling results on identity change and unmount', async () => {
-  vi.useFakeTimers();
-  try {
-    localStorage.setItem('mss-token', 'old');
-    api.GetBooking.mockResolvedValue(response({ ...detail, notification: { status: 'pending', sent: 0, total: 2 } }));
-    const view = showDetail(); await act(async () => {});
-    let finish;
-    api.GetBooking.mockReturnValue(new Promise(resolve => { finish = resolve; }));
-    await act(async () => vi.advanceTimersByTimeAsync(5000));
-    expect(typeof finish).toBe('function');
-    localStorage.setItem('mss-token', 'new');
-    await act(async () => finish(response({ ...detail, notification: { status: 'sent', sent: 2, total: 2 } })));
-    expect(screen.queryByText('Email delivery: sent')).toBeNull();
-    view.unmount(); const calls = api.GetBooking.mock.calls.length;
-    await act(async () => vi.advanceTimersByTimeAsync(10000));
-    expect(api.GetBooking).toHaveBeenCalledTimes(calls);
-  } finally { cleanup(); vi.useRealTimers(); }
+it('loads details and saves comments without notification metadata', async () => {
+  api.GetBooking.mockResolvedValue(response({ booking: record, comments: [] }));
+  api.AddBookingComment.mockResolvedValue(response({ comment: { id: 9, author_name: 'Admin', content: 'Planning note', created_at: record.created_at } }));
+  showDetail(); await screen.findByText(record.email);
+  fireEvent.change(screen.getByLabelText('Internal comment'), { target: { value: 'Planning note' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add comment' }));
+  await screen.findByText('Comment added.');
+  expect(screen.getByText('Planning note')).toBeTruthy();
+  expect(api.RetryBookingNotifications).not.toHaveBeenCalled();
 });
 it('enforces the backend 3000-character comment boundary', async () => {
   api.GetBooking.mockResolvedValue(response(detail));
@@ -97,18 +84,16 @@ it('discards inbox bodies when the account changes during parsing', async () => 
   await act(async () => finish({ requests: [record], total: 1 }));
   expect(screen.queryByText(record.venue_name)).toBeNull();
 });
-it.each(['comment', 'delivery'])('discards late %s results after account changes', async kind => {
+it('discards late comment results after account changes', async () => {
   api.GetBooking.mockResolvedValue(response(detail));
   let finish;
-  const pending = new Promise(resolve => { finish = resolve; });
-  api.AddBookingComment.mockReturnValue(pending); api.RetryBookingNotifications.mockReturnValue(pending);
+  api.AddBookingComment.mockReturnValue(new Promise(resolve => { finish = resolve; }));
   showDetail(); await screen.findByText(record.email);
-  if (kind === 'comment') fireEvent.change(screen.getByLabelText('Internal comment'), { target: { value: 'Secret note' } });
-  fireEvent.click(screen.getByRole('button', { name: kind === 'comment' ? 'Add comment' : 'Retry email delivery' }));
+  fireEvent.change(screen.getByLabelText('Internal comment'), { target: { value: 'Secret note' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add comment' }));
   localStorage.setItem('mss-token', 'new');
-  await act(async () => finish(response(kind === 'comment' ? { comment: { id: 4, content: 'Secret note', created_at: record.created_at } } : { notification: { status: 'sent', sent: 2, total: 2, can_retry: false } })));
+  await act(async () => finish(response({ comment: { id: 4, content: 'Secret note', created_at: record.created_at } })));
   expect(screen.queryByText('Comment added.')).toBeNull();
-  expect(screen.queryByText('Email delivery: sent')).toBeNull();
 });
 it('discards detail bodies if the authenticated identity changes while JSON is loading', async () => {
   localStorage.setItem('mss-token', 'old');
@@ -119,25 +104,6 @@ it('discards detail bodies if the authenticated identity changes while JSON is l
   localStorage.setItem('mss-token', 'new');
   await act(async () => finish(detail));
   expect(screen.queryByText(record.email)).toBeNull();
-});
-it('reports notification delivery and retries safely without losing the comment draft', async () => {
-  api.GetBooking.mockResolvedValue(response(detail));
-  let finish;
-  api.RetryBookingNotifications.mockReturnValueOnce(new Promise(resolve => { finish = resolve; })).mockResolvedValueOnce(response({ notification: { status: 'sent', sent: 2, total: 2, can_retry: false } }));
-  showDetail();
-  await screen.findByText('Email delivery: failed');
-  const input = screen.getByLabelText('Internal comment');
-  fireEvent.change(input, { target: { value: 'Keep my draft' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Retry email delivery' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Retrying delivery…' }));
-  expect(api.RetryBookingNotifications).toHaveBeenCalledTimes(1);
-  await act(async () => finish({ ok: false, json: async () => ({ error: 'Delivery unavailable.' }) }));
-  await screen.findByText('Delivery unavailable.');
-  expect(input.value).toBe('Keep my draft');
-  fireEvent.click(screen.getByRole('button', { name: 'Retry email delivery' }));
-  await screen.findByText('Email delivery: sent');
-  expect(screen.queryByRole('button', { name: 'Retry email delivery' })).toBeNull();
-  expect(screen.getByText('2 of 2 notifications sent.')).toBeTruthy();
 });
 it('renders private detail, services and timestamped escaped comments; retains a failed comment and its retry UUID', async () => {
   api.GetBooking.mockResolvedValue(response(detail));
@@ -181,4 +147,25 @@ it('loads a paginated inbox with safe text, loading, errors, retry and empty sta
   fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
   await screen.findByText('No booking requests on this page.');
   expect(api.GetBookings).toHaveBeenLastCalledWith(2, 20);
+});
+
+it.each(['read', 'comment'])('discards late %s results across booking routes', async kind => {
+  let finish;
+  const deferred = new Promise(resolve => { finish = resolve; });
+  api.GetBooking.mockImplementation(id => id === '2' ? Promise.resolve(response({ booking: { ...record, id: 2, email: 'second@example.com' }, comments: [] })) : kind === 'read' ? deferred : Promise.resolve(response(detail)));
+  api.AddBookingComment.mockReturnValue(deferred);
+  render(<MemoryRouter initialEntries={['/admin/bookings/1']}><Link to="/admin/bookings/2">Next booking</Link><Routes><Route path="/admin/bookings/:id" element={<BookingDetail />} /></Routes></MemoryRouter>);
+  if (kind === 'comment') {
+    await screen.findByText(record.email);
+    fireEvent.change(screen.getByLabelText('Internal comment'), { target: { value: 'Old draft' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add comment' }));
+  }
+  fireEvent.click(screen.getByRole('link', { name: 'Next booking' }));
+  await screen.findByText('second@example.com');
+  fireEvent.change(screen.getByLabelText('Internal comment'), { target: { value: 'New draft' } });
+  await act(async () => finish(response(kind === 'read' ? detail : { comment: { id: 4, content: 'Obsolete comment', created_at: record.created_at } })));
+  expect(screen.queryByText(record.email)).toBeNull();
+  expect(screen.queryByText('Obsolete comment')).toBeNull();
+  expect(screen.queryByText('Comment added.')).toBeNull();
+  expect(screen.getByLabelText('Internal comment').value).toBe('New draft');
 });
