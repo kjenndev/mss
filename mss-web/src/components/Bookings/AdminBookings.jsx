@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import * as api from '../../Data.Helper.Api';
 import styles from './Bookings.module.css';
+import { Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+const darkTheme = createTheme({ palette: { mode: 'dark', primary: { main: '#90caf9' } } });
 
 function sessionSnapshot() { return JSON.stringify([localStorage.getItem('mss-token'), localStorage.getItem('mss-role')]); }
 async function readResponse(response) {
@@ -11,27 +15,61 @@ async function readResponse(response) {
 }
 export default function AdminBookings() {
   const [page, setPage] = useState(1), [attempt, setAttempt] = useState(0);
+  const [target, setTarget] = useState(null), [busy, setBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState(''), [success, setSuccess] = useState('');
+  const mounted = useRef(false), pending = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const closeDelete = () => { if (!pending.current) { setTarget(null); setDeleteError(''); } };
+  async function deleteBooking() {
+    if (!target || pending.current) return;
+    const identity = target.identity;
+    if (identity !== sessionSnapshot()) { setDeleteError('Your account changed. Reload the inbox before deleting.'); return; }
+    pending.current = true; setBusy(true); setDeleteError(''); setSuccess('');
+    const current = () => mounted.current && identity === sessionSnapshot();
+    try {
+      const result = await api.DeleteBooking(target.id).then(readResponse);
+      if (result.deleted !== true) throw Error('Unconfirmed deletion');
+      if (current()) {
+        setTarget(null); setSuccess(`Booking request ${target.reference} deleted permanently.`);
+        setState({ loading: true }); setAttempt(n => n + 1);
+      }
+    } catch (err) { if (current()) setDeleteError(err.userMessage || 'Unable to delete booking request. Please retry.'); }
+    finally { pending.current = false; if (current()) setBusy(false); }
+  }
   const [state, setState] = useState({ loading: true });
   useEffect(() => {
     let active = true;
     const identity = sessionSnapshot(), current = () => active && identity === sessionSnapshot();
     api.GetBookings(page, 20).then(readResponse).then(data => {
-      if (!Array.isArray(data.requests)) throw Error('Unable to load booking requests. Please retry.');
-      if (current()) setState({ data });
+      if (!Array.isArray(data.requests) || !Number.isSafeInteger(data.total) || data.total < 0) throw Error('Unable to load booking requests. Please retry.');
+      if (current()) {
+        const lastPage = Math.max(1, Math.ceil(data.total / 20));
+        if (page > lastPage) { setState({ loading: true }); setPage(lastPage); }
+        else setState({ data });
+      }
     }).catch(() => { if (current()) setState({ error: 'Unable to load booking requests. Please retry.' }); });
     return () => { active = false; };
   }, [page, attempt]);
-  return <main className={styles.page}><header><p>SYNDICATE / ADMINISTRATION</p><h1>Booking inbox</h1><p>Private requests. Shared planning. Keep the next night moving.</p></header>
+  return <ThemeProvider theme={darkTheme}><main className={styles.page}><header><p>SYNDICATE / ADMINISTRATION</p><h1>Booking inbox</h1><p>Private requests. Shared planning. Keep the next night moving.</p></header>
+    {success && <p role="status">{success}</p>}
     {state.loading ? <p role="status">Loading booking requests…</p> : state.error ? <><p role="alert">{state.error}</p><button onClick={() => { setState({ loading: true }); setAttempt(n => n + 1); }}>Retry</button></> : <>
       <p>{state.data.total} requests · Page {page}</p>
       {state.data.requests.length === 0 ? <p>No booking requests on this page.</p> : <ul>{state.data.requests.map(booking => <li key={booking.id}>
         <h2><Link to={`/admin/bookings/${booking.id}`}>{booking.venue_name}</Link></h2>
         <p>{booking.reference} · {booking.contact_name}</p><p>Event: {booking.event_date || 'Not specified'} · Received: <time dateTime={booking.created_at}>{new Date(booking.created_at).toLocaleString()}</time></p>
         <p>{booking.comment_count} comments · Email: {booking.notification_status}</p>
+        <Button className={styles.deleteAction} color="error" startIcon={<DeleteOutlineIcon />} aria-label={`Delete booking request ${booking.reference}`} onClick={() => { setDeleteError(''); setTarget({ ...booking, identity: sessionSnapshot() }); }} sx={{ minHeight: 44 }}>Delete request</Button>
       </li>)}</ul>}
       <nav aria-label="Booking inbox pages"><button disabled={page === 1} onClick={() => { setState({ loading: true }); setPage(n => n - 1); }}>Previous page</button><button disabled={page * 20 >= state.data.total} onClick={() => { setState({ loading: true }); setPage(n => n + 1); }}>Next page</button></nav>
     </>}
-  </main>;
+    <Dialog open={!!target} onClose={closeDelete} disableEscapeKeyDown={busy} aria-labelledby="delete-booking-title" aria-describedby="delete-booking-description" maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: 1, overflowWrap: 'anywhere' } } }}>
+      <DialogTitle id="delete-booking-title">Delete booking request?</DialogTitle>
+      <DialogContent><DialogContentText id="delete-booking-description">
+        Permanently delete {target?.venue_name} ({target?.reference}), its internal comments and queued notifications? This cannot be undone. Emails already sent or in flight cannot be recalled.
+      </DialogContentText>{deleteError && <p role="alert" style={{ color: '#ffb9b3' }}>{deleteError}</p>}</DialogContent>
+      <DialogActions sx={{ flexWrap: 'wrap', px: 3, pb: 2 }}><Button autoFocus disabled={busy} onClick={closeDelete} sx={{ minHeight: 44 }}>Cancel</Button><Button color="error" variant="contained" disabled={busy} onClick={deleteBooking} sx={{ minHeight: 44 }}>{busy ? 'Deleting…' : 'Permanently delete'}</Button></DialogActions>
+    </Dialog>
+  </main></ThemeProvider>;
 }
 export function BookingDetail() {
   const { id } = useParams();
