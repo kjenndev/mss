@@ -74,6 +74,21 @@ function boundedUpload(field) {
   };
 }
 const app = express();
+const socialSettingKeys = new Set(['social_twitch', 'social_instagram', 'social_facebook', 'social_twitter', 'social_youtube', 'social_tiktok', 'social_soundcloud', 'social_mixcloud', 'social_discord', 'social_bandcamp', 'social_spotify']);
+function normalizedSocialUrl(value) {
+  if (value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const hasUnsafeCharacter = [...trimmed].some(character => character === '\\' || character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127);
+  if (!/^https?:\/\/[^/]/i.test(trimmed) || hasUnsafeCharacter) return undefined;
+  try {
+    const url = new URL(trimmed);
+    return !url.username && !url.password && url.hostname ? trimmed : undefined;
+  } catch {
+    return undefined;
+  }
+}
 function validationError(req, method, route) {
   for (const [key, value] of Object.entries(req.params || {})) {
     if ((key === 'id' || key === 'imageId') && (!/^[1-9][0-9]*$/.test(String(value)) || !Number.isSafeInteger(Number(value)))) return 'Invalid resource id';
@@ -92,6 +107,8 @@ function validationError(req, method, route) {
   const settingValue = value => value === null || (typeof value === 'string' && value.length <= 10000);
   if (route === '/api/settings/:key' && !settingValue(b.value)) return 'Setting value must be text or null';
   if (route === '/api/settings/batch' && (!Array.isArray(b.settings) || b.settings.length > 100 || b.settings.some(item => !item || typeof item.key !== 'string' || !item.key.trim() || item.key.length > 100 || !settingValue(item.value)) || new Set(b.settings.map(item => item.key)).size !== b.settings.length)) return 'Use up to 100 distinct settings with string keys and text values';
+  if (route === '/api/settings/:key' && socialSettingKeys.has(req.params?.key) && normalizedSocialUrl(b.value) === undefined) return 'Social setting must be blank, null, or a safe absolute HTTP(S) URL';
+  if (route === '/api/settings/batch' && b.settings.some(item => socialSettingKeys.has(item.key) && normalizedSocialUrl(item.value) === undefined)) return 'Social settings must be blank, null, or safe absolute HTTP(S) URLs';
   const strings = { username: 100, display_name: 100, name: 200, title: 200, location: 255, description: 10000, twitch: 255, soundcloud: 255, mixcloud: 255, youtube: 255, slug: 100, channel_name: 100, profile_picture: 255, cover_photo: 255, ticket_link: 255, flyer_artist_name: 255, flyer_artist_url: 255, author_name: 100, content: 5000 };
   for (const [key, max] of Object.entries(strings)) {
     if (b[key] !== undefined && !(b[key] === null && ['cover_photo', 'profile_picture'].includes(key)) && (typeof b[key] !== 'string' || b[key].length > max)) return `Invalid ${key}`;
@@ -1059,7 +1076,8 @@ app.get('/api/settings', async (req, res) => {
 });
 
 app.put('/api/settings/:key', authMiddleware, adminOnly, async (req, res) => {
-  const { value } = req.body || {};
+  const submitted = req.body?.value;
+  const value = socialSettingKeys.has(req.params.key) ? normalizedSocialUrl(submitted) : submitted;
 
   const db = req.db || await getDb();
   try {
@@ -1077,19 +1095,25 @@ app.put('/api/settings/:key', authMiddleware, adminOnly, async (req, res) => {
 });
 
 app.post('/api/settings/batch', authMiddleware, adminOnly, async (req, res) => {
-  const { settings } = req.body || {}; // array of { key, value }
-  if (!Array.isArray(settings)) {
+  const submitted = req.body?.settings;
+  if (!Array.isArray(submitted)) {
     return res.status(400).json({ error: 'Settings array required' });
   }
+  const settings = submitted.map(setting => ({ ...setting, value: socialSettingKeys.has(setting.key) ? normalizedSocialUrl(setting.value) : setting.value }));
 
   const db = req.db || await getDb();
   try {
     const previous = await db('system_settings').whereIn('key', settings.map(s => s.key)).select('key', 'value');
+    const existingKeys = new Set(previous.map(setting => setting.key));
+    const unsupportedMissing = settings.find(setting => !existingKeys.has(setting.key) && !socialSettingKeys.has(setting.key));
+    if (unsupportedMissing) return res.status(400).json({ error: `Unknown setting '${unsupportedMissing.key}'` });
     await db.transaction(async trx => {
       for (const s of settings) {
-        await trx('system_settings')
-          .where({ key: s.key })
-          .update({ value: s.value, updated_at: trx.fn.now() });
+        if (existingKeys.has(s.key)) {
+          await trx('system_settings').where({ key: s.key }).update({ value: s.value, updated_at: trx.fn.now() });
+        } else {
+          await trx('system_settings').insert({ key: s.key, value: s.value });
+        }
       }
     });
     

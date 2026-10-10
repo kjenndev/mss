@@ -1,5 +1,5 @@
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -14,6 +14,22 @@ import SaveIcon from '@mui/icons-material/Save';
 import styles from './Admin.Settings.Component.module.css';
 
 import * as helpers from '../../Data.Helper.Api';
+import { safeSocialUrl, SOCIAL_PLATFORMS } from '../../socialLinks';
+
+const SOCIAL_KEYS = new Set(SOCIAL_PLATFORMS.map(({ key }) => key));
+const emptySocial = () => Object.fromEntries(SOCIAL_PLATFORMS.map(({ key }) => [key, '']));
+
+function settingsValues(data) {
+  const values = Object.fromEntries(data.raw.map(({ key, value }) => [key, value ?? '']));
+  if (data.settings !== undefined) {
+    if (!data.settings || typeof data.settings !== 'object' || Array.isArray(data.settings)) throw new Error('Invalid settings');
+    for (const [key, value] of Object.entries(data.settings)) {
+      if (value !== null && typeof value !== 'string') throw new Error(`Invalid setting ${key}`);
+      values[key] = value ?? '';
+    }
+  }
+  return values;
+}
 
 const darkTheme = createTheme({
   shape: { borderRadius: 4 },
@@ -32,6 +48,10 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(null); // stores the key being saved
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [socialDraft, setSocialDraft] = useState(emptySocial);
+  const [ready, setReady] = useState(false);
+  const [socialErrors, setSocialErrors] = useState({});
+  const socialSaving = useRef(false);
 
   useEffect(() => {
     fetchSettings();
@@ -42,6 +62,7 @@ export default function AdminSettings() {
     setError('');
     setSuccess('');
     setSettings([]);
+    setReady(false);
     try {
       const response = await helpers.GetSettings();
       if (!response.ok) throw new Error('Settings request failed');
@@ -52,6 +73,8 @@ export default function AdminSettings() {
         (setting.description == null || typeof setting.description === 'string')
       )) throw new Error('Invalid settings');
       setSettings(data.raw.map(setting => ({ ...setting, value: setting.value ?? '' })));
+      setSocialDraft({ ...emptySocial(), ...Object.fromEntries(Object.entries(settingsValues(data)).filter(([key]) => SOCIAL_KEYS.has(key))) });
+      setReady(true);
     } catch {
       setError('Failed to load settings');
     } finally {
@@ -61,6 +84,44 @@ export default function AdminSettings() {
 
   const handleValueChange = (key, value) => {
     setSettings(prev => prev.map(s => s.key === key ? { ...s, value } : s));
+  };
+
+  const handleSocialSave = async () => {
+    if (loading || saving !== null || socialSaving.current) return;
+    const invalid = {}, draft = {};
+    for (const { key, label } of SOCIAL_PLATFORMS) {
+      const value = socialDraft[key];
+      const normalized = safeSocialUrl(value);
+      if (value.trim() && !normalized) invalid[key] = `${label} must be a complete HTTP(S) URL without credentials or whitespace.`;
+      draft[key] = normalized ?? '';
+    }
+    setSocialErrors(invalid);
+    if (Object.keys(invalid).length) {
+      setError('Fix the highlighted social links before saving.');
+      setSuccess('');
+      return;
+    }
+    socialSaving.current = true;
+    setSaving('social');
+    setError('');
+    setSuccess('');
+    try {
+      const response = await helpers.UpdateSettingsBatch(SOCIAL_PLATFORMS.map(({ key }) => ({ key, value: draft[key] })));
+      if (!response.ok) throw new Error('save');
+      const readResponse = await helpers.GetSettings();
+      if (!readResponse.ok) throw new Error('readback');
+      const data = await readResponse.json();
+      if (!Array.isArray(data.raw)) throw new Error('readback');
+      const values = settingsValues(data);
+      if (SOCIAL_PLATFORMS.some(({ key }) => values[key] !== draft[key])) throw new Error('readback');
+      setSocialDraft(draft);
+      setSuccess('Social links updated successfully');
+    } catch (err) {
+      setError(err.message === 'readback' ? 'Unable to verify saved social links' : 'Failed to update social links');
+    } finally {
+      socialSaving.current = false;
+      setSaving(null);
+    }
   };
 
   const handleSave = async (key, value) => {
@@ -108,7 +169,19 @@ export default function AdminSettings() {
           {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
           <Stack spacing={4}>
-            {settings.map((setting) => (
+            {ready && <Box component="section" aria-labelledby="social-links-title" className={styles.section}>
+              <Box className={styles.settingHeader}>
+                <Box>
+                  <Typography component="h2" id="social-links-title" variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>Social links</Typography>
+                  <Typography variant="body2" color="text.secondary">Optional absolute HTTP(S) profile URLs shown on the About page. Blank links stay hidden.</Typography>
+                </Box>
+                <Button variant="contained" startIcon={saving === 'social' ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />} onClick={handleSocialSave} disabled={saving !== null}>Save social links</Button>
+              </Box>
+              <Stack spacing={2}>
+                {SOCIAL_PLATFORMS.map(({ key, label }) => <TextField key={key} label={label} type="url" fullWidth size="small" disabled={saving === 'social'} error={!!socialErrors[key]} helperText={socialErrors[key]} value={socialDraft[key]} onChange={event => { setSocialDraft(current => ({ ...current, [key]: event.target.value })); setSocialErrors(current => ({ ...current, [key]: '' })); }} placeholder={`https://…/${label.toLowerCase().replaceAll(' ', '-')}`} />)}
+              </Stack>
+            </Box>}
+            {settings.filter(setting => !SOCIAL_KEYS.has(setting.key)).map((setting) => (
               <Box component="section" aria-labelledby={`setting-title-${setting.key}`} key={setting.key} className={styles.section}>
                 <Box className={styles.settingHeader}>
                   <Box>

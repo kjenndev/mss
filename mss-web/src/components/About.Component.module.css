@@ -9,6 +9,10 @@
 .title span { color: #90caf9; }
 .cover { display: block; width: 100%; height: 460px; object-fit: cover; object-position: center; border-radius: 4px; background: #242a2d; }
 .stamp { color: #8c9da6; letter-spacing: 3px; font-size: 11px; margin-top: 18px; line-height: 1.8; }
+.socialLinks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.socialLinks a { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #3b464c; border-radius: 50%; color: #b9d9ee; background: #182126; text-decoration: none; }
+.socialLinks a:hover { color: #fff; border-color: #90caf9; background: #22313a; text-decoration: none; }
+.socialLinks svg { font-size: 23px; }
 .story { padding-top: 6px; }
 .richText { font-size: 17px; line-height: 1.8; color: #bbb; overflow-wrap: anywhere; }
 .richText > :first-child { margin-top: 0; }

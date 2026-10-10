@@ -4,12 +4,21 @@ import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
-import { useState, useEffect } from 'react';
+import Tooltip from '@mui/material/Tooltip';
+import { createElement, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { sanitizeRichText } from '../sanitize';
 import { getImageUrl } from '../config';
 import * as helpers from '../Data.Helper.Api';
+import { safeSocialUrl, SOCIAL_PLATFORMS } from '../socialLinks';
 import styles from './About.Component.module.css';
+
+function SocialLink({ label, url, icon }) {
+  const [open, setOpen] = useState(false);
+  return <Tooltip title={label} describeChild open={open} onOpen={() => setOpen(true)} onClose={() => setOpen(false)}>
+    <a href={url} aria-label={label} target="_blank" rel="noopener noreferrer" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}>{createElement(icon, { 'aria-hidden': true })}</a>
+  </Tooltip>;
+}
 
 export default function About() {
   const navigate = useNavigate();
@@ -17,6 +26,7 @@ export default function About() {
   const [attempt, setAttempt] = useState(0);
   const [content, setContent] = useState('');
   const [coverPhoto, setCoverPhoto] = useState('');
+  const [socialLinks, setSocialLinks] = useState([]);
   const [failedCover, setFailedCover] = useState('');
   const [loading, setLoading] = useState(true);
   const isAdmin = helpers.IsAdmin();
@@ -33,6 +43,10 @@ export default function About() {
       }
       setContent(data.settings?.about_content || '');
       setCoverPhoto(data.settings?.about_cover_photo || '');
+      setSocialLinks(SOCIAL_PLATFORMS.flatMap(platform => {
+        const url = safeSocialUrl(data.settings[platform.key]);
+        return url ? [{ ...platform, url }] : [];
+      }));
       setError('');
     }).catch(() => { if (active) setError('Unable to load About content.'); })
       .finally(() => { if (active) setLoading(false); });
@@ -53,6 +67,12 @@ export default function About() {
           <h1 className={styles.title}>About <br />MSS<span aria-hidden="true">.</span></h1>
           {coverPhoto && failedCover !== coverPhoto && <img onError={() => setFailedCover(coverPhoto)} className={styles.cover} src={getImageUrl(coverPhoto)} alt="Midnight Sound Syndicate cover" />}
           <p className={styles.stamp}>Music / Artists / Community</p>
+          {socialLinks.length > 0 && <nav className={styles.socialLinks} aria-label="Social links">
+            {socialLinks.map(({ key, label, icon, url }) => {
+              const SocialIcon = icon;
+              return <SocialLink key={key} label={label} url={url} icon={SocialIcon} />;
+            })}
+          </nav>}
         </aside>
         <section aria-label="About content" className={styles.story}>
           {content.trim() ? <div className={`about-content ${styles.richText}`} dangerouslySetInnerHTML={{ __html: sanitizeRichText(content) }} /> : <p className={styles.empty}>About content has not been added yet.</p>}
