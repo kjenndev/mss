@@ -26,7 +26,7 @@ it.each([
  expect(screen.queryByRole('alert')).toBeNull();
  expect(api.GetSettings).toHaveBeenCalledTimes(2);
  expect(api.UpdateSetting).not.toHaveBeenCalled();
- fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://new.test' } });
+ fireEvent.change(screen.getByDisplayValue('https://stream.test'), { target: { value: 'https://new.test' } });
  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
  await waitFor(() => expect(api.UpdateSetting).toHaveBeenCalledWith('streaming_platform_url', 'https://new.test'));
 });
