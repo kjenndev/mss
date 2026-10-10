@@ -2,6 +2,7 @@ import { API_BASE } from './config';
 export const SubmitBooking = data => request('/bookings', 'POST', data, false);
 export const GetBookings = (page = 1, pageSize = 20) => request(`/admin/bookings?page=${encodeURIComponent(page)}&pageSize=${encodeURIComponent(pageSize)}`);
 export const GetBooking = id => request(`/admin/bookings/${encodeURIComponent(id)}`);
+export const DeleteBooking = id => request(`/admin/bookings/${encodeURIComponent(id)}`, 'DELETE');
 export const AddBookingComment = (id, data) => request(`/admin/bookings/${encodeURIComponent(id)}/comments`, 'POST', data);
 export const RetryBookingNotifications = id => request(`/admin/bookings/${encodeURIComponent(id)}/retry-notifications`, 'POST', {});
 export const GetHomeFeaturedVideos = () => request('/home-featured-videos', 'GET', null, false);

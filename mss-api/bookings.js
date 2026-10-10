@@ -212,7 +212,12 @@ export function createBookingsRouter({
         // may already hold a user lock, which would invert the account order.
         await trx.raw("SELECT pg_advisory_xact_lock(1297306453)");
         const current = await recipients(trx, true);
-        const b = await getBooking(trx, candidate.booking_id, true);
+        // The candidate scan precedes the lock; deletion may have cascaded it away.
+        const b = await getBooking(trx, candidate.booking_id, true).catch(e => {
+          if (e.status === 404) return null;
+          throw e;
+        });
+        if (!b) return null;
         const r = await trx("booking_notifications")
           .where({ id: candidate.id })
           .forUpdate()
@@ -410,6 +415,20 @@ export function createBookingsRouter({
       comments: comments.map(commentDto),
       notification: await notification(db, b),
     });
+  });
+  route("delete", "/api/admin/bookings/:id", async (req, res) => {
+    const db = await getDb();
+    await auth(req, db);
+    await db.transaction(async (trx) => {
+      // Match dispatcher/account mutation ordering before taking any user lock.
+      await trx.raw("SELECT pg_advisory_xact_lock(1297306453)");
+      await auth(req, trx, true);
+      const booking = await getBooking(trx, req.params.id, true);
+      // Existing foreign keys atomically cascade comments and durable mail intent.
+      // Already claimed/in-flight provider requests cannot be recalled.
+      await trx("bookings").where({ id: booking.id }).del();
+    });
+    res.json({ deleted: true });
   });
   route("post", "/api/admin/bookings/:id/comments", async (req, res) => {
     const db = await getDb();

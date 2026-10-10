@@ -74,6 +74,14 @@ Page must be an integer 1–1000000; pageSize 1–100. Most recent first, ordere
 
 Comments are oldest first, ordered by `created_at ASC, id ASC` including timestamp ties. Author name is the saved DB display-name/username snapshot. No password, session, submission hash, provider key, encrypted configuration, or notification payload is returned.
 
+### `DELETE /api/admin/bookings/:id`
+
+Enabled administrators can permanently delete a booking from the inbox after explicit confirmation naming its venue and reference. Returns HTTP 200 `{deleted:true}` only after transaction commit. Invalid UUIDs return 400, absent/already-deleted requests return 404, and authorization errors remain 401/403. The operation takes the account/dispatcher advisory lock before locking and revalidating the actor user/session and target booking. Existing foreign keys atomically delete only that booking's internal comments and notification outbox; no migration is required. Any transaction failure preserves all related rows.
+
+This cannot be undone. It removes queued notification intent, not copies in mailboxes or backups. A notification already claimed or in flight may still be delivered; sent mail cannot be recalled. Dispatcher snapshots skip deleted bookings, and completion updates cannot recreate a deleted outbox row or queue another retry. A later public resubmission is a new request once the original submission identity has been deleted. Rate-limit records are preserved.
+
+After success the inbox refetches the current offset page and, if the total has shrunk below it, refetches the new last page. It does not locally splice rows and advance past an unseen request. Offset pages can still move under unrelated simultaneous submissions/deletions. Failure retains the target and offers retry; if deletion succeeded but the following list read fails, Retry reloads the list without repeating deletion.
+
 ### `POST /api/admin/bookings/:id/comments`
 
 Body: `{content,submission_id}`. Content is nonblank, max 3000 characters. UUID is required. Returns HTTP 201 `{comment:{id,author_name,content,created_at}}`, including idempotent retries. Reuse with another author or changed text returns 400. The author is resolved from the authenticated DB user, never from the submitted JSON.
@@ -94,7 +102,7 @@ Body must be `{}`. Returns HTTP 200 `{notification:{status,sent,total,can_retry,
 6. Explicit administrator retry refreshes missing-address counts and adds currently eligible administrator addresses that were absent, while preserving existing sent/attempted rows. Before each send, its address must still belong to a current enabled administrator. An address whose only account was disabled/demoted/changed is not sent; its historical unsent row remains unavailable rather than being falsely counted as delivered. Requests with no usable addresses are saved and can be retried after accounts are corrected.
 7. API startup starts the dispatcher after DB initialization and server binding. Every pass discovers eligible persisted pending/failed/unavailable rows and expired sending leases, so crashes do not lose in-memory jobs. A crashed `sending` lease can resume after 60 seconds only within the three-attempt/23-hour bounds. Database failures defer work to a later pass. Shutdown cancels scheduled work, stops taking new claims, and waits for the current provider attempt; the existing process shutdown deadline may terminate an in-flight attempt, whose lease then recovers on restart. No transaction or DB lock crosses provider IO. Multiple processes coordinate through locked row eligibility checks and stable provider deduplication keys, not an in-memory-only flag. Exhausted or ambiguous old rows require manual provider-delivery review before separately contacting recipients. Never reset counters or keys to force recovery. The booking itself always remains reviewable.
 
-`can_retry` permits scheduling or refreshing recipient coverage, not bypassing lease/backoff/attempt/window restrictions. `retry_scheduled` means unsent rows remain within the automatic retry guardrails; configuration/address correction may still be necessary. The safe message distinguishes configuration problems, queued/backoff delivery, and manual reconciliation. Historical all-sent requests stay sent when mail is disabled. The admin detail polls pending/partial or automatically retryable notifications every 5 seconds, cancels obsolete results on route/account changes, and provides **Refresh notification status** for recovery; neither polling nor manual refresh overwrites comment drafts or comments.
+`can_retry` permits scheduling or refreshing recipient coverage, not bypassing lease/backoff/attempt/window restrictions. `retry_scheduled` means unsent rows remain within the automatic retry guardrails; configuration/address correction may still be necessary. The safe message distinguishes configuration problems, queued/backoff delivery, and manual reconciliation. Historical all-sent requests stay sent when mail is disabled. The inbox retains a delivery summary. The admin detail has no notification panel, polling or manual delivery controls; backend automatic delivery and retry endpoints remain available.
 
 Each asynchronous claim takes the existing account-mutation advisory transaction lock (`1297306453`) **before any user lock**, then enabled-admin users `FOR SHARE` in ID order, then the booking and notification `FOR UPDATE`. Account mutations take the same advisory lock before actor user → session → target user; actor/target IDs need not ascend, so user-before-booking ordering alone is insufficient to prevent a cross-feature deadlock. The advisory and row locks end before provider IO. Recipient membership remains protected by the share locks and is rechecked on every claim.
 
@@ -104,7 +112,7 @@ Emails are individually addressed (`to: [one address]`), never CC/BCC broadcasts
 
 ## Storage and privacy
 
-Bookings, comments, and notification payloads contain contact PII and are retained until an operator applies a separately reviewed retention policy. There is no automatic deletion or public deletion endpoint in this release. Database backups must be protected accordingly. Administrator access is privileged; do not log request bodies, notification payloads, provider keys, or full provider errors. Rate-limit buckets expire in an hour and are cleaned lazily. The additive migration is forward-only; rollback means restoring a reviewed backup, not running a destructive down migration.
+Bookings, comments, and notification payloads contain contact PII and are retained until an enabled administrator explicitly deletes the request or an operator applies a separately reviewed retention policy. There is no automatic deletion or public deletion endpoint in this release. Database backups must be protected accordingly. Administrator access is privileged; do not log request bodies, notification payloads, provider keys, or full provider errors. Rate-limit buckets expire in an hour and are cleaned lazily. The additive migration is forward-only; rollback means restoring a reviewed backup, not running a destructive down migration.
 
 ## Verification
 
@@ -115,6 +123,8 @@ export PATH=/home/ansibl/.nvm/versions/node/v24.16.0/bin:$PATH
 npm ci --prefix mss-api
 (cd mss-api && npm test)
 python3 mss-api/test/run-bookings-postgres.py
+# Separate fresh disposable cluster for permanent-deletion and concurrent-worker QA:
+python3 mss-api/test/run-bookings-postgres.py test/bookings-deletion-native.test.js
 ```
 
 The native runner creates a mode-private disposable cluster under `$TMPDIR/mss-bookings-qa/backend` (default `~/.hermes/cache/scratch`), listens only on its private Unix socket, uses synthetic accounts/configuration, injects a recording/failing mail transport, and stops/removes the cluster in `finally`. Requires installed PostgreSQL `initdb`, `pg_ctl`, `createdb`, `pg_config`, and an unprivileged user. It never reads `.env` or connects to an existing cluster. `npm test` alone skips native suites without their disposable DB variables.

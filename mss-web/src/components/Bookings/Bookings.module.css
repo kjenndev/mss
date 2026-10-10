@@ -10,6 +10,8 @@
 .page button, .cta { min-height: 44px; border: 1px solid #90caf9; border-radius: 4px; padding: 11px 20px; background: #90caf9; color: #101923 !important; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .page button:hover, .cta:hover { background: #b5dcfa; }
 .page button:disabled { opacity: .55; cursor: not-allowed; }
+.page button.deleteAction { background: transparent; border-color: #ffb4ab; color: #ffb4ab !important; }
+.page button.deleteAction:hover { background: #ffb4ab14; }
 .hero { position: relative; isolation: isolate; padding: 56px 40px !important; border: 1px solid #343a43; background: linear-gradient(125deg, #191f2b, #14161a 64%, #212a40); overflow: hidden; }
 .hero::after { content: ''; position: absolute; z-index: -1; width: 45%; height: 170%; right: -9%; top: -35%; transform: rotate(24deg); border-left: 1px solid #52618a; border-right: 1px solid #34405d; background: linear-gradient(90deg, #34476833, transparent); pointer-events: none; }
 .hero > p { max-width: 650px; }
