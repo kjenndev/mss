@@ -23,6 +23,7 @@ export default function NavWrapper() {
           <Button color="inherit" component={NavLink} to="/about" className={styles.navButton}>About</Button>
           <Button color="inherit" component={NavLink} to="/artists" className={styles.navButton}>Artists</Button>
           <Button color="inherit" component={NavLink} to="/events" className={styles.navButton}>Events</Button>
+          <Button color="inherit" component={NavLink} to="/bookings" className={styles.navButton}>Bookings</Button>
           <Button color="inherit" href="https://zowiemedia.net/zowieshop/" target="_blank" rel="noopener noreferrer" className={styles.navButton}>Shop</Button>
         </Box>
         <NavMenu guestClassName={styles.guestLinks} />

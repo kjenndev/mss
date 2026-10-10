@@ -12,6 +12,8 @@ import MediaNavigation from './components/Media/MediaNavigation';
 import App from './App.jsx'
 import SiteFooter from './components/SiteFooter';
 import RouteGuard from './RouteGuard.jsx'
+import Bookings from './components/Bookings/Bookings';
+import AdminBookings, { BookingDetail } from './components/Bookings/AdminBookings';
 
 import ArtistList from './components/Artist/Artist.Component.List'
 import CreateArtist from './components/Artist/Artist.Component.Create'
@@ -45,6 +47,9 @@ createRoot(document.getElementById('root')).render(
         <App />
         {/* Routes */}
         <Routes>
+          <Route path="/bookings" element={<Bookings />} />
+          <Route path="/admin/bookings" element={<RouteGuard admin><AdminBookings /></RouteGuard>} />
+          <Route path="/admin/bookings/:id" element={<RouteGuard admin><BookingDetail /></RouteGuard>} />
           <Route path="/" element={<Home key={window.location.pathname}/>} />
           <Route path="/about" element={<About key={window.location.pathname}/>} />
           <Route path="/artists" element={<ArtistList key={window.location.pathname} />} />

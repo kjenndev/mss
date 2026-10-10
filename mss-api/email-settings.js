@@ -101,7 +101,7 @@ export function readySettings(row, env) {
   );
 }
 export async function sendResendMail(
-  { settings, apiKey, email, url, idempotencyKey },
+  { settings, apiKey, email, url, idempotencyKey, message },
   fetchImpl = fetch,
 ) {
   let response;
@@ -118,10 +118,10 @@ export async function sendResendMail(
       body: JSON.stringify({
         from: `${settings.from_name} <${settings.from_email}>`,
         to: [email],
-        reply_to: settings.reply_to,
-        subject: "Verify your Midnight Sound Syndicate email",
-        html: renderVerificationEmail(url),
-        text: `Open this link to finish signup: choose your own username and password, review the terms, and confirm your choices. If you requested an email change instead, sign in to the matching account and confirm with your current password:\n\n${url}\n\nThis link expires in 30 minutes. If you did not request it, ignore this email.`,
+        reply_to: message?.reply_to ?? settings.reply_to,
+        subject: message?.subject ?? "Verify your Midnight Sound Syndicate email",
+        html: message?.html ?? renderVerificationEmail(url),
+        text: message?.text ?? `Open this link to finish signup: choose your own username and password, review the terms, and confirm your choices. If you requested an email change instead, sign in to the matching account and confirm with your current password:\n\n${url}\n\nThis link expires in 30 minutes. If you did not request it, ignore this email.`,
       }),
     });
     if (!response.ok) throw Error();
