@@ -36,6 +36,7 @@ it.each([
 
 it('offers a keyboard-operable gallery upload action', async () => {
   render(<MemoryRouter initialEntries={['/artists/1/update']}><Routes><Route path="/artists/:id/update" element={<ArtistUpdate />} /></Routes></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('tab', { name: 'Gallery Management' }));
   const upload = await screen.findByRole('button', { name: 'Upload gallery image' });
   expect(upload.tagName).toBe('BUTTON');
 });

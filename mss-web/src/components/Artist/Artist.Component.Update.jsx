@@ -5,6 +5,8 @@ import { getImageUrl } from '../../config';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Typography from '@mui/material/Typography';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
@@ -53,6 +55,7 @@ function ArtistEditor() {
   const active = useRef(false);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [attempt, setAttempt] = useState(0);
+  const [tab, setTab] = useState(0);
   const [artist, setArtist] = useState(null);
   const [images, setImages] = useState([]);
   const [users, setUsers] = useState([]);
@@ -287,68 +290,17 @@ function ArtistEditor() {
                 </Typography>
               </Box>
 
+              <Tabs value={tab} onChange={(_event, value) => setTab(value)} aria-label="Artist profile sections" variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile className={styles.tabs}>
+                {['Details', 'Gallery Management', 'YouTube Links'].map((label, index) => (
+                  <Tab key={label} type="button" label={label} id={`artist-editor-tab-${index}`} aria-controls={`artist-editor-panel-${index}`} />
+                ))}
+              </Tabs>
+
+              {/* Keep panels mounted so switching never discards drafts or in-flight media state. */}
+              <Box role="tabpanel" id="artist-editor-panel-0" aria-labelledby="artist-editor-tab-0" hidden={tab !== 0}>
               <Stack spacing={3}>
                 <ArtistVisibility artist={artist} busy={saving} onChange={is_disabled => setArtist(draft => ({ ...draft, is_disabled }))} />
-              <Box component="section" aria-label="Gallery Management" className={styles.sectionBox}>
-                  <Typography component="h2" variant="h6" className={styles.galleryLabel}>Gallery Management</Typography>
-                  <Grid container spacing={2} className={styles.galleryGrid}>
-                    {images.map((image) => (
-                      <Grid size={{ xs: 6, sm: 4, md: 3 }} key={image.id}>
-                        <Card className={styles.galleryCard}>
-                          <CardMedia
-                            component="img"
-                            image={getImageUrl(image.url)}
-                            alt="artist upload"
-                            className={styles.galleryImage}
-                          />
-                          <Box className={styles.imageActionsOverlay}>
-                            <Tooltip title="Delete Image">
-                              <IconButton size="small" color="error" onClick={() => handleDeleteImage(image.id)}>
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Set as Profile Picture">
-                              <IconButton
-                                size="small"
-                                color={artist.profile_picture === image.url ? "primary" : "default"}
-                                onClick={() => handleSetProfilePicture(image.url)}
-                              >
-                                <AccountCircleIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Set as Cover Photo">
-                              <IconButton
-                                size="small"
-                                color={artist.cover_photo === image.url ? "secondary" : "default"}
-                                onClick={() => handleSetCoverPhoto(image.url)}
-                              >
-                                <ImageIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                          {artist.profile_picture === image.url && (
-                            <Box className={styles.profilePicBadge}>
-                              PROFILE PIC
-                            </Box>
-                          )}
-                          {artist.cover_photo === image.url && (
-                            <Box className={artist.profile_picture === image.url ? styles.coverPhotoBadge + ' ' + styles.coverPhotoBadgeWithProfile : styles.coverPhotoBadge + ' ' + styles.coverPhotoBadgeAlone}>
-                              COVER PHOTO
-                            </Box>
-                          )}
-                        </Card>
-                      </Grid>
-                    ))}
-                    <Grid size={{ xs: 6, sm: 4, md: 3 }}>
-                      <Card component="button" type="button" aria-label="Upload gallery image" disabled={uploading} className={styles.uploadCard} onClick={() => fileInputRef.current?.click()}>
-                        {uploading ? <CircularProgress size={24} /> : <Typography component="span" color="text.secondary">Upload image</Typography>}
-                      </Card>
-                      <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" />
-                    </Grid>
-                  </Grid>
-                </Box>
-
-                <Box component="section" aria-label="Artist details" className={styles.sectionBox}>
+                <Box component="section" aria-label="Artist details" className={styles.detailsSection}>
                   <Typography component="h2" variant="h6" className={styles.sectionHeader}>Artist details</Typography>
                   <Box className={styles.fields}>
                     <TextField
@@ -434,8 +386,6 @@ function ArtistEditor() {
                   </Box>
                 </Box>
 
-                {helpers.CanEditArtist(id, artist.user_id) && <YouTubeLinks key={id} artistId={id} />}
-
                 {isAdmin && (
                   <Box component="section" aria-label="User Management" className={styles.sectionBox}>
                   <Typography component="h2" variant="h6" className={styles.sectionHeader}>User Management</Typography>
@@ -460,8 +410,7 @@ function ArtistEditor() {
                 )}
               </Stack>
 
-              {error && <Alert severity="error">{error}</Alert>}
-
+              <Typography variant="body2" color="text.secondary" sx={{ my: 2 }}>Save Changes applies to the details above. Visibility, gallery actions and YouTube links save separately when used.</Typography>
               <Box className={styles.formFooter}>
                 <Button
                   variant="outlined"
@@ -481,6 +430,80 @@ function ArtistEditor() {
                   {saving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </Box>
+              </Box>
+
+              <Box role="tabpanel" id="artist-editor-panel-1" aria-labelledby="artist-editor-tab-1" hidden={tab !== 1}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Gallery actions save immediately. Unsaved details are kept when switching tabs.</Typography>
+              <Box component="section" aria-label="Gallery Management" className={styles.sectionBox}>
+                  <Typography component="h2" variant="h6" className={styles.galleryLabel}>Gallery Management</Typography>
+                  <Grid container spacing={2} className={styles.galleryGrid}>
+                    {images.map((image) => (
+                      <Grid size={{ xs: 6, sm: 4, md: 3 }} key={image.id}>
+                        <Card className={styles.galleryCard}>
+                          <Box className={styles.imageFrame}>
+                          <Box className={styles.designations}>
+                          {artist.profile_picture === image.url && (
+                            <Box className={styles.profilePicBadge}>
+                              PROFILE PIC
+                            </Box>
+                          )}
+                          {artist.cover_photo === image.url && (
+                            <Box className={styles.coverPhotoBadge}>
+                              COVER PHOTO
+                            </Box>
+                          )}
+                          </Box>
+                          <CardMedia
+                            component="img"
+                            image={getImageUrl(image.url)}
+                            alt="artist upload"
+                            className={styles.galleryImage}
+                          />
+                          </Box>
+                          <Box className={styles.imageActionsOverlay}>
+                            <Tooltip title="Delete Image">
+                              <IconButton size="small" color="error" onClick={() => handleDeleteImage(image.id)}>
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Set as Profile Picture">
+                              <IconButton
+                                size="small"
+                                color={artist.profile_picture === image.url ? "primary" : "default"}
+                                onClick={() => handleSetProfilePicture(image.url)}
+                              >
+                                <AccountCircleIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Set as Cover Photo">
+                              <IconButton
+                                size="small"
+                                color={artist.cover_photo === image.url ? "secondary" : "default"}
+                                onClick={() => handleSetCoverPhoto(image.url)}
+                              >
+                                <ImageIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    ))}
+                    <Grid size={{ xs: 6, sm: 4, md: 3 }}>
+                      <Card component="button" type="button" aria-label="Upload gallery image" disabled={uploading} className={styles.uploadCard} onClick={() => fileInputRef.current?.click()}>
+                        {uploading ? <CircularProgress size={24} /> : <Typography component="span" color="text.secondary">Upload image</Typography>}
+                      </Card>
+                      <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" />
+                    </Grid>
+                  </Grid>
+                </Box>
+
+              </Box>
+
+              <Box role="tabpanel" id="artist-editor-panel-2" aria-labelledby="artist-editor-tab-2" hidden={tab !== 2}>
+                {helpers.CanEditArtist(id, artist.user_id) && <YouTubeLinks key={id} artistId={id} />}
+              </Box>
+
+              {error && <Alert severity="error">{error}</Alert>}
             </Stack>
           </Box>
         </Box>
