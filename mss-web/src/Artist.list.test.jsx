@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import ArtistList from './components/Artist/Artist.Component.List';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
@@ -139,4 +139,36 @@ it.each(['network', 'http', 'malformed'])('retries %s failures without showing m
   expect(await screen.findByText('No artists yet.')).toBeTruthy();
   expect(screen.queryByRole('alert')).toBeNull();
   expect(api.GetAllArtists).toHaveBeenCalledTimes(2);
+});
+
+const disabledLabel = 'Disabled artist — visible only to artists and admins';
+it('places a focusable non-action disabled icon immediately before Edit with an explanatory tooltip', async () => {
+  api.GetAllArtists.mockResolvedValue(response([{ ...artists[1], is_disabled: true }]));
+  api.CanEditArtist.mockReturnValue(true);
+  render(<ArtistList />);
+  const indicator = await screen.findByRole('status', { name: disabledLabel });
+  expect(indicator.tagName).toBe('SPAN');
+  expect(indicator.tabIndex).toBe(0);
+  expect(indicator.textContent).toBe('');
+  expect(indicator.nextElementSibling).toBe(screen.getByRole('link', { name: 'Edit' }));
+  expect(indicator.closest('a')).toBeNull();
+  act(() => indicator.focus());
+  expect(document.activeElement).toBe(indicator);
+  fireEvent.mouseOver(indicator);
+  expect((await screen.findByRole('tooltip')).textContent).toBe(disabledLabel);
+});
+
+it.each([true, false])('preserves non-editor status without granting Edit (disabled=%s)', async disabled => {
+ api.GetAllArtists.mockResolvedValue(response([{...artists[1],is_disabled:disabled}]));
+ api.CanEditArtist.mockReturnValue(false);
+ render(<ArtistList/>);
+ await screen.findByRole('heading',{name:'Alpha Test'});
+ expect(screen.queryByRole('link',{name:'Edit'})).toBeNull();
+ expect(Boolean(screen.queryByRole('status',{name:disabledLabel}))).toBe(disabled);
+ if(disabled) expect(screen.getByRole('status',{name:disabledLabel}).tabIndex).toBe(0);
+});
+it('omits status for an enabled editable artist',async()=>{
+ api.CanEditArtist.mockReturnValue(true);render(<ArtistList/>);
+ await screen.findAllByRole('link',{name:'Edit'});
+ expect(screen.queryByRole('status',{name:disabledLabel})).toBeNull();
 });

@@ -12,7 +12,9 @@
 .portrait, .portraitFallback { display: block; width: 100%; aspect-ratio: 1.08; object-fit: cover; border-radius: 4px; background: #1e1e1e; }
 .portraitFallback { display: flex; flex-direction: column; justify-content: center; align-items: center; color: #aaa; border: 1px solid #393939; box-sizing: border-box; }
 .portraitFallback > span { font-size: 76px; color: #90caf9; }
-.container .editButton { margin-top: 16px; min-height: 44px; }
+.artistActions { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+.artistActions:empty { display: none; }
+.container .editButton { min-height: 44px; }
 .aboutBox { margin-top: 28px; }
 .container .sectionLabel { display: block; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #aaa; margin-bottom: 14px; }
 .container .bioText { white-space: pre-line; color: #b5b5bd; line-height: 1.7; margin-top: 12px; overflow-wrap: anywhere; }

@@ -1,3 +1,4 @@
+import ArtistDisabledStatus from './ArtistDisabledStatus';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditIcon from '@mui/icons-material/Edit';
 import Alert from '@mui/material/Alert';
@@ -68,7 +69,10 @@ export default function ArtistList() {
               const href = providerUrl(key, artist[key]);
               return href ? <a key={key} className={styles.secondaryAction} href={href} target="_blank" rel="noopener noreferrer">{label}</a> : null;
             })}</div>
-            {helpers.CanEditArtist(artist.id, artist.user_id) && <a className={`${styles.action} ${styles.secondaryAction}`} href={`/artists/${artist.id}/update`}><EditIcon aria-hidden="true" fontSize="small" />Edit</a>}
+            <div className={styles.artistActions}>
+              {artist.is_disabled && <ArtistDisabledStatus />}
+              {helpers.CanEditArtist(artist.id, artist.user_id) && <a className={`${styles.action} ${styles.secondaryAction}`} href={`/artists/${artist.id}/update`}><EditIcon aria-hidden="true" fontSize="small" />Edit</a>}
+            </div>
           </div>
         </div>
       </article>)}</div>}

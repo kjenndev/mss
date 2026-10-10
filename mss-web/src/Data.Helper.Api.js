@@ -2,7 +2,8 @@ import { API_BASE } from './config';
 export const GetHomeFeaturedVideos = () => request('/home-featured-videos', 'GET', null, false);
 export const PreviewHomeFeaturedVideo = url => request('/home-featured-videos/preview', 'POST', {url});
 export const SaveHomeFeaturedVideos = urls => request('/home-featured-videos', 'PUT', {urls});
-export const GetArtistYouTubeVideos = id => request(`/artists/${id}/youtube-videos`, 'GET', null, false);
+export const GetArtistYouTubeVideos = id => request(`/artists/${id}/youtube-videos`);
+export const SetArtistVisibility = (id, is_disabled) => request(`/artists/${id}/visibility`, 'PUT', { is_disabled });
 export const AddArtistYouTubeVideo = (id, url, refresh = false) => request(`/artists/${id}/youtube-videos`, 'POST', { url, ...(refresh ? { refresh: true } : {}) });
 export const DeleteArtistYouTubeVideo = (id, videoId) => request(`/artists/${id}/youtube-videos/${encodeURIComponent(videoId)}`, 'DELETE');
 
@@ -11,12 +12,14 @@ function dispatchAuthChange() {
 }
 
 function setSession(session, notify = true) {
+  const previousRole = localStorage.getItem('mss-role');
   localStorage.setItem('mss-token', session.token);
   localStorage.setItem('mss-user', session.user.username);
   localStorage.setItem('mss-user-id', session.user.id);
   localStorage.setItem('mss-role', session.user.role);
   localStorage.setItem('mss-artist-id', session.user.artist_id || '');
   if (notify) dispatchAuthChange();
+  else if (previousRole !== session.user.role) window.dispatchEvent(new Event('mss-role-change'));
 }
 
 function clearSession() {
@@ -38,6 +41,8 @@ function getAuthHeaders() {
 }
 
 async function request(path, method = 'GET', body = null, auth = true, formData = false) {
+  const visibilityRead = method === 'GET' && /^\/(artists|users\/me\/artists|images|live|streams|media-library|feed|events|comments)/.test(path);
+  const sentRole = localStorage.getItem('mss-role');
   const sentToken = auth ? localStorage.getItem('mss-token') : null;
   const headers = formData ? {} : auth ? getAuthHeaders() : { 'Content-Type': 'application/json' };
   if (formData && auth) {
@@ -48,10 +53,12 @@ async function request(path, method = 'GET', body = null, auth = true, formData 
   }
   const response = await fetch(`${API_BASE}${path}`, {
     method,
+    ...(visibilityRead ? { cache: 'no-store' } : {}),
     signal: AbortSignal.timeout(15000),
     headers,
     body: formData ? body : body ? JSON.stringify(body) : undefined,
   });
+  if (visibilityRead && (sentToken !== localStorage.getItem('mss-token') || sentRole !== localStorage.getItem('mss-role'))) throw new Error('Session changed; discard obsolete profile response');
   if (response.status === 401 && sentToken && localStorage.getItem('mss-token') === sentToken) clearSession();
   return response;
 }
@@ -74,6 +81,7 @@ async function Logout() {
 async function GetCurrentUser() {
   const token = localStorage.getItem('mss-token');
   const response = await request('/auth/me', 'GET');
+  if (response.status === 403 && token && token === localStorage.getItem('mss-token')) clearSession();
   if (response.ok && token && token === localStorage.getItem('mss-token')) {
     const { user } = await response.clone().json();
     if (token === localStorage.getItem('mss-token')) setSession({ token, user }, false);
@@ -94,7 +102,7 @@ async function UpdateMyProfile(data) {
 }
 
 async function GetAllArtists() {
-  return await request('/artists', 'GET', null, false);
+  return await request('/artists', 'GET', null, true);
 }
 
 async function GetMyArtists() {
@@ -102,7 +110,7 @@ async function GetMyArtists() {
 }
 
 async function GetArtistById(id) {
-  return await request(`/artists/${id}`, 'GET', null, false);
+  return await request(`/artists/${id}`, 'GET', null, true);
 }
 
 async function GetArtistManageData(id) {
@@ -146,27 +154,27 @@ async function DeleteArtistImage(artistId, imageId) {
 }
 
 async function GetArtistImages(artistId) {
-  return await request(`/artists/${artistId}/images`, 'GET', null, false);
+  return await request(`/artists/${artistId}/images`, 'GET', null, true);
 }
 
 async function GetAllImages() {
-  return await request('/images', 'GET', null, false);
+  return await request('/images', 'GET', null, true);
 }
 
 async function GetLiveTwitch() {
-  return await request('/live/twitch', 'GET', null, false);
+  return await request('/live/twitch', 'GET', null, true);
 }
 
 async function GetActiveSyndicateStreams() {
-  return await request('/streams', 'GET', null, false);
+  return await request('/streams', 'GET', null, true);
 }
 
 export async function GetMediaLibrary(offset = 0, artistId) {
-  return await request(`/media-library?offset=${encodeURIComponent(offset)}&limit=50${artistId === undefined ? '' : `&artistId=${encodeURIComponent(artistId)}`}`, 'GET', null, false);
+  return await request(`/media-library?offset=${encodeURIComponent(offset)}&limit=50${artistId === undefined ? '' : `&artistId=${encodeURIComponent(artistId)}`}`, 'GET', null, true);
 }
 
 async function GetGlobalFeed() {
-  return await request('/feed', 'GET', null, false);
+  return await request('/feed', 'GET', null, true);
 }
 
 async function CreateUser(data) {
@@ -202,11 +210,11 @@ async function UpdateSettingsBatch(settings) {
 }
 
 async function GetAllEvents() {
-  return await request('/events', 'GET', null, false);
+  return await request('/events', 'GET', null, true);
 }
 
 async function GetEventById(id) {
-  return await request(`/events/${id}`, 'GET', null, false);
+  return await request(`/events/${id}`, 'GET', null, true);
 }
 
 async function CreateEvent(data) {
@@ -240,14 +248,14 @@ async function AdminUpload(file) {
 }
 
 async function GetArtistEvents(artistId) {
-  return await request(`/artists/${artistId}/events`, 'GET', null, false);
+  return await request(`/artists/${artistId}/events`, 'GET', null, true);
 }
 
 async function GetComments({ artist_id, event_id, after_id, offset, limit, order, before } = {}) {
   // Cursor paging is deletion-safe; retain offset for legacy callers.
   const params = { artist_id, event_id, after_id, offset, limit, order, before };
   const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null)).toString();
-  return await request(`/comments?${query}`, 'GET', null, false);
+  return await request(`/comments?${query}`, 'GET', null, true);
 }
 
 async function GetCommentIdentities() {

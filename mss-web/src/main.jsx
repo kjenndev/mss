@@ -1,3 +1,4 @@
+import VisibilityBoundary from './VisibilityBoundary';
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route  } from 'react-router-dom';
@@ -40,7 +41,7 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <BrowserRouter>
-        <MediaNavigation><MediaPlayerProvider>
+        <VisibilityBoundary><MediaNavigation><MediaPlayerProvider>
         <App />
         {/* Routes */}
         <Routes>
@@ -69,7 +70,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/account" element={<RouteGuard><UserProfile /></RouteGuard>} />
         </Routes>
         <SiteFooter />
-        </MediaPlayerProvider></MediaNavigation>
+        </MediaPlayerProvider></MediaNavigation></VisibilityBoundary>
       </BrowserRouter>
     </LocalizationProvider>
   </StrictMode>,

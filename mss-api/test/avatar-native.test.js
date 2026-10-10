@@ -124,7 +124,7 @@ test('native account avatars', { skip: !database, timeout: 60000 }, async t => {
       let reads = 0; const count = q => { if (/^select/i.test(q.sql)) reads++; }; db.on('query', count);
       const listed = await call('GET', '/api/comments?artist_id=' + artist.id);
       db.off('query', count);
-      assert.equal(listed.status, 200); assert.ok(reads <= 2, `bounded queries: ${reads}`);
+      assert.equal(listed.status, 200); assert.ok(reads <= 3, `bounded queries including target visibility: ${reads}`);
       assert.equal(listed.body.comments[0].author_profile_picture, next); assert.equal(listed.body.comments[0].author_name, name);
       assert.equal(listed.body.comments[1].author_profile_picture, null);
       for (const row of listed.body.comments) for (const key of ['password', 'email', 'email_verified_at', 'role', 'is_disabled', 'token']) assert.equal(row[key], undefined);

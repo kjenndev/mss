@@ -1,3 +1,4 @@
+import ArtistVisibility from './ArtistVisibility';
 import SaveIcon from '@mui/icons-material/Save';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { getImageUrl } from '../../config';
@@ -287,7 +288,8 @@ function ArtistEditor() {
               </Box>
 
               <Stack spacing={3}>
-                <Box component="section" aria-label="Gallery Management" className={styles.sectionBox}>
+                <ArtistVisibility artist={artist} busy={saving} onChange={is_disabled => setArtist(draft => ({ ...draft, is_disabled }))} />
+              <Box component="section" aria-label="Gallery Management" className={styles.sectionBox}>
                   <Typography component="h2" variant="h6" className={styles.galleryLabel}>Gallery Management</Typography>
                   <Grid container spacing={2} className={styles.galleryGrid}>
                     {images.map((image) => (

@@ -55,3 +55,6 @@
 .providers:empty { display: none; }
 .providers a { display: inline-flex; align-items: center; min-height: 44px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #aaa; text-decoration: none; }
 .providers a:hover { color: #90caf9; text-decoration: underline; }
+
+.artistActions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.artistActions:empty { display: none; }

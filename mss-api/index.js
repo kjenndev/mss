@@ -20,7 +20,7 @@ import { featuredUrls, featuredDto, prepareFeatured } from './home-featured.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 function publicArtist(row) {
-  const fields = ['id', 'name', 'location', 'description', 'profile_picture', 'cover_photo', 'twitch', 'soundcloud', 'mixcloud', 'youtube', 'slug', 'user_id', 'channel_name', 'created_at', 'updated_at'];
+  const fields = ['id', 'name', 'location', 'description', 'profile_picture', 'cover_photo', 'twitch', 'soundcloud', 'mixcloud', 'youtube', 'slug', 'user_id', 'channel_name', 'is_disabled', 'created_at', 'updated_at'];
   return Object.fromEntries(fields.filter(key => key in row).map(key => [key, row[key]]));
 }
 // Fixed-size, fixed-window budgets. At capacity reject new keys rather than evict active limits.
@@ -205,9 +205,17 @@ async function atomicHandler(handler, req, res, next, guards = []) {
 for (const method of ['get', 'post', 'put', 'delete']) {
   const register = app[method].bind(app);
   app[method] = (route, ...handlers) => register(route, ...handlers.map((handler, index) =>
-    (req, res, next) => Promise.resolve().then(() => {
+    (req, res, next) => Promise.resolve().then(async () => {
       const invalid = validationError(req, method, route);
       if (invalid) return res.status(400).json({ error: invalid });
+      if (method === 'get' && /^\/api\/(artists|users\/me\/artists|images|events|live|streams|feed|comments$|media-library)/.test(route)) {
+        await artistAudience(req, res);
+        const id = route.startsWith('/api/artists/:id') ? req.params.id : route === '/api/comments' ? req.query?.artist_id : route === '/api/media-library' ? req.query?.artistId : null;
+        if (typeof id === 'string' && /^[1-9][0-9]*$/.test(id) && Number.isSafeInteger(Number(id)) && !req.canViewDisabled) {
+          const artist = await (req.db || await getDb())('artists').where({ id }).first();
+          if (artist?.is_disabled) return res.status(404).json({ error: 'Artist not found' });
+        }
+      }
       return method !== 'get' && index === handlers.length - 1 && route !== '/api/auth/login'
         ? atomicHandler(handler, req, res, next, handlers.filter(h => [authMiddleware, adminOnly, canCreateEvent, canManageArtist, canManageEvent, canUploadEvent].includes(h))) : handler(req, res, next); }).catch(next)));
 }
@@ -223,7 +231,7 @@ app.use(createSharingRouter({
   origin: process.env.PUBLIC_SITE_ORIGIN,
   loadEntity: async (kind, id) => {
     const db = await getDb();
-    const fields = kind === 'artists' ? ['id', 'name', 'location', 'profile_picture'] : ['id', 'title', 'date', 'location', 'flyer'];
+    const fields = kind === 'artists' ? ['id', 'name', 'location', 'profile_picture', 'is_disabled'] : ['id', 'title', 'date', 'location', 'flyer'];
     return db(kind).select(fields).where({ id }).first();
   },
   loadIndex: () => fs.promises.readFile(path.join(__dirname, '../mss-web/dist/index.html'), 'utf8'),
@@ -242,6 +250,8 @@ await initializeDB();
 // Streaming discovery is initialized on demand via getRedis()
 
 async function authMiddleware(req, res, next) {
+  res.set?.('Cache-Control', 'private, no-store');
+  res.vary?.('Authorization');
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -278,6 +288,24 @@ async function authMiddleware(req, res, next) {
   next();
 }
 
+// Optional authentication never trusts client role hints; invalid sessions get public visibility.
+async function artistAudience(req, res) {
+  res.set?.('Cache-Control', 'private, no-store');
+  res.vary?.('Authorization');
+  if (req.canViewDisabled !== undefined) return;
+  req.canViewDisabled = false;
+  const header = req.headers?.authorization;
+  if (!header?.startsWith('Bearer ')) return;
+  const db = req.db || await getDb();
+  const session = await db('sessions').where({ token: header.slice(7) }).first();
+  if (!session || !(new Date(session.expires_at).getTime() > Date.now())) return;
+  const user = await db('users').where({ id: session.user_id }).first();
+  req.canViewDisabled = !!user && !user.is_disabled && ['artist', 'admin'].includes(user.role);
+}
+function visibleArtists(req, query, prefix = '') {
+  return req.canViewDisabled ? query : query.whereNot(`${prefix}is_disabled`, true);
+}
+
 function adminOnly(req, res, next) {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
@@ -301,6 +329,7 @@ async function canManageArtist(req, res, next) {
     return res.status(404).json({ error: 'Artist not found' });
   }
 
+  if (artist.is_disabled && !['artist', 'admin'].includes(req.user.role)) return res.status(404).json({ error: 'Artist not found' });
   const userId = req.user.id;
   const isAdmin = req.user.role === 'admin';
 
@@ -580,8 +609,8 @@ app.delete('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
 
 app.get('/api/users/me/artists', authMiddleware, async (req, res) => {
   const db = req.db || await getDb();
-  const artists = await db('artists')
-    .select('id', 'name', 'profile_picture', 'slug')
+  const artists = await visibleArtists(req, db('artists'))
+    .select('id', 'name', 'profile_picture', 'slug', 'is_disabled')
     .where('user_id', req.user.id)
     .orderBy('name');
   res.json({ artists });
@@ -589,8 +618,8 @@ app.get('/api/users/me/artists', authMiddleware, async (req, res) => {
 
 app.get('/api/artists', async (req, res) => {
   const db = req.db || await getDb();
-  const artists = await db('artists')
-    .select('id', 'name', 'location', 'description', 'profile_picture', 'cover_photo', 'twitch', 'soundcloud', 'mixcloud', 'youtube', 'slug', 'user_id', 'channel_name', 'created_at', 'updated_at')
+  const artists = await visibleArtists(req, db('artists'))
+    .select('id', 'name', 'location', 'description', 'profile_picture', 'cover_photo', 'twitch', 'soundcloud', 'mixcloud', 'youtube', 'slug', 'user_id', 'channel_name', 'is_disabled', 'created_at', 'updated_at')
     .orderBy('name');
   res.json({ artists });
 });
@@ -649,8 +678,17 @@ app.post('/api/artists', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+app.put('/api/artists/:id/visibility', authMiddleware, adminOnly, async (req, res) => {
+  if (Object.keys(req.body || {}).length !== 1 || typeof req.body.is_disabled !== 'boolean') return res.status(400).json({ error: 'Use only a boolean is_disabled' });
+  const artist = await req.db('artists').where({ id: req.params.id }).forUpdate().first();
+  if (!artist) return res.status(404).json({ error: 'Artist not found' });
+  await req.db('artists').where({ id: artist.id }).update({ is_disabled: req.body.is_disabled, updated_at: req.db.fn.now() });
+  res.json({ artist: publicArtist(await req.db('artists').where({ id: artist.id }).first()) });
+});
+
 app.put('/api/artists/:id', authMiddleware, canManageArtist, async (req, res) => {
   const update = req.body || {};
+  if ('is_disabled' in update) return res.status(400).json({ error: 'Use the admin visibility action to change profile visibility' });
   const artist = req.artist;
   if (update.channel_name !== undefined && update.channel_name !== (artist.channel_name || '') && req.user.role !== 'admin') return res.status(403).json({ error: 'Only admins may assign channels' });
   const db = req.db || await getDb();
@@ -727,7 +765,8 @@ app.get('/api/artists/:id/images', async (req, res) => {
 
 app.get('/api/images', async (req, res) => {
   const db = req.db || await getDb();
-  const images = await db('artist_images')
+  const allowed = await visibleArtists(req, db('artists')).select('id');
+  const images = await db('artist_images').whereIn('artist_id', allowed.map(a => a.id))
     .orderBy('created_at', 'desc')
     .limit(50);
   res.json({ images: images.map((image) => ({ id: image.id, artist_id: image.artist_id, url: `/uploads/${image.filename}`, created_at: image.created_at })) });
@@ -764,9 +803,9 @@ app.get('/api/events', async (req, res) => {
   const db = req.db || await getDb();
   const events = await db('events').orderBy('date', 'desc');
   const eventsWithArtists = await Promise.all(events.map(async (event) => {
-    const artists = await db('artists as a')
+    const artists = await visibleArtists(req, db('artists as a'), 'a.')
       .join('event_artists as ea', 'a.id', 'ea.artist_id')
-      .select('a.id', 'a.name', 'a.profile_picture', 'a.slug')
+      .select('a.id', 'a.name', 'a.profile_picture', 'a.slug', 'a.is_disabled')
       .where('ea.event_id', event.id);
     return { ...event, artists };
   }));
@@ -780,18 +819,18 @@ app.get('/api/events/:id', async (req, res) => {
     return res.status(404).json({ error: 'Event not found' });
   }
   
-  const artists = await db('artists as a')
+  const artists = await visibleArtists(req, db('artists as a'), 'a.')
     .join('event_artists as ea', 'a.id', 'ea.artist_id')
-    .select('a.id', 'a.name', 'a.profile_picture', 'a.slug')
+    .select('a.id', 'a.name', 'a.profile_picture', 'a.slug', 'a.is_disabled')
     .where('ea.event_id', event.id);
     
   const images = await db('event_images as ei')
     .leftJoin('artists as a', 'ei.artist_id', 'a.id')
-    .select('ei.id', 'ei.filename', 'ei.artist_id', 'a.name as artist_name', 'ei.created_at')
+    .select('ei.id', 'ei.filename', 'ei.artist_id', 'a.name as artist_name', 'a.is_disabled as artist_disabled', 'ei.created_at')
     .where('ei.event_id', event.id)
     .orderBy('ei.created_at', 'desc');
     
-  res.json({ event: { ...event, artists, images: images.map(img => ({ ...img, url: `/uploads/${img.filename}` })) } });
+  res.json({ event: { ...event, artists, images: images.map(({ artist_disabled, ...img }) => ({ ...img, ...(!req.canViewDisabled && artist_disabled ? { artist_id: null, artist_name: null } : {}), url: `/uploads/${img.filename}` })) } });
 });
 
 app.post('/api/events', authMiddleware, canCreateEvent, async (req, res) => {
@@ -941,7 +980,7 @@ app.post('/api/admin/upload', authMiddleware, adminOnly, boundedUpload('image'),
 
 app.get('/api/live/twitch', async (req, res) => {
   const db = req.db || await getDb();
-  const artists = await db('artists')
+  const artists = await visibleArtists(req, db('artists'))
     .select('id', 'name', 'twitch', 'slug')
     .whereNotNull('twitch')
     .whereNot('twitch', '');
@@ -958,7 +997,11 @@ app.get('/api/live/twitch', async (req, res) => {
 
 app.get('/api/streams', async (req, res) => {
   try {
-    const streams = await getActiveStreams();
+    const allStreams = await getActiveStreams();
+    const db = req.db || await getDb();
+    const allowed = await visibleArtists(req, db('artists')).select('id');
+    const ids = new Set(allowed.map(a => Number(a.id)));
+    const streams = allStreams.filter(stream => ids.has(Number(stream.artistId)));
     res.json({ streams });
   } catch (error) {
     if (['23503', '23505', '23514', '22P02', '22007'].includes(error.code)) throw error;
@@ -1087,16 +1130,18 @@ app.get('/api/admin/stats', authMiddleware, adminOnly, async (req, res) => {
 });
 
 // Bounded public profile lookups per page, never per-comment queries or private columns.
-async function publicComments(db, rows) {
+async function publicComments(db, rows, privileged = false) {
   const ids = [...new Set(rows.map(row => row.user_id).filter(id => id != null))];
   const authors = ids.length ? await db('users').whereIn('id', ids).select('id', 'profile_picture') : [];
   const pictures = new Map(authors.map(author => [Number(author.id), author.profile_picture ?? null]));
   const artistIds = [...new Set(rows.map(row => row.author_artist_id).filter(id => id != null))];
-  const artists = artistIds.length ? await db('artists').whereIn('id', artistIds).select('id', 'profile_picture') : [];
-  const artistPictures = new Map(artists.map(artist => [Number(artist.id), artist.profile_picture ?? null]));
+  const artists = artistIds.length ? await db('artists').whereIn('id', artistIds).select('id', 'profile_picture', 'is_disabled') : [];
+  const hidden = new Set(artists.filter(a => !privileged && a.is_disabled).map(a => Number(a.id)));
+  const artistPictures = new Map(artists.filter(a => !hidden.has(Number(a.id))).map(artist => [Number(artist.id), artist.profile_picture ?? null]));
   const fields = ['id', 'content', 'user_id', 'artist_id', 'event_id', 'parent_id', 'author_name', 'author_artist_id', 'author_artist_name', 'created_at', 'updated_at'];
   return rows.map(row => ({
     ...Object.fromEntries(fields.filter(key => key in row).map(key => [key, row[key]])),
+    ...(hidden.has(Number(row.author_artist_id)) ? { author_artist_id: null } : {}),
     author_profile_picture: pictures.get(Number(row.user_id)) ?? null,
     author_artist_profile_picture: artistPictures.get(Number(row.author_artist_id)) ?? null,
   }));
@@ -1139,7 +1184,7 @@ app.get('/api/comments', async (req, res) => {
     }
     const rows = await query, has_more = rows.length > limit;
     const page = rows.slice(0, limit).map(({ chronology, ...row }) => ({ ...row, created_at: chronology }));
-    const comments = await publicComments(db, page), last = page.at(-1);
+    const comments = await publicComments(db, page, req.canViewDisabled), last = page.at(-1);
     return res.json({ comments, has_more, next_offset: null, next_cursor: has_more ? JSON.stringify({ date: last.created_at, id: last.id }) : null });
   }
   const cursor = req.query.after_id;
@@ -1149,7 +1194,7 @@ app.get('/api/comments', async (req, res) => {
   if (cursor !== undefined) query.where('id', '>', Number(cursor));
   else query.offset(offset);
   const rows = await query;
-  const has_more = rows.length > limit, comments = await publicComments(db, rows.slice(0, limit));
+  const has_more = rows.length > limit, comments = await publicComments(db, rows.slice(0, limit), req.canViewDisabled);
   res.json({ comments, has_more, next_offset: has_more ? offset + limit : null, next_cursor: has_more ? comments.at(-1).id : null });
 });
 
@@ -1164,7 +1209,7 @@ app.post('/api/comments', authMiddleware, async (req, res) => {
   try {
     if (Boolean(artist_id) === Boolean(event_id)) return res.status(400).json({ error: 'Exactly one comment target is required' });
     const target = await db(artist_id ? 'artists' : 'events').where({ id: artist_id || event_id }).first();
-    if (!target) return res.status(404).json({ error: 'Comment target not found' });
+    if (!target || (artist_id && target.is_disabled && !['artist', 'admin'].includes(req.user.role))) return res.status(404).json({ error: 'Comment target not found' });
     if (parent_id) {
       const parent = await db('comments').where({ id: parent_id }).first();
       if (!parent || Number(parent.artist_id || 0) !== Number(artist_id || 0) || Number(parent.event_id || 0) !== Number(event_id || 0)) return res.status(400).json({ error: 'Parent must belong to the same discussion' });
@@ -1194,7 +1239,7 @@ app.post('/api/comments', authMiddleware, async (req, res) => {
     const comment = await db('comments').where('id', commentId)
       .select('*', db.raw(`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at`)).first();
 
-    res.status(201).json({ comment: (await publicComments(db, [comment]))[0] });
+    res.status(201).json({ comment: (await publicComments(db, [comment], ['artist', 'admin'].includes(req.user.role)))[0] });
   } catch (err) {
     if (['23503', '23505', '23514', '22P02', '22007'].includes(err.code)) throw err;
 
@@ -1276,16 +1321,17 @@ app.get('/api/media-library', async (req, res) => {
   if (query.artistId !== undefined && (!Number.isSafeInteger(artistId) || artistId < 1)) return res.status(400).json({ error: 'Use a positive integer artistId' });
   if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(limit) || limit < 1 || limit > 200) return res.status(400).json({ error: 'Use a nonnegative offset and limit from 1 to 200' });
   const db = req.db || await getDb();
-  const artists = await db('artists').select('id', 'name', 'profile_picture', 'soundcloud', 'mixcloud').orderBy('id');
+  const artists = await db('artists').select('id', 'name', 'profile_picture', 'soundcloud', 'mixcloud', 'is_disabled').orderBy('id');
   const videoRows = await db('artist_youtube_videos').select('*').orderBy('artist_id').orderBy('video_id');
   const byId = new Map(artists.map(artist => [artist.id, artist]));
   const videos = videoRows.filter(row => byId.has(row.artist_id)).map(row => youtubeVideoDto(row, byId.get(row.artist_id)));
-  res.json(await getMediaLibrary(artists, { offset, limit, artistId, videos }));
+  const allowedArtistIds = artists.filter(a => req.canViewDisabled || !a.is_disabled).map(a => a.id);
+  res.json(await getMediaLibrary(artists, { offset, limit, artistId, videos, allowedArtistIds }));
 });
 
 app.get('/api/feed', async (req, res) => {
   const db = req.db || await getDb();
-  const artists = await db('artists')
+  const artists = await visibleArtists(req, db('artists'))
     .select('id', 'name', 'profile_picture', 'twitch', 'soundcloud', 'mixcloud', 'channel_name')
     .orderBy('updated_at', 'desc')
     .limit(50);
