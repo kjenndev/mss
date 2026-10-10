@@ -1,4 +1,9 @@
 import { API_BASE } from './config';
+export const SubmitBooking = data => request('/bookings', 'POST', data, false);
+export const GetBookings = (page = 1, pageSize = 20) => request(`/admin/bookings?page=${encodeURIComponent(page)}&pageSize=${encodeURIComponent(pageSize)}`);
+export const GetBooking = id => request(`/admin/bookings/${encodeURIComponent(id)}`);
+export const AddBookingComment = (id, data) => request(`/admin/bookings/${encodeURIComponent(id)}/comments`, 'POST', data);
+export const RetryBookingNotifications = id => request(`/admin/bookings/${encodeURIComponent(id)}/retry-notifications`, 'POST', {});
 export const GetHomeFeaturedVideos = () => request('/home-featured-videos', 'GET', null, false);
 export const PreviewHomeFeaturedVideo = url => request('/home-featured-videos/preview', 'POST', {url});
 export const SaveHomeFeaturedVideos = urls => request('/home-featured-videos', 'PUT', {urls});
@@ -41,7 +46,7 @@ function getAuthHeaders() {
 }
 
 async function request(path, method = 'GET', body = null, auth = true, formData = false) {
-  const visibilityRead = method === 'GET' && /^\/(artists|users\/me\/artists|images|live|streams|media-library|feed|events|comments)/.test(path);
+  const visibilityRead = method === 'GET' && /^\/(admin\/bookings|artists|users\/me\/artists|images|live|streams|media-library|feed|events|comments)/.test(path);
   const sentRole = localStorage.getItem('mss-role');
   const sentToken = auth ? localStorage.getItem('mss-token') : null;
   const headers = formData ? {} : auth ? getAuthHeaders() : { 'Content-Type': 'application/json' };

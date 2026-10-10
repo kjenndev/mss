@@ -187,6 +187,7 @@ export default function AdminDashboard() {
           <Typography variant="body1" className={styles.subTitle}>
            Manage Syndicate artists and user accounts.
           </Typography>
+          <Button href="/admin/bookings" variant="outlined" sx={{ mt: 2 }}>Booking inbox</Button>
         </header>
 
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>

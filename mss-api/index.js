@@ -1,5 +1,6 @@
 import { createSharingRouter } from './sharing.js';
 import { createRegistrationRouter } from './registration.js';
+import { createBookingsRouter } from './bookings.js';
 import { decodeImage } from './uploads.js';
 import express from 'express';
 import cors from 'cors';
@@ -237,6 +238,8 @@ app.use(createSharingRouter({
   loadIndex: () => fs.promises.readFile(path.join(__dirname, '../mss-web/dist/index.html'), 'utf8'),
 }));
 app.use(createRegistrationRouter({ getDb, hashPassword, verifyPassword }));
+const bookingsRouter = createBookingsRouter({ getDb });
+app.use(bookingsRouter);
 app.use('/uploads', (req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
   res.set('Content-Security-Policy', "default-src 'none'; sandbox");
@@ -1395,12 +1398,15 @@ app.use((error, req, res, next) => {
 });
 
 const server = app.listen(apiPort, process.env.HOST || '127.0.0.1', () => {
+  bookingsRouter.startNotifications();
   console.log(`MSS API server running on http://localhost:${apiPort}`);
 });
 
 async function shutdown() {
   console.log('\nShutting down server...');
+  const notificationsStopped = bookingsRouter.stopNotifications();
   server.close(async () => {
+    await notificationsStopped;
     await stopDiscovery();
     process.exit(0);
   });

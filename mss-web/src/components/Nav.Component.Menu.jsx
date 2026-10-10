@@ -160,6 +160,8 @@ export default function NavMenu({ guestClassName }) {
             </MenuItem>
           )}
 
+          {isAdmin && <MenuItem className={styles.menuRow} onClick={() => { handleClose(); navigate('/admin/bookings'); }}><DashboardOutlined fontSize="small" /><Typography variant="body2" className={styles.menuItemButton}>Booking inbox</Typography></MenuItem>}
+
           {myArtists.length > 0 && <Divider />}
           {myArtists.map((artist) => (
             <MenuItem className={styles.menuRow} key={artist.id} onClick={() => handleArtistClick(artist.id)}>

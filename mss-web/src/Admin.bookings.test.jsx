@@ -1,0 +1,184 @@
+// @vitest-environment jsdom
+import { beforeEach, afterEach, expect, it, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import AdminBookings, { BookingDetail } from './components/Bookings/AdminBookings';
+import * as api from './Data.Helper.Api';
+vi.mock('./Data.Helper.Api', () => ({ GetBookings: vi.fn(), GetBooking: vi.fn(), AddBookingComment: vi.fn(), RetryBookingNotifications: vi.fn() }));
+beforeEach(() => { vi.resetAllMocks(); localStorage.clear(); });
+afterEach(cleanup);
+const response = data => ({ ok: true, json: async () => data });
+const record = { id: 1, reference: 'MSS-001', venue_name: '<img src=x onerror=alert(1)>', contact_name: 'Sam', email: 'sam@example.com', phone: '555-0100', services: ['djs', 'lasers'], message: '<script>bad()</script>', event_date: '2026-12-01', created_at: '2026-10-10T10:00:00Z' };
+const detail = { booking: record, comments: [], notification: { status: 'failed', sent: 0, total: 2, can_retry: true } };
+function showDetail() { return render(<MemoryRouter initialEntries={['/admin/bookings/1']}><Routes><Route path="/admin/bookings/:id" element={<BookingDetail />} /></Routes></MemoryRouter>); }
+it('polls pending delivery without losing drafts and supports manual recovery refresh', async () => {
+  vi.useFakeTimers();
+  try {
+    api.GetBooking.mockResolvedValue(response({ ...detail, notification: { status: 'pending', sent: 0, total: 2 } }));
+    showDetail(); await act(async () => {});
+    fireEvent.change(screen.getByLabelText('Internal comment'), { target: { value: 'Keep this draft' } });
+    api.GetBooking.mockResolvedValue(response({ ...detail, notification: { status: 'partial', sent: 1, total: 2 } }));
+    await act(async () => vi.advanceTimersByTimeAsync(5000));
+    expect(screen.getByText('Email delivery: partial')).toBeTruthy();
+    expect(screen.getByLabelText('Internal comment').value).toBe('Keep this draft');
+    api.GetBooking.mockResolvedValue(response({ ...detail, notification: { status: 'sent', sent: 2, total: 2 } }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh notification status' }));
+    await act(async () => {});
+    expect(screen.getByText('Email delivery: sent')).toBeTruthy();
+    const calls = api.GetBooking.mock.calls.length;
+    await act(async () => vi.advanceTimersByTimeAsync(10000));
+    expect(api.GetBooking).toHaveBeenCalledTimes(calls);
+    expect(screen.getByLabelText('Internal comment').value).toBe('Keep this draft');
+  } finally { cleanup(); vi.useRealTimers(); }
+});
+it('cancels late polling results on identity change and unmount', async () => {
+  vi.useFakeTimers();
+  try {
+    localStorage.setItem('mss-token', 'old');
+    api.GetBooking.mockResolvedValue(response({ ...detail, notification: { status: 'pending', sent: 0, total: 2 } }));
+    const view = showDetail(); await act(async () => {});
+    let finish;
+    api.GetBooking.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    await act(async () => vi.advanceTimersByTimeAsync(5000));
+    expect(typeof finish).toBe('function');
+    localStorage.setItem('mss-token', 'new');
+    await act(async () => finish(response({ ...detail, notification: { status: 'sent', sent: 2, total: 2 } })));
+    expect(screen.queryByText('Email delivery: sent')).toBeNull();
+    view.unmount(); const calls = api.GetBooking.mock.calls.length;
+    await act(async () => vi.advanceTimersByTimeAsync(10000));
+    expect(api.GetBooking).toHaveBeenCalledTimes(calls);
+  } finally { cleanup(); vi.useRealTimers(); }
+});
+it('enforces the backend 3000-character comment boundary', async () => {
+  api.GetBooking.mockResolvedValue(response(detail));
+  api.AddBookingComment.mockResolvedValue(response({ comment: { id: 9, content: 'saved', created_at: record.created_at } }));
+  showDetail(); await screen.findByText(record.email);
+  const input = screen.getByLabelText('Internal comment');
+  expect(input.maxLength).toBe(3000);
+  fireEvent.change(input, { target: { value: 'x'.repeat(3001) } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add comment' }));
+  expect(api.AddBookingComment).not.toHaveBeenCalled();
+  expect(screen.getByRole('alert').textContent).toMatch(/3000/);
+  fireEvent.change(input, { target: { value: 'x'.repeat(3000) } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add comment' }));
+  await screen.findByText('Comment added.');
+  expect(api.AddBookingComment.mock.calls[0][1].content.length).toBe(3000);
+});
+it('allows starting a new comment after an uncertain failure while retaining the draft', async () => {
+  api.GetBooking.mockResolvedValue(response(detail));
+  api.AddBookingComment.mockRejectedValue(Error());
+  showDetail(); await screen.findByText(record.email);
+  fireEvent.change(screen.getByLabelText('Internal comment'), { target: { value: 'Draft note' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add comment' })); await screen.findByRole('alert');
+  const original = api.AddBookingComment.mock.calls[0][1].submission_id;
+  fireEvent.click(screen.getByRole('button', { name: 'Start a new comment' }));
+  expect(screen.getByLabelText('Internal comment').value).toBe('Draft note');
+  fireEvent.click(screen.getByRole('button', { name: 'Add comment' })); await screen.findByRole('alert');
+  expect(api.AddBookingComment.mock.calls[1][1].submission_id).not.toBe(original);
+});
+it('shows useful detail and comment network errors with recoverable drafts', async () => {
+  api.GetBooking.mockRejectedValueOnce(TypeError('Failed to fetch')).mockResolvedValueOnce(response(detail));
+  api.AddBookingComment.mockRejectedValue(TypeError('Failed to fetch'));
+  showDetail();
+  expect((await screen.findByRole('alert')).textContent).toBe('Unable to load booking request. Please retry.');
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  await screen.findByText(record.email);
+  fireEvent.change(screen.getByLabelText('Internal comment'), { target: { value: 'Keep this' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add comment' }));
+  expect((await screen.findByRole('alert')).textContent).toBe('Unable to add comment. Please retry.');
+  expect(screen.getByLabelText('Internal comment').value).toBe('Keep this');
+});
+it('discards inbox bodies when the account changes during parsing', async () => {
+  localStorage.setItem('mss-token', 'old');
+  let finish;
+  api.GetBookings.mockResolvedValue({ ok: true, json: () => new Promise(resolve => { finish = resolve; }) });
+  render(<MemoryRouter><AdminBookings /></MemoryRouter>);
+  await act(async () => {}); localStorage.setItem('mss-token', 'new');
+  await act(async () => finish({ requests: [record], total: 1 }));
+  expect(screen.queryByText(record.venue_name)).toBeNull();
+});
+it.each(['comment', 'delivery'])('discards late %s results after account changes', async kind => {
+  api.GetBooking.mockResolvedValue(response(detail));
+  let finish;
+  const pending = new Promise(resolve => { finish = resolve; });
+  api.AddBookingComment.mockReturnValue(pending); api.RetryBookingNotifications.mockReturnValue(pending);
+  showDetail(); await screen.findByText(record.email);
+  if (kind === 'comment') fireEvent.change(screen.getByLabelText('Internal comment'), { target: { value: 'Secret note' } });
+  fireEvent.click(screen.getByRole('button', { name: kind === 'comment' ? 'Add comment' : 'Retry email delivery' }));
+  localStorage.setItem('mss-token', 'new');
+  await act(async () => finish(response(kind === 'comment' ? { comment: { id: 4, content: 'Secret note', created_at: record.created_at } } : { notification: { status: 'sent', sent: 2, total: 2, can_retry: false } })));
+  expect(screen.queryByText('Comment added.')).toBeNull();
+  expect(screen.queryByText('Email delivery: sent')).toBeNull();
+});
+it('discards detail bodies if the authenticated identity changes while JSON is loading', async () => {
+  localStorage.setItem('mss-token', 'old');
+  let finish;
+  api.GetBooking.mockResolvedValue({ ok: true, json: () => new Promise(resolve => { finish = resolve; }) });
+  showDetail();
+  await act(async () => {});
+  localStorage.setItem('mss-token', 'new');
+  await act(async () => finish(detail));
+  expect(screen.queryByText(record.email)).toBeNull();
+});
+it('reports notification delivery and retries safely without losing the comment draft', async () => {
+  api.GetBooking.mockResolvedValue(response(detail));
+  let finish;
+  api.RetryBookingNotifications.mockReturnValueOnce(new Promise(resolve => { finish = resolve; })).mockResolvedValueOnce(response({ notification: { status: 'sent', sent: 2, total: 2, can_retry: false } }));
+  showDetail();
+  await screen.findByText('Email delivery: failed');
+  const input = screen.getByLabelText('Internal comment');
+  fireEvent.change(input, { target: { value: 'Keep my draft' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Retry email delivery' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Retrying delivery…' }));
+  expect(api.RetryBookingNotifications).toHaveBeenCalledTimes(1);
+  await act(async () => finish({ ok: false, json: async () => ({ error: 'Delivery unavailable.' }) }));
+  await screen.findByText('Delivery unavailable.');
+  expect(input.value).toBe('Keep my draft');
+  fireEvent.click(screen.getByRole('button', { name: 'Retry email delivery' }));
+  await screen.findByText('Email delivery: sent');
+  expect(screen.queryByRole('button', { name: 'Retry email delivery' })).toBeNull();
+  expect(screen.getByText('2 of 2 notifications sent.')).toBeTruthy();
+});
+it('renders private detail, services and timestamped escaped comments; retains a failed comment and its retry UUID', async () => {
+  api.GetBooking.mockResolvedValue(response(detail));
+  let finish;
+  api.AddBookingComment.mockReturnValueOnce(new Promise(resolve => { finish = resolve; })).mockResolvedValueOnce(response({ comment: { id: 1, author_name: 'Admin', content: '<script>note</script>', created_at: record.created_at } }));
+  showDetail();
+  expect(screen.getByRole('status').textContent).toMatch(/Loading/);
+  await screen.findByText(record.email);
+  expect(screen.getByText(record.phone)).toBeTruthy();
+  expect(screen.getByText('DJs, Laser art')).toBeTruthy();
+  expect(screen.getByText(record.message)).toBeTruthy();
+  expect(screen.getByText(/Only administrators/)).toBeTruthy();
+  expect(screen.getByText('No internal comments yet.')).toBeTruthy();
+  const input = screen.getByLabelText('Internal comment');
+  fireEvent.click(screen.getByRole('button', { name: 'Add comment' }));
+  expect(api.AddBookingComment).not.toHaveBeenCalled();
+  fireEvent.change(input, { target: { value: '<script>note</script>' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add comment' }));
+  expect(screen.getByRole('button', { name: 'Saving comment…' }).disabled).toBe(true);
+  await act(async () => finish({ ok: false, json: async () => ({ error: 'Comment unavailable.' }) }));
+  await screen.findByText('Comment unavailable.');
+  expect(input.value).toBe('<script>note</script>');
+  fireEvent.click(screen.getByRole('button', { name: 'Add comment' }));
+  await screen.findByText('Comment added.');
+  expect(input.value).toBe('');
+  expect(api.AddBookingComment.mock.calls[0][1]).toEqual(api.AddBookingComment.mock.calls[1][1]);
+  expect(api.AddBookingComment.mock.calls[0][1].submission_id).toMatch(/^[0-9a-f-]{36}$/);
+  expect(screen.getByText('<script>note</script>')).toBeTruthy();
+  expect(document.querySelector('script')).toBeNull();
+  expect(document.querySelector('time[datetime="2026-10-10T10:00:00Z"]')).toBeTruthy();
+});
+it('loads a paginated inbox with safe text, loading, errors, retry and empty states', async () => {
+  api.GetBookings.mockRejectedValueOnce(Error('offline')).mockResolvedValueOnce(response({ requests: [{ ...record, comment_count: 2, notification_status: 'failed' }], total: 21, page: 1, pageSize: 20 })).mockResolvedValueOnce(response({ requests: [], total: 21, page: 2, pageSize: 20 }));
+  render(<MemoryRouter><AdminBookings /></MemoryRouter>);
+  expect(screen.getByRole('status').textContent).toMatch(/Loading/);
+  await screen.findByRole('alert'); fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  const link = await screen.findByRole('link', { name: record.venue_name });
+  expect(link.getAttribute('href')).toBe('/admin/bookings/1');
+  expect(document.querySelector('img')).toBeNull();
+  expect(screen.getByText(/2 comments/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+  await screen.findByText('No booking requests on this page.');
+  expect(api.GetBookings).toHaveBeenLastCalledWith(2, 20);
+});
