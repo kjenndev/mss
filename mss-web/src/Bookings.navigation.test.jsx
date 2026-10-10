@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, fireEvent } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { readFileSync } from 'node:fs';
 import Nav from './components/Nav.Component.Wrapper';
@@ -14,6 +14,7 @@ afterEach(() => { cleanup(); vi.resetAllMocks(); });
 it('exposes Bookings in the shared desktop/mobile primary nav and closes the mobile menu', () => {
   render(<MemoryRouter initialEntries={['/bookings']}><Nav /></MemoryRouter>);
   fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }));
+  expect(within(screen.getByRole('navigation', { name: 'Primary' })).getAllByRole('link').map(link => link.textContent)).toEqual(['Home', 'About', 'Bookings', 'Artists', 'Events', 'Shop']);
   const link = screen.getByRole('link', { name: 'Bookings' });
   expect(link.getAttribute('href')).toBe('/bookings');
   expect(link.getAttribute('aria-current')).toBe('page');

@@ -6,8 +6,7 @@ const fields = [
   ['venue_name', 'Venue name', 160, true], ['contact_name', 'Contact name', 100, true],
   ['phone', 'Phone', 40, true, 'tel'], ['email', 'Email', 254, true, 'email'],
   ['event_date', 'Event date', undefined, false, 'date'], ['location', 'Event location', 240],
-  ['event_type', 'Event type', 100], ['estimated_attendance', 'Estimated attendance', undefined, false, 'number'],
-  ['budget', 'Budget / range', 100], ['message', 'Tell us about your event', 5000, true],
+  ['message', 'Tell us about your event', 5000, true],
 ];
 const empty = () => ({ ...Object.fromEntries(fields.map(([key]) => [key, ''])), services: [], website: '' });
 export default function Bookings() {
@@ -25,13 +24,12 @@ export default function Bookings() {
       else if (max && draft[key].length > max) next[key] = `Use at most ${max} characters.`;
     }
     if (draft.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) next.email = 'Enter a valid email address.';
-    if (draft.estimated_attendance !== '' && (!Number.isSafeInteger(Number(draft.estimated_attendance)) || Number(draft.estimated_attendance) < 0 || Number(draft.estimated_attendance) > 2147483647)) next.estimated_attendance = 'Enter a whole number from 0 to 2147483647.';
     setErrors(next);
     if (Object.keys(next).length) { document.getElementById(Object.keys(next)[0])?.focus(); return; }
     pending.current = true; setBusy(true); setError('');
     submission.current ||= crypto.randomUUID();
     try {
-      const response = await api.SubmitBooking({ ...draft, submission_id: submission.current, estimated_attendance: draft.estimated_attendance === '' ? '' : Number(draft.estimated_attendance) });
+      const response = await api.SubmitBooking({ ...draft, submission_id: submission.current });
       const data = await response.json();
       if (!response.ok) throw Object.assign(Error(), { userMessage: typeof data.error === 'string' ? data.error : 'Unable to send your request. Please retry.' });
       if (!data.reference) throw Object.assign(Error(), { userMessage: 'Unable to confirm receipt. Please retry.' });
@@ -51,7 +49,7 @@ export default function Bookings() {
         <fieldset disabled={busy}>
         <div className={styles.fields}>{fields.map(([key, label, max, required, type]) => <div key={key}>
           <label htmlFor={key}>{label}{required ? ' *' : ' (optional)'}</label>
-          {key === 'message' ? <textarea id={key} name={key} required={required} maxLength={max} value={draft[key]} onChange={change} aria-invalid={!!errors[key]} aria-describedby={errors[key] ? `${key}-error` : undefined} /> : <input id={key} name={key} type={type || 'text'} max={type === 'number' ? 2147483647 : undefined} min={type === 'number' ? 0 : undefined} step={type === 'number' ? 1 : undefined} required={required} maxLength={max} value={draft[key]} onChange={change} aria-invalid={!!errors[key]} aria-describedby={errors[key] ? `${key}-error` : undefined} />}
+          {key === 'message' ? <textarea id={key} name={key} required={required} maxLength={max} value={draft[key]} onChange={change} aria-invalid={!!errors[key]} aria-describedby={errors[key] ? `${key}-error` : undefined} /> : <input id={key} name={key} type={type || 'text'} required={required} maxLength={max} value={draft[key]} onChange={change} aria-invalid={!!errors[key]} aria-describedby={errors[key] ? `${key}-error` : undefined} />}
           {errors[key] && <p id={`${key}-error`}>{errors[key]}</p>}
         </div>)}</div>
         <fieldset className={styles.services}><legend>Interested in (optional)</legend>{[['djs', 'DJs'], ['lasers', 'Laser art'], ['streaming', 'Live streaming']].map(([key, label]) => <label key={key}><input type="checkbox" checked={draft.services.includes(key)} onChange={e => setDraft({ ...draft, services: e.target.checked ? [...draft.services, key] : draft.services.filter(s => s !== key) })} />{label}</label>)}</fieldset>
