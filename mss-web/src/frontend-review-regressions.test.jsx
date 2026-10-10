@@ -112,6 +112,7 @@ it('artist route changes reset errors, selected files and upload state',async()=
  api.UploadArtistImage.mockImplementation(()=>new Promise(r=>{uploadA=r;}));
  const {container}=render(<MemoryRouter initialEntries={['/artists/1/update']}><Link to="/artists/2/update">Go B</Link><Routes><Route path="/artists/:id/update" element={<ArtistUpdate/>}/></Routes></MemoryRouter>);
  await screen.findByLabelText(/Artist Name/);
+ fireEvent.click(screen.getByRole('tab',{name:'Gallery Management'}));
  fireEvent.change(container.querySelector('input[type=file]'),{target:{files:[new File(['x'],'old.png',{type:'image/png'})]}});
  expect(screen.getByRole('progressbar')).toBeTruthy();fireEvent.click(screen.getByText('Go B'));
  fireEvent.change(await screen.findByLabelText(/Artist Name/),{target:{value:'B draft'}});

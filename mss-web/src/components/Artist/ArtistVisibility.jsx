@@ -41,7 +41,7 @@ export default function ArtistVisibility({ artist, onChange, busy = false }) {
     finally { pending.current = false; if (active.current) setSaving(false); }
   }
   if (!admin) return artist.is_disabled ? <Typography role="status">Disabled — visible only to artists and admins.</Typography> : null;
-  return <Box component="section" aria-label="Profile visibility" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 2 }}>
+  return <Box component="section" aria-label="Profile visibility">
     <Typography component="h2" variant="h6">Profile visibility</Typography>
     <Typography id={statusId} role="status" variant="body2" sx={{ my: 1 }}>{artist.is_disabled ? 'Disabled — visible only to artists and admins.' : 'Public — visible to everyone.'}</Typography>
     <FormControlLabel

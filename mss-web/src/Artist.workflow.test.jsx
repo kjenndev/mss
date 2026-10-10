@@ -12,6 +12,7 @@ it('sets cover with a narrow update without replacing unsaved text', async()=>{
  api.UpdateArtist.mockResolvedValue({ok:true,json:async()=>({artist:{...saved,cover_photo:'/new.jpg'}})});
  render(<MemoryRouter initialEntries={['/artists/1/update']}><Routes><Route path="/artists/:id/update" element={<ArtistUpdate/>}/></Routes></MemoryRouter>);
  fireEvent.change(await screen.findByLabelText(/Artist Name/),{target:{value:'Dirty'}});
+ fireEvent.click(screen.getByRole('tab',{name:'Gallery Management'}));
  fireEvent.click(screen.getByLabelText('Set as Cover Photo'));
  await waitFor(()=>expect(api.UpdateArtist).toHaveBeenCalledWith({id:'1',cover_photo:'/new.jpg'}));
  expect(screen.getByLabelText(/Artist Name/).value).toBe('Dirty');
@@ -23,6 +24,7 @@ it('deleting a cover preserves the dirty draft and reflects cleared cover',async
  api.GetArtistById.mockResolvedValue({ok:true,json:async()=>({artist:{...saved,cover_photo:null}})});
  render(<MemoryRouter initialEntries={['/artists/1/update']}><Routes><Route path="/artists/:id/update" element={<ArtistUpdate/>}/></Routes></MemoryRouter>);
  fireEvent.change(await screen.findByLabelText(/Artist Name/),{target:{value:'Dirty'}});
+ fireEvent.click(screen.getByRole('tab',{name:'Gallery Management'}));
  fireEvent.click(screen.getByLabelText('Delete Image'));
  await waitFor(()=>expect(screen.queryByLabelText('Delete Image')).toBeNull());
  expect(screen.getByLabelText(/Artist Name/).value).toBe('Dirty');
@@ -33,6 +35,7 @@ it('uploading keeps dirty text',async()=>{
  api.GetArtistById.mockResolvedValue({ok:true,json:async()=>({artist:saved})});
  const {container}=render(<MemoryRouter initialEntries={['/artists/1/update']}><Routes><Route path="/artists/:id/update" element={<ArtistUpdate/>}/></Routes></MemoryRouter>);
  fireEvent.change(await screen.findByLabelText(/Artist Name/),{target:{value:'Dirty'}});
+ fireEvent.click(screen.getByRole('tab',{name:'Gallery Management'}));
  fireEvent.change(container.querySelector('input[type=file]'),{target:{files:[new File(['x'],'a.png',{type:'image/png'})]}});
  await waitFor(()=>expect(api.GetArtistById).toHaveBeenCalled());
  expect(screen.getByLabelText(/Artist Name/).value).toBe('Dirty');
