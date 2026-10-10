@@ -26,7 +26,7 @@ def main():
         subprocess.run(['chown', '-R', 'postgres:postgres', directory], check=True)
         # Each suite must start with a fresh schema so historical migration tests
         # cannot accidentally run against the other suite's already-upgraded DB.
-        suites = ['artist-visibility-native.test.js', 'comment-identities-native.test.js', 'comments-newest-native.test.js', 'featured-native.test.js', 'youtube-native.test.js', 'registration-native.test.js', 'auth-policy-native.test.js', 'locking-native.test.js', 'avatar-native.test.js']
+        suites = ['artist-cover-native.test.js', 'artist-visibility-native.test.js', 'comment-identities-native.test.js', 'comments-newest-native.test.js', 'featured-native.test.js', 'youtube-native.test.js', 'registration-native.test.js', 'auth-policy-native.test.js', 'locking-native.test.js', 'avatar-native.test.js']
         requested = sys.argv[1:] or suites
         if any(suite not in suites for suite in requested):
             raise SystemExit('Unknown native suite')
