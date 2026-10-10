@@ -13,13 +13,34 @@ function imageUrl(value, origin) {
   const url = new URL(value, origin);
   if (url.protocol !== 'https:' || url.username || url.password) return '';
   // Only the exact saved public source. Never fetch/proxy an arbitrary URL.
-  if (!value.startsWith('https://') && !/^\/uploads\/[^/]+$/.test(value)) return '';
+  if (!value.startsWith('https://')) {
+   const decoded = decodeURIComponent(value);
+   if (!/^\/uploads\/[^/.][^/\\?#%]*\.(?:jpe?g|png|webp|gif)$/i.test(decoded) || url.pathname !== value || url.search || url.hash) return '';
+  }
   return url.href;
  } catch { return ''; }
+}
+function metadata({ title, description, url, image, imageAlt }) {
+ const og = [['og:type', 'website'], ['og:site_name', 'Midnight Sound Syndicate'], ['og:title', title], ['og:description', description], ['og:url', url], ...(image ? [['og:image', image], ['og:image:alt', imageAlt]] : [])];
+ const twitter = [['twitter:card', image ? 'summary_large_image' : 'summary'], ['twitter:title', title], ['twitter:description', description], ...(image ? [['twitter:image', image], ['twitter:image:alt', imageAlt]] : [])];
+ return `<link rel="canonical" href="${escape(url)}"><meta name="description" content="${escape(description)}">` + og.map(([key, value]) => `<meta property="${key}" content="${escape(value)}">`).join('') + twitter.map(([key, value]) => `<meta name="${key}" content="${escape(value)}">`).join('');
+}
+function renderIndex(index, title, meta) {
+ if (!index.includes('</head>')) throw new Error('Missing web build');
+ return index.replace(/<title>[\s\S]*?<\/title>/i, '').replace('</head>', `<title>${escape(title)}</title>${meta}</head>`);
 }
 export function createSharingRouter({ origin, loadEntity, loadIndex }) {
  const router = express.Router();
  const base = publicOrigin(origin);
+ router.get('/', async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if (!base) return res.status(503).type('text').send('Public sharing origin is not configured.');
+  try {
+   const title = 'Midnight Sound Syndicate';
+   const meta = metadata({ title, description: 'Artists, music and events on Midnight Sound Syndicate.', url: `${base}/`, image: `${base}/msslogo.jpg`, imageAlt: 'Midnight Sound Syndicate logo' });
+   res.type('html').send(renderIndex(await loadIndex(), title, meta));
+  } catch { res.status(503).type('text').send('Sharing preview is temporarily unavailable.'); }
+ });
  for (const kind of ['artists', 'events']) router.get(`/${kind}/:id`, async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   if (!base) return res.status(503).type('text').send('Public sharing origin is not configured.');
@@ -39,11 +60,11 @@ export function createSharingRouter({ origin, loadEntity, loadIndex }) {
    const date = !artist && entity.date && Number.isFinite(new Date(entity.date).getTime()) ? new Date(entity.date).toISOString() : '';
    const description = [artist ? 'Artist on Midnight Sound Syndicate' : 'Event on Midnight Sound Syndicate', date, entity.location].filter(Boolean).join(' · ');
    const url = `${base}/${kind}/${req.params.id}`;
-   const image = imageUrl(artist ? entity.profile_picture : entity.flyer, base);
-   const meta = [['og:type', 'website'], ['og:site_name', 'Midnight Sound Syndicate'], ['og:title', title], ['og:description', description], ['og:url', url], ...(image ? [['og:image', image], ['og:image:alt', artist ? `${title} artist portrait` : `${title} event flyer`]] : [])].map(([key, value]) => `<meta property="${key}" content="${escape(value)}">`).join('');
-   const index = await loadIndex();
-   if (!index.includes('</head>')) throw new Error('Missing web build');
-   res.type('html').send(index.replace(/<title>[\s\S]*?<\/title>/i, '').replace('</head>', `<title>${escape(title)} | MSS</title><link rel="canonical" href="${escape(url)}"><meta name="description" content="${escape(description)}">${meta}</head>`));
+   const artwork = imageUrl(artist ? entity.profile_picture : entity.flyer, base);
+   const image = artwork || (artist ? `${base}/msslogo.jpg` : '');
+   const imageAlt = artwork ? (artist ? `${title} artist portrait` : `${title} event flyer`) : 'Midnight Sound Syndicate logo';
+   const meta = metadata({ title, description, url, image, imageAlt });
+   res.type('html').send(renderIndex(await loadIndex(), `${title} | MSS`, meta));
   } catch { res.status(503).type('text').send('Sharing preview is temporarily unavailable.'); }
  });
  return router;
