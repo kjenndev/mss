@@ -23,7 +23,7 @@ test('public comment avatars batch public artist profiles and preserve historic 
  assert.equal(res.body.comments[3].author_profile_picture,'/uploads/account.webp');
  assert.equal(res.body.comments[5].author_profile_picture,null);
  assert.ok(res.body.comments.every(c=>!('private_extra' in c)&&!('password' in c)&&!('cover_photo' in c)));
- assert.deepEqual(queries,[{table:'users',fields:['id','profile_picture']},{table:'artists',fields:['id','profile_picture']}]);
+ assert.deepEqual(queries,[{table:'users',fields:['id','profile_picture']},{table:'artists',fields:['id','profile_picture','is_disabled']}]);
 });
 
 test('post resolves artist portrait server-side and rejects client portrait fields', async () => {

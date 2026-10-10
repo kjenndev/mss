@@ -21,13 +21,20 @@ export function createSharingRouter({ origin, loadEntity, loadIndex }) {
  const router = express.Router();
  const base = publicOrigin(origin);
  for (const kind of ['artists', 'events']) router.get(`/${kind}/:id`, async (req, res) => {
-  res.set('Cache-Control', 'no-cache');
+  res.set('Cache-Control', 'private, no-store');
   if (!base) return res.status(503).type('text').send('Public sharing origin is not configured.');
   if (!/^[1-9]\d*$/.test(req.params.id) || !Number.isSafeInteger(Number(req.params.id))) return res.sendStatus(404);
   try {
    const entity = await loadEntity(kind, Number(req.params.id));
    if (!entity) return res.sendStatus(404);
    const artist = kind === 'artists';
+   if (artist && entity.is_disabled) {
+    const index = await loadIndex();
+    if (!index.includes('</head>')) throw new Error('Missing web build');
+    // Document navigation cannot send localStorage bearer tokens. Keep only the
+    // generic app shell so authenticated viewers can resolve the API themselves.
+    return res.status(404).type('html').send(index.replace('</head>', '<meta name="robots" content="noindex"></head>'));
+   }
    const title = String((artist ? entity.name : entity.title) || (artist ? 'Artist' : 'Event'));
    const date = !artist && entity.date && Number.isFinite(new Date(entity.date).getTime()) ? new Date(entity.date).toISOString() : '';
    const description = [artist ? 'Artist on Midnight Sound Syndicate' : 'Event on Midnight Sound Syndicate', date, entity.location].filter(Boolean).join(' · ');

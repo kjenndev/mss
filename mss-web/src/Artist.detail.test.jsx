@@ -172,3 +172,31 @@ it('keeps sharing beside latest playback throughout loading, empty and failed li
  expect(listen.disabled).toBe(true);
  expect(screen.getByRole('button',{name:'Share artist'}).disabled).toBe(false);
 });
+
+it('places the disabled status immediately before Edit Profile with no visible badge', async () => {
+ api.GetArtistById.mockResolvedValue({ok:true,json:async()=>({artist:{id:1,name:'Hidden artist',is_disabled:true}})});
+ api.CanEditArtist.mockReturnValue(true);
+ view();
+ const status = await screen.findByRole('status',{name:'Disabled artist — visible only to artists and admins'});
+ expect(status.nextElementSibling).toBe(screen.getByRole('button',{name:'Edit Profile'}));
+ expect(status.tabIndex).toBe(0);
+ expect(status.textContent).toBe('');
+ act(()=>status.focus());
+ expect(document.activeElement).toBe(status);
+ fireEvent.mouseOver(status);
+ expect((await screen.findByRole('tooltip')).textContent).toBe('Disabled artist — visible only to artists and admins');
+});
+
+it.each([true, false])('retains status independently of profile editing (disabled=%s)', async disabled => {
+ api.GetArtistById.mockResolvedValue({ok:true,json:async()=>({artist:{id:1,name:'Non-owned artist',is_disabled:disabled}})});
+ api.CanEditArtist.mockReturnValue(false);view();
+ await screen.findByRole('heading',{level:1,name:'Non-owned artist'});
+ expect(screen.queryByRole('button',{name:'Edit Profile'})).toBeNull();
+ expect(Boolean(screen.queryByRole('status',{name:'Disabled artist — visible only to artists and admins'}))).toBe(disabled);
+});
+it('omits status for an enabled editable profile',async()=>{
+ api.GetArtistById.mockResolvedValue({ok:true,json:async()=>({artist:{id:1,name:'Enabled',is_disabled:false}})});
+ api.CanEditArtist.mockReturnValue(true);view();
+ await screen.findByRole('button',{name:'Edit Profile'});
+ expect(screen.queryByRole('status',{name:'Disabled artist — visible only to artists and admins'})).toBeNull();
+});

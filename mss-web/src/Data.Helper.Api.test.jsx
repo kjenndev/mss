@@ -91,3 +91,19 @@ it('encodes newest comment ordering and exact older-page cursor without legacy f
  await api.GetComments({event_id:3,order:'newest',before,limit:100});
  expect(Object.fromEntries(new URL(fetch.mock.calls[0][0],'http://localhost').searchParams)).toEqual({event_id:'3',order:'newest',before,limit:'100'});
 });
+
+it('rejects late privileged profile reads after logout instead of delivering their body',async()=>{
+ localStorage.setItem('mss-token','admin');let resolve;vi.stubGlobal('fetch',vi.fn(()=>new Promise(r=>{resolve=r;})));
+ const pending=api.GetArtistById(2);localStorage.removeItem('mss-token');resolve(new Response(JSON.stringify({artist:{name:'Hidden'}})));
+ await expect(pending).rejects.toThrow(/session/i);
+});
+it('all visibility-sensitive discovery helpers send optional bearer sessions',async()=>{
+ localStorage.setItem('mss-token','artist');vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true}));
+ for(const helper of [()=>api.GetAllArtists(),()=>api.GetArtistImages(2),()=>api.GetAllImages(),()=>api.GetActiveSyndicateStreams(),()=>api.GetMediaLibrary(),()=>api.GetAllEvents(),()=>api.GetEventById(1),()=>api.GetArtistEvents(1),()=>api.GetComments({artist_id:2}),()=>api.GetArtistYouTubeVideos(2)]){await helper();expect(fetch.mock.calls.at(-1)[1].headers.Authorization).toBe('Bearer artist');}
+});
+
+it('a validated disabled-account response clears the identity and restricted player boundary',async()=>{
+ localStorage.setItem('mss-token','disabled-account');localStorage.setItem('mss-role','artist');
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response(JSON.stringify({error:'Account is disabled'}),{status:403})));
+ await api.GetCurrentUser();expect(api.HasSession()).toBe(false);expect(api.GetSessionRole()).toBeNull();
+});

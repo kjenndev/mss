@@ -211,7 +211,7 @@ export function createMediaLibrary({ fetchImpl = globalThis.fetch, now = Date.no
     })().finally(() => { state.inflight = null; });
     return state.inflight;
   }
-  return { async get(artists, { offset = 0, limit = 50, artistId, videos = [] } = {}) {
+  return { async get(artists, { offset = 0, limit = 50, artistId, allowedArtistIds, videos = [] } = {}) {
     const signature = JSON.stringify(artists.map(a => [a.id, a.name, a.profile_picture, a.mixcloud, a.soundcloud]));
     if (!entry || entry.signature !== signature) entry = { signature };
     const state = entry;
@@ -219,14 +219,15 @@ export function createMediaLibrary({ fetchImpl = globalThis.fetch, now = Date.no
     else if (now() >= state.expires && !state.inflight) refresh(state, artists);
     // Scope the original source results, not the globally deduplicated tracks:
     // two artist profiles can legitimately reference the same provider upload.
-    const values = artistId === undefined ? null : [...state.results.values()].filter(r => r.source.artistId === artistId);
+    const allowed = new Set(allowedArtistIds ?? artists.map(a => a.id));
+    const values = [...state.results.values()].filter(r => allowed.has(r.source.artistId) && (artistId === undefined || r.source.artistId === artistId));
     const items = values && [...new Map(values.flatMap(r => r.items).map(item => [item.id, item])).values()].sort((a,b) => uploadTime(b.createdAt) - uploadTime(a.createdAt) || a.id.localeCompare(b.id));
     const result = values ? { ...state.snapshot, items, total: items.length, sources: values.map(r => r.source), complete: values.every(r => r.source.complete), cache: { ...state.snapshot.cache, stale: values.some(r => r.retained) } } : state.snapshot;
-    const scopedVideos = videos.filter(item => (artistId === undefined || item.artistId === artistId) && Number.isFinite(Date.parse(item.createdAt)));
+    const scopedVideos = videos.filter(item => allowed.has(item.artistId) && (artistId === undefined || item.artistId === artistId) && Number.isFinite(Date.parse(item.createdAt)));
     const merged = [...new Map([...result.items, ...scopedVideos].map(item => [item.id, item])).values()].sort((a,b) => uploadTime(b.createdAt) - uploadTime(a.createdAt) || a.id.localeCompare(b.id));
     // Catalog identity includes video association/content changes, so pagination resets
     // after additions, removals or metadata refresh without flushing audio discovery.
-    const version = createHash('sha256').update(JSON.stringify([result.cache.fetchedAt, scopedVideos])).digest('hex');
+    const version = createHash('sha256').update(JSON.stringify([result.cache.fetchedAt, [...allowed].sort((a,b) => a-b), artistId, scopedVideos])).digest('hex');
     return { ...result, total: merged.length, items: merged.slice(offset, offset + limit), offset, limit, nextOffset: offset + limit < merged.length ? offset + limit : null, cache: { ...result.cache, version, refreshing: !!state.inflight, stale: result.cache.stale || !!state.inflight } };
   } };
 }

@@ -1,3 +1,4 @@
+import ArtistDisabledStatus from './ArtistDisabledStatus';
 import ArtistName from './ArtistName';
 import ShareSheet from '../Sharing/ShareSheet';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -64,13 +65,14 @@ function ArtistDetailContent({ id }) {
     let active = true;
     setError('');
     Promise.all([helpers.GetArtistById(id), helpers.GetArtistImages(id), helpers.GetSettings()]).then(async ([artistRes, imagesRes, settingsRes]) => {
+      if (artistRes.status === 404) throw new Error('Artist not found.');
       if (!artistRes.ok || !imagesRes.ok || !settingsRes.ok) throw new Error('Unable to load artist data.');
       const [artistData, imagesData, settingsData] = await Promise.all([artistRes.json(), imagesRes.json(), settingsRes.json()]);
       if (active) {
         setArtist(artistData.artist); setImages(imagesData.images || []);
         setPlatformUrl(settingsData.settings?.streaming_platform_url || '');
       }
-    }).catch(() => { if (active) setError('Unable to load artist data.'); });
+    }).catch(cause => { if (active) setError(cause.message === 'Artist not found.' ? cause.message : 'Unable to load artist data.'); });
     const stop = poll(async () => {
       try {
         const response = await helpers.GetActiveSyndicateStreams();
@@ -102,7 +104,10 @@ function ArtistDetailContent({ id }) {
                 <ArtistName name={artist.name} />
                 <Typography color="text.secondary" className={styles.location}>{artist.location || 'Location not set'}</Typography>
                 {artist.profile_picture && failedPortrait !== artist.profile_picture ? <img onError={() => setFailedPortrait(artist.profile_picture)} className={styles.portrait} src={getImageUrl(artist.profile_picture)} alt={artist.name} /> : <Box className={styles.portraitFallback}><span aria-hidden="true">{artist.name?.charAt(0)}</span><Typography>No artist photo yet</Typography></Box>}
-                {helpers.CanEditArtist(id, artist.user_id) && <Button startIcon={<EditIcon aria-hidden="true" />} variant="outlined" onClick={() => navigate(`/artists/${id}/update`)} className={styles.editButton}>Edit Profile</Button>}
+                <Box className={styles.artistActions}>
+                  {artist.is_disabled && <ArtistDisabledStatus />}
+                  {helpers.CanEditArtist(id, artist.user_id) && <Button startIcon={<EditIcon aria-hidden="true" />} variant="outlined" onClick={() => navigate(`/artists/${id}/update`)} className={styles.editButton}>Edit Profile</Button>}
+                </Box>
                 <Box className={styles.aboutBox}>
                   <Typography className={styles.sectionLabel}>Behind the sound</Typography>
                   <Typography component="h2" variant="h6">About {artist.name}</Typography>
@@ -229,7 +234,7 @@ function ArtistDetailContent({ id }) {
                       <Typography className={styles.eyebrow}>The artist collection</Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, width: '100%', '& button:focus-visible': { outline: '2px solid #90caf9', outlineOffset: '3px' } }}>
                         <Button variant="contained" startIcon={<PlayArrowIcon aria-hidden="true" />} disabled={!canListen} onClick={listenToLatest}>Listen to latest</Button>
-                        <Box sx={{ marginLeft: 'auto' }}><ShareSheet kind="artists" entity={artist} /></Box>
+                        <Box sx={{ marginLeft: 'auto' }}>{artist.is_disabled ? <Typography variant="body2">Sharing unavailable while disabled</Typography> : <ShareSheet kind="artists" entity={artist} />}</Box>
                       </Box>
                     </Box>
                   )} />

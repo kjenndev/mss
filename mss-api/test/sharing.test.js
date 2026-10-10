@@ -43,3 +43,9 @@ for (const [name, origin, path, record, expected, image] of [
   assert.ok(!html.includes('wrong.png'));
  }finally{await new Promise(r=>server.close(r));}
 });
+
+test('disabled artist returns a generic 404 SPA shell without profile metadata',async()=>{
+ const app=express();app.use(createSharingRouter({origin:'https://mss.example',loadEntity:async()=>({id:1,name:'Hidden artist',is_disabled:true,profile_picture:'/uploads/private.png'}),loadIndex:async()=>'<html><head><title>MSS</title></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'}));
+ const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
+ try{const res=await fetch(`http://127.0.0.1:${server.address().port}/artists/1`);assert.equal(res.status,404);assert.equal(res.headers.get('cache-control'),'private, no-store');const html=await res.text();assert.match(html,/assets\/app.js/);assert.doesNotMatch(html,/Hidden artist|private.png|og:title/);}finally{await new Promise(r=>server.close(r));}
+});
