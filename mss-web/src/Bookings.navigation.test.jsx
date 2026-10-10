@@ -7,7 +7,7 @@ import Nav from './components/Nav.Component.Wrapper';
 import Menu from './components/Nav.Component.Menu';
 import Dashboard from './components/Admin/Admin.Dashboard.Component';
 import RouteGuard from './RouteGuard';
-import AdminBookings from './components/Bookings/AdminBookings';
+import AdminBookings, { BookingDetail } from './components/Bookings/AdminBookings';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -39,10 +39,11 @@ it('offers the admin inbox in the dashboard and account menu', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'account of current user' }));
   expect(await screen.findByRole('menuitem', { name: 'Booking inbox' })).toBeTruthy();
 });
-it('never mounts or loads private booking data for a non-admin', async () => {
+it.each([<AdminBookings />, <BookingDetail />])('never mounts or loads private booking data for a non-admin (%s)', async component => {
   api.HasSession.mockReturnValue(true);
   api.GetCurrentUser.mockResolvedValue({ ok: true, json: async () => ({ user: { role: 'artist' } }) });
-  render(<MemoryRouter><RouteGuard admin><AdminBookings /></RouteGuard></MemoryRouter>);
+  render(<MemoryRouter><RouteGuard admin>{component}</RouteGuard></MemoryRouter>);
   await screen.findByText(/not authorized/);
   expect(api.GetBookings).not.toHaveBeenCalled();
+  expect(api.GetBooking).not.toHaveBeenCalled();
 });

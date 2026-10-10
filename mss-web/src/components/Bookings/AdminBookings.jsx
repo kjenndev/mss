@@ -40,48 +40,16 @@ export function BookingDetail() {
 function Detail({ id }) {
   const [state, setState] = useState({ loading: true }), [attempt, setAttempt] = useState(0);
   const [content, setContent] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [success, setSuccess] = useState('');
-  const [retrying, setRetrying] = useState(false), [deliveryError, setDeliveryError] = useState('');
-  const retryPending = useRef(false);
   const mounted = useRef(false), pending = useRef(false), submission = useRef(null);
   useEffect(() => {
     let active = true; mounted.current = true;
     const identity = sessionSnapshot(), current = () => active && identity === sessionSnapshot();
     api.GetBooking(id).then(readResponse).then(data => {
-      if (!data.booking || !Array.isArray(data.comments) || !data.notification) throw Error('Unable to load booking request.');
+      if (!data.booking || !Array.isArray(data.comments)) throw Error('Unable to load booking request.');
       if (current()) setState({ data });
     }).catch(err => { if (current()) setState({ error: err.userMessage || 'Unable to load booking request. Please retry.' }); });
     return () => { active = false; mounted.current = false; };
   }, [id, attempt]);
-  const [refresh, setRefresh] = useState(0);
-  const refreshed = useRef(0);
-  const progress = state.data?.notification;
-  useEffect(() => {
-    if (!progress) return;
-    let active = true, timer;
-    const identity = sessionSnapshot(), current = () => active && identity === sessionSnapshot();
-    async function update() {
-      if (!current()) return;
-      try {
-        const data = await api.GetBooking(id).then(readResponse);
-        if (!data.notification) throw Error();
-        if (current()) {
-          // Refresh notification state only: never replace comments or draft with
-          // an older poll response racing a successful comment mutation.
-          setState(s => ({ ...s, data: { ...s.data, notification: data.notification } }));
-          setDeliveryError('');
-        }
-      } catch {
-        if (current()) {
-          setDeliveryError('Unable to refresh notification status. Please refresh manually.');
-          timer = setTimeout(update, 5000);
-        }
-      }
-    }
-    if (refresh !== refreshed.current) { refreshed.current = refresh; update(); }
-    else if (['pending', 'partial'].includes(progress.status) || progress.retry_scheduled) timer = setTimeout(update, 5000);
-    return () => { active = false; clearTimeout(timer); };
-    // A new status object schedules the next non-overlapping poll.
-  }, [id, progress, refresh]);
   async function comment(e) {
     e.preventDefault();
     if (pending.current) return;
@@ -100,27 +68,11 @@ function Detail({ id }) {
     } catch (err) { if (current()) setError(err.userMessage || 'Unable to add comment. Please retry.'); }
     finally { pending.current = false; if (current()) setBusy(false); }
   }
-  async function retryDelivery() {
-    if (retryPending.current) return;
-    retryPending.current = true; setRetrying(true); setDeliveryError('');
-    const identity = sessionSnapshot(), current = () => mounted.current && identity === sessionSnapshot();
-    try {
-      const data = await api.RetryBookingNotifications(id).then(readResponse);
-      if (!data.notification) throw Error('Unable to confirm email delivery. Please retry.');
-      if (current()) setState(s => ({ data: { ...s.data, notification: data.notification } }));
-    } catch (err) { if (current()) setDeliveryError(err.userMessage || 'Unable to retry email delivery. Please retry.'); }
-    finally { retryPending.current = false; if (current()) setRetrying(false); }
-  }
   const booking = state.data?.booking;
   return <main className={styles.page}><Link to="/admin/bookings">Back to booking inbox</Link>
     {state.loading ? <p role="status">Loading booking request…</p> : state.error ? <><p role="alert">{state.error}</p><button onClick={() => { setState({ loading: true }); setAttempt(n => n + 1); }}>Retry</button></> : <>
       <header><p>{booking.reference}</p><h1>{booking.venue_name}</h1><p>Received <time dateTime={booking.created_at}>{new Date(booking.created_at).toLocaleString()}</time></p></header>
       <section aria-label="Request details"><h2>Request details</h2><dl>{[['Contact', booking.contact_name], ['Email', booking.email], ['Phone', booking.phone], ['Event date', booking.event_date], ['Location', booking.location], ['Event type', booking.event_type], ['Estimated attendance', booking.estimated_attendance], ['Budget', booking.budget], ['Services', (booking.services || []).map(s => ({ djs: 'DJs', lasers: 'Laser art', streaming: 'Live streaming' })[s] || s).join(', ')]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value === 0 ? 0 : value || 'Not specified'}</dd></div>)}</dl><h3>Event brief</h3><p className={styles.brief}>{booking.message}</p></section>
-      <section aria-label="Email notifications"><h2>Email notifications</h2><button onClick={() => setRefresh(n => n + 1)}>Refresh notification status</button><p role="status">Email delivery: {state.data.notification.status}</p><p>{state.data.notification.sent} of {state.data.notification.total} notifications sent.</p>
-        {state.data.notification.message && <p>{state.data.notification.message}</p>}
-        {deliveryError && <p role="alert">{deliveryError}</p>}
-        {state.data.notification.can_retry && <button disabled={retrying} onClick={retryDelivery}>{retrying ? 'Retrying delivery…' : 'Retry email delivery'}</button>}
-      </section>
       <section aria-labelledby="comments-title"><h2 id="comments-title">Internal comments</h2><p>Only administrators can see these comments. They are not sent to the requester.</p>
         {state.data.comments.length ? <ul>{state.data.comments.map(c => <li key={c.id}><strong>{c.author_name}</strong> · <time dateTime={c.created_at}>{new Date(c.created_at).toLocaleString()}</time><p>{c.content}</p></li>)}</ul> : <p>No internal comments yet.</p>}
         <form onSubmit={comment} noValidate><label htmlFor="internal-comment">Internal comment</label><textarea id="internal-comment" value={content} maxLength={3000} disabled={busy} onChange={e => setContent(e.target.value)} aria-describedby="comment-help" /><p id="comment-help">Up to 3000 characters. Admin-only.</p>
