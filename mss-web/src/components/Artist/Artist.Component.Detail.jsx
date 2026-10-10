@@ -1,3 +1,4 @@
+import ArtistCoverRemoval from './ArtistCoverRemoval';
 import ArtistDisabledStatus from './ArtistDisabledStatus';
 import ArtistName from './ArtistName';
 import ShareSheet from '../Sharing/ShareSheet';
@@ -92,7 +93,10 @@ function ArtistDetailContent({ id }) {
   return (
     <Container maxWidth="lg" className={styles.container}>
       <ThemeProvider theme={darkTheme}>
-        {video ? <YouTubeVideo item={video} onClose={closeVideo} /> : artist.cover_photo && <img className={styles.coverPhoto} src={getImageUrl(artist.cover_photo)} alt={`${artist.name} cover`} />}
+        {video ? <YouTubeVideo item={video} onClose={closeVideo} /> : <Box sx={{ position: 'relative' }}>
+          {artist.cover_photo && <img className={styles.coverPhoto} src={getImageUrl(artist.cover_photo)} alt={`${artist.name} cover`} />}
+          <ArtistCoverRemoval id={id} artist={artist} onRemoved={() => setArtist(current => ({ ...current, cover_photo: null }))} />
+        </Box>}
         <Box className={styles.contentWrapper}>
           {streamError && <Alert severity="warning">{streamError}</Alert>}
           {artist.channel_name && !watchUrl(platformUrl, artist.channel_name) && <Alert severity="warning">Streaming platform is not configured.</Alert>}
