@@ -7,6 +7,7 @@ import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,6 +17,7 @@ import 'dotenv/config';
 import { getMediaLibrary } from './media-library.js';
 import { youtubeMetadata, parseYouTubeUrl, youtubeVideoDto, YOUTUBE_LINK_LIMIT } from './youtube.js';
 import { featuredUrls, featuredDto, prepareFeatured } from './home-featured.js';
+import { createStreamManager, issueGrantForCurrentOwner } from './stream-manager.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -74,6 +76,7 @@ function boundedUpload(field) {
   };
 }
 const app = express();
+const streamManager = createStreamManager({env:process.env});
 const socialSettingKeys = new Set(['social_twitch', 'social_instagram', 'social_facebook', 'social_twitter', 'social_youtube', 'social_tiktok', 'social_soundcloud', 'social_mixcloud', 'social_discord', 'social_bandcamp', 'social_spotify']);
 function normalizedSocialUrl(value) {
   if (value === null) return null;
@@ -234,7 +237,7 @@ for (const method of ['get', 'post', 'put', 'delete']) {
           if (artist?.is_disabled) return res.status(404).json({ error: 'Artist not found' });
         }
       }
-      return method !== 'get' && index === handlers.length - 1 && route !== '/api/auth/login'
+      return method !== 'get' && index === handlers.length - 1 && !['/api/auth/login','/api/stream-manager/introspect','/api/stream-manager/artists/:id/grant'].includes(route)
         ? atomicHandler(handler, req, res, next, handlers.filter(h => [authMiddleware, adminOnly, canCreateEvent, canManageArtist, canManageEvent, canUploadEvent].includes(h))) : handler(req, res, next); }).catch(next)));
 }
 const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://localhost:5174').split(',').map(value => value.trim()).filter(Boolean);
@@ -630,10 +633,35 @@ app.delete('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
 app.get('/api/users/me/artists', authMiddleware, async (req, res) => {
   const db = req.db || await getDb();
   const artists = await visibleArtists(req, db('artists'))
-    .select('id', 'name', 'profile_picture', 'slug', 'is_disabled')
+    .select('id', 'name', 'profile_picture', 'slug', 'channel_name', 'is_disabled')
     .where('user_id', req.user.id)
     .orderBy('name');
   res.json({ artists });
+});
+
+app.get('/api/stream-manager/config', authMiddleware, (req,res) => {
+  if (!['artist','admin'].includes(req.user.role)) return res.status(403).json({error:'Artist or admin access required'});
+  res.set('Cache-Control','private, no-store').json(streamManager.publicConfig());
+});
+
+app.post('/api/stream-manager/artists/:id/grant', authMiddleware, async (req,res) => {
+ if (!['artist','admin'].includes(req.user.role)) return res.status(403).json({error:'Artist or admin access required'});
+  try { res.json(await issueGrantForCurrentOwner({db:await getDb(),manager:streamManager,sessionToken:req.token,artistId:Number(req.params.id)})); }
+  catch(error){ res.status(/ownership|authorized/.test(error.message)?403:503).json({error:error.message}); }
+});
+
+app.post('/api/stream-manager/introspect', async(req,res)=>{
+  res.set('Cache-Control','private, no-store');
+  const db=await getDb();
+  const result=await streamManager.introspect({authorization:req.headers.authorization,grant:req.body?.grant,lookup:async (claims,sessionToken)=>{
+    const userId=Number(String(claims.sub).replace('mss-user:',''));
+    if(!Number.isSafeInteger(userId) || userId<1)return {};
+    const matching=await db('sessions').where({token:sessionToken,user_id:userId}).select('token','user_id','expires_at').first();
+    if(!matching)return {};
+    const [user,artist]=await Promise.all([db('users').where({id:matching.user_id}).first(),db('artists').where({id:claims.artistId}).first()]);
+    return {session:matching,user,artist};
+  }});
+  res.json(result);
 });
 
 app.get('/api/artists', async (req, res) => {
