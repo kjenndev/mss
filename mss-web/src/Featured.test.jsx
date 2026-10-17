@@ -11,13 +11,14 @@ const videos=['abcdefghijk','lmnopqrstuv','12345678901'].map((id,i)=>({id:'youtu
 const response=data=>({ok:true,json:async()=>data});
 beforeEach(()=>{
  vi.resetAllMocks();
+ vi.spyOn(Math,'random').mockReturnValue(0.999);
  api.GetSettings.mockResolvedValue(response({settings:{}}));
  api.GetAllEvents.mockResolvedValue(response({events:[]}));api.GetAllImages.mockResolvedValue(response({images:[]}));
  api.GetMediaLibrary.mockResolvedValue(response({items:[],sources:[],cache:{},total:0}));
  api.GetActiveSyndicateStreams.mockResolvedValue(response({streams:[]}));
  api.GetHomeFeaturedVideos.mockResolvedValue(response({videos,canAdd:true}));
 });
-afterEach(()=>{cleanup();vi.useRealTimers();});
+afterEach(()=>{cleanup();vi.useRealTimers();vi.restoreAllMocks();});
 const mount=()=>render(<MemoryRouter><MediaPlayerProvider><Home/></MediaPlayerProvider></MemoryRouter>);
 it('does not mount a fallback player before initial live discovery resolves',async()=>{
  let resolve;api.GetActiveSyndicateStreams.mockReturnValue(new Promise(r=>resolve=r));mount();await act(async()=>{});
@@ -48,7 +49,7 @@ it('explicit library video and audio choices survive live arrival and offline po
  api.GetActiveSyndicateStreams.mockResolvedValue(response({streams:[]}));await act(async()=>vi.advanceTimersByTimeAsync(10000));expect(screen.getByTitle('Mixcloud player')).toBe(dock);expect(document.querySelectorAll('iframe')).toHaveLength(1);
  fireEvent.click(screen.getByRole('button',{name:'Return to video'}));expect(dock.isConnected).toBe(false);expect(screen.getByTitle('Featured: Featured 1')).toBeTruthy();
 });
-it('renders curated order, no page-load autoplay, and switches one keyed player',async()=>{
+it('renders a stable shuffled order, no page-load autoplay, and switches one keyed player',async()=>{
  mount();
  const frame=await screen.findByTitle('Featured: Featured 1');
  expect(frame.getAttribute('src')).toContain('autoplay=0');
@@ -68,4 +69,30 @@ it('live priority keeps channel identity through reorder, shrink and last offlin
  expect(frame.isConnected).toBe(false);expect(screen.getByTitle('Live channel1')).toBeTruthy();expect(screen.queryByRole('button',{name:'Next'})).toBeNull();
  api.GetActiveSyndicateStreams.mockResolvedValue(response({streams:[]}));await act(async()=>vi.advanceTimersByTimeAsync(10000));
  expect(screen.getByTitle('Featured: Featured 1')).toBeTruthy();expect(screen.queryByTitle('Live channel1')).toBeNull();
+});
+
+it('shuffles each homepage visit without mutating saved order or reshuffling during live polls',async()=>{
+ vi.useFakeTimers();
+ Math.random.mockReturnValue(0);
+ const order=()=>screen.getAllByRole('button',{name:/^Select Featured/}).map(b=>b.getAttribute('aria-label'));
+ const first=mount();await act(async()=>vi.advanceTimersByTimeAsync(1));
+ expect(order()).toEqual(['Select Featured 2','Select Featured 3','Select Featured 1']);
+ expect(screen.getByTitle('Featured: Featured 2')).toBeTruthy();
+ expect(videos.map(v=>v.title)).toEqual(['Featured 1','Featured 2','Featured 3']);
+ fireEvent.click(screen.getByRole('button',{name:'Next'}));
+ const selected=screen.getByTitle('Featured: Featured 3');
+ Math.random.mockReturnValue(0.999);
+ await act(async()=>vi.advanceTimersByTimeAsync(10000));
+ expect(screen.getByTitle('Featured: Featured 3')).toBe(selected);
+ expect(order()).toEqual(['Select Featured 2','Select Featured 3','Select Featured 1']);
+ api.GetActiveSyndicateStreams.mockResolvedValue(response({streams:[{artistId:1,artistName:'Live artist',channelName:'live'}]}));
+ await act(async()=>vi.advanceTimersByTimeAsync(10000));
+ expect(screen.getByTitle('Live live')).toBeTruthy();
+ api.GetActiveSyndicateStreams.mockResolvedValue(response({streams:[]}));
+ await act(async()=>vi.advanceTimersByTimeAsync(10000));
+ expect(screen.getByTitle('Featured: Featured 3')).toBeTruthy();
+ expect(order()).toEqual(['Select Featured 2','Select Featured 3','Select Featured 1']);
+ first.unmount();mount();await act(async()=>vi.advanceTimersByTimeAsync(1));
+ expect(order()).toEqual(['Select Featured 1','Select Featured 2','Select Featured 3']);
+ expect(screen.getByTitle('Featured: Featured 1')).toBeTruthy();
 });
