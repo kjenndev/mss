@@ -13,12 +13,22 @@ import SyndicatePlayer from '../Stream/Syndicate.Player.Component';
 import YouTubeVideo from './YouTubeVideo';
 import styles from './Featured.module.css';
 import homeStyles from '../Home.Component.module.css';
+// Shuffle a copy once when this visit's collection loads, never during rendering
+// or live polling. Keep the saved/admin ordering untouched.
+function shuffledVideos(videos) {
+ const shuffled=[...videos];
+ for(let i=shuffled.length-1;i>0;i--) {
+  const j=Math.floor(Math.random()*(i+1));
+  [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];
+ }
+ return shuffled;
+}
 export default function HomeScreen({liveLoading,live,settings,video,closeVideo,player}) {
  const [featured,setFeatured]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[attempt,setAttempt]=useState(0);
  const [liveId,setLiveId]=useState(null),[featuredId,setFeaturedId]=useState(null),[paused,setPaused]=useState(null);
  useEffect(()=>{
   let active=true;
-  (async()=>{try {const r=await api.GetHomeFeaturedVideos();if(!r.ok)throw Error();const d=await r.json();if(!validFeatured(d))throw Error();if(active){setFeatured(d.videos);setLoading(false);setError('');}}catch{if(active){setLoading(false);setError('Featured videos unavailable.');}}})();
+  (async()=>{try {const r=await api.GetHomeFeaturedVideos();if(!r.ok)throw Error();const d=await r.json();if(!validFeatured(d))throw Error();if(active){setFeatured(shuffledVideos(d.videos));setLoading(false);setError('');}}catch{if(active){setLoading(false);setError('Featured videos unavailable.');}}})();
   return ()=>{active=false;};
  },[attempt]);
  const liveItems=live.map(s=>({id:`live:${s.id}:${s.channelName}`,title:s.name,channelName:s.channelName,artworkUrl:s.artworkUrl,live:true}));
