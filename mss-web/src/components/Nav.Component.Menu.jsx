@@ -12,6 +12,7 @@ import DashboardOutlined from '@mui/icons-material/DashboardOutlined';
 import TuneOutlined from '@mui/icons-material/TuneOutlined';
 import PersonOutline from '@mui/icons-material/PersonOutline';
 import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
+import LiveTvOutlined from '@mui/icons-material/LiveTvOutlined';
 
 import * as helpers from '../Data.Helper.Api';
 import styles from './Nav.Component.Menu.module.css';
@@ -147,6 +148,7 @@ export default function NavMenu({ guestClassName }) {
           <MenuItem className={styles.menuRow} onClick={() => { handleClose(); navigate('/account'); }}>
             <SettingsOutlined fontSize="small" /><Typography variant="body2" className={styles.menuItemButton}>Account Settings</Typography>
           </MenuItem>
+          {['artist','admin'].includes(currentUser?.role) && <MenuItem className={styles.menuRow} onClick={()=>{handleClose();navigate('/stream-manager')}}><LiveTvOutlined fontSize="small"/><Typography variant="body2" className={styles.menuItemButton}>Stream Manager</Typography></MenuItem>}
 
           {isAdmin && <Divider />}
           {isAdmin && (

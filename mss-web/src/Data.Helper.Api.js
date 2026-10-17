@@ -114,6 +114,8 @@ async function GetAllArtists() {
 async function GetMyArtists() {
   return await request('/users/me/artists', 'GET');
 }
+export const GetStreamManagerConfig=()=>request('/stream-manager/config','GET');
+export const GetStreamManagerGrant=id=>request(`/stream-manager/artists/${encodeURIComponent(id)}/grant`,'POST',{});
 
 async function GetArtistById(id) {
   return await request(`/artists/${id}`, 'GET', null, true);
@@ -385,5 +387,4 @@ export {
   CanEditEvent,
   clearSession,
 };
-
 

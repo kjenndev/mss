@@ -37,6 +37,7 @@ import LegalPage from './components/Auth/LegalPage';
 import AdminFeatured from './components/Admin/AdminFeatured';
 import AdminEmail from './components/Admin/Admin.Email';
 import UserProfile from './components/User/User.Component.Profile'
+import StreamManager from './components/StreamManager'
 
 
 createRoot(document.getElementById('root')).render(
@@ -73,6 +74,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/admin/settings" element={<RouteGuard admin><AdminSettings /></RouteGuard>} />
           <Route path="/admin/about" element={<RouteGuard admin><AdminAboutEditor /></RouteGuard>} />
           <Route path="/account" element={<RouteGuard><UserProfile /></RouteGuard>} />
+          <Route path="/stream-manager" element={<RouteGuard streamManager><StreamManager /></RouteGuard>} />
         </Routes>
         <SiteFooter />
         </MediaPlayerProvider></MediaNavigation></VisibilityBoundary>
