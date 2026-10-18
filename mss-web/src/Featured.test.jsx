@@ -3,6 +3,7 @@ import {it,expect,vi,beforeEach,afterEach} from 'vitest';
 import {render,screen,cleanup,fireEvent,act} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
 import Home from './components/Home.Component';
+import CarouselYouTubePlayer from './components/Media/CarouselYouTubePlayer';
 import {MediaPlayerProvider} from './components/Media/MediaPlayerProvider';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
@@ -12,13 +13,13 @@ const response=data=>({ok:true,json:async()=>data});
 beforeEach(()=>{
  vi.resetAllMocks();
  vi.spyOn(Math,'random').mockReturnValue(0.999);
- api.GetSettings.mockResolvedValue(response({settings:{}}));
+ api.GetSettings.mockResolvedValue(response({settings:{homepage_carousel_interval_seconds:'3600'}}));
  api.GetAllEvents.mockResolvedValue(response({events:[]}));api.GetAllImages.mockResolvedValue(response({images:[]}));
  api.GetMediaLibrary.mockResolvedValue(response({items:[],sources:[],cache:{},total:0}));
  api.GetActiveSyndicateStreams.mockResolvedValue(response({streams:[]}));
  api.GetHomeFeaturedVideos.mockResolvedValue(response({videos,canAdd:true}));
 });
-afterEach(()=>{cleanup();vi.useRealTimers();vi.restoreAllMocks();});
+afterEach(()=>{cleanup();vi.useRealTimers();vi.restoreAllMocks();delete window.YT;});
 const mount=()=>render(<MemoryRouter><MediaPlayerProvider><Home/></MediaPlayerProvider></MemoryRouter>);
 it('does not mount a fallback player before initial live discovery resolves',async()=>{
  let resolve;api.GetActiveSyndicateStreams.mockReturnValue(new Promise(r=>resolve=r));mount();await act(async()=>{});
@@ -53,11 +54,30 @@ it('renders a stable shuffled order, no page-load autoplay, and switches one key
  mount();
  const frame=await screen.findByTitle('Featured: Featured 1');
  expect(frame.getAttribute('src')).toContain('autoplay=0');
- expect(screen.getByText('1 / 3')).toBeTruthy();
+ expect(screen.getByLabelText('Featured videos').contains(frame)).toBe(true);
+ expect(document.querySelector('[class*=stage]')).toBeNull();
  fireEvent.click(screen.getByRole('button',{name:'Select Featured 3'}));
  expect(frame.isConnected).toBe(false);expect(screen.getByTitle('Featured: Featured 3')).toBeTruthy();
- expect(screen.getByText('3 / 3')).toBeTruthy();
- fireEvent.click(screen.getByRole('button',{name:'Next'}));expect(screen.getByTitle('Featured: Featured 1')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Select Featured 1'}));expect(screen.getByTitle('Featured: Featured 1')).toBeTruthy();
+});
+it('automatically advances the homepage carousel every eight seconds by default',async()=>{
+ vi.useFakeTimers();api.GetSettings.mockResolvedValue(response({settings:{}}));
+ mount();await act(async()=>vi.advanceTimersByTimeAsync(1));
+ expect(screen.getByTitle('Featured: Featured 1')).toBeTruthy();
+ await act(async()=>vi.advanceTimersByTimeAsync(7999));
+ expect(screen.getByTitle('Featured: Featured 1')).toBeTruthy();
+ await act(async()=>vi.advanceTimersByTimeAsync(1));
+ expect(screen.getByTitle('Featured: Featured 2')).toBeTruthy();
+});
+it('uses the configured homepage carousel interval',async()=>{
+ vi.useFakeTimers();
+ api.GetSettings.mockResolvedValue(response({settings:{homepage_carousel_interval_seconds:'3'}}));
+ mount();await act(async()=>vi.advanceTimersByTimeAsync(1));
+ expect(screen.getByTitle('Featured: Featured 1')).toBeTruthy();
+ await act(async()=>vi.advanceTimersByTimeAsync(2999));
+ expect(screen.getByTitle('Featured: Featured 1')).toBeTruthy();
+ await act(async()=>vi.advanceTimersByTimeAsync(1));
+ expect(screen.getByTitle('Featured: Featured 2')).toBeTruthy();
 });
 it('live priority keeps channel identity through reorder, shrink and last offline',async()=>{
  vi.useFakeTimers();const streams=[1,2,3].map(i=>({artistId:i,artistName:'Artist '+i,channelName:'channel'+i}));
@@ -74,12 +94,12 @@ it('live priority keeps channel identity through reorder, shrink and last offlin
 it('shuffles each homepage visit without mutating saved order or reshuffling during live polls',async()=>{
  vi.useFakeTimers();
  Math.random.mockReturnValue(0);
- const order=()=>screen.getAllByRole('button',{name:/^Select Featured/}).map(b=>b.getAttribute('aria-label'));
+ const order=()=>[...document.querySelector('[data-carousel-copy="1"]').querySelectorAll('[data-carousel-id]')].map(card=>'Select '+videos.find(video=>video.id===card.getAttribute('data-carousel-id')).title);
  const first=mount();await act(async()=>vi.advanceTimersByTimeAsync(1));
  expect(order()).toEqual(['Select Featured 2','Select Featured 3','Select Featured 1']);
  expect(screen.getByTitle('Featured: Featured 2')).toBeTruthy();
  expect(videos.map(v=>v.title)).toEqual(['Featured 1','Featured 2','Featured 3']);
- fireEvent.click(screen.getByRole('button',{name:'Next'}));
+ fireEvent.click(screen.getByRole('button',{name:'Select Featured 3'}));
  const selected=screen.getByTitle('Featured: Featured 3');
  Math.random.mockReturnValue(0.999);
  await act(async()=>vi.advanceTimersByTimeAsync(10000));
@@ -95,4 +115,63 @@ it('shuffles each homepage visit without mutating saved order or reshuffling dur
  first.unmount();mount();await act(async()=>vi.advanceTimersByTimeAsync(1));
  expect(order()).toEqual(['Select Featured 1','Select Featured 2','Select Featured 3']);
  expect(screen.getByTitle('Featured: Featured 1')).toBeTruthy();
+});
+
+it('resumes automatic rotation when the center YouTube video is paused',async()=>{
+ vi.useFakeTimers();api.GetSettings.mockResolvedValue(response({settings:{homepage_carousel_interval_seconds:'1'}}));
+ let playerEvents;
+ const Player=vi.fn();
+ Player.mockImplementation(function(_frame,options){playerEvents=options.events;this.destroy=vi.fn();});
+ window.YT={PlayerState:{ENDED:0,PLAYING:1,PAUSED:2,BUFFERING:3},Player};
+ mount();await act(async()=>vi.advanceTimersByTimeAsync(1));
+ const frame=screen.getByTitle('Featured: Featured 1');
+ expect(window.YT.Player).toHaveBeenCalledWith(frame,expect.any(Object));
+ fireEvent.focus(frame);
+ await act(async()=>playerEvents.onStateChange({data:window.YT.PlayerState.PLAYING}));
+ await act(async()=>vi.advanceTimersByTimeAsync(1500));
+ expect(screen.getByTitle('Featured: Featured 1')).toBe(frame);
+ await act(async()=>playerEvents.onStateChange({data:window.YT.PlayerState.PAUSED}));
+ await act(async()=>vi.advanceTimersByTimeAsync(1000));
+ expect(screen.getByTitle('Featured: Featured 2')).toBeTruthy();
+ delete window.YT;
+});
+
+it('clears an active YouTube playback pause when the player unmounts',async()=>{
+ let playerEvents;
+ const Player=vi.fn(),onPlaybackChange=vi.fn();
+ Player.mockImplementation(function(_frame,options){playerEvents=options.events;this.destroy=vi.fn();});
+ window.YT={PlayerState:{ENDED:0,PLAYING:1,PAUSED:2,BUFFERING:3},Player};
+ const {unmount}=render(<CarouselYouTubePlayer item={videos[0]} onPlaybackChange={onPlaybackChange}/>);
+ await act(async()=>{});
+ await act(async()=>playerEvents.onStateChange({data:window.YT.PlayerState.PLAYING}));
+ expect(onPlaybackChange).toHaveBeenLastCalledWith(true);
+ unmount();
+ expect(onPlaybackChange).toHaveBeenLastCalledWith(false);
+ expect(Player.mock.instances[0].destroy).toHaveBeenCalledTimes(1);
+ delete window.YT;
+});
+
+it('keeps rotating when the center YouTube iframe is focused without playback',async()=>{
+ vi.useFakeTimers();api.GetSettings.mockResolvedValue(response({settings:{homepage_carousel_interval_seconds:'1'}}));
+ mount();await act(async()=>vi.advanceTimersByTimeAsync(1));
+ const frame=screen.getByTitle('Featured: Featured 1');
+ fireEvent.focus(frame);
+ window.dispatchEvent(new Event('blur'));
+ const outside=screen.getByRole('link',{name:'All events'});
+ fireEvent.blur(frame,{relatedTarget:outside});
+ fireEvent.focus(outside);
+ await act(async()=>vi.advanceTimersByTimeAsync(1000));
+ expect(screen.getByTitle('Featured: Featured 2')).toBeTruthy();
+ expect(frame.isConnected).toBe(false);
+ expect(screen.queryByRole('button',{name:/Pause carousel|Resume carousel/})).toBeNull();
+});
+
+it('shows only video media in the active card without the details block',async()=>{
+ mount();
+ const frame=await screen.findByTitle('Featured: Featured 1');
+ const active=frame.closest('[data-carousel-active="true"]');
+ expect(active).toBeTruthy();
+ expect(active.querySelector('[class*=info]')).toBeNull();
+ expect(screen.queryByText(/Published/)).toBeNull();
+ expect(screen.queryByRole('link',{name:/Watch on YouTube/})).toBeNull();
 });

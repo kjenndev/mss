@@ -8,6 +8,16 @@ beforeEach(() => { vi.resetAllMocks(); });
 afterEach(cleanup);
 it('links to the dedicated homepage curation settings',async()=>{api.GetSettings.mockResolvedValue({ok:true,json:async()=>({raw:[]})});render(<AdminSettings/>);expect((await screen.findByRole('link',{name:'Homepage featured videos'})).getAttribute('href')).toBe('/admin/homepage');});
 const response = raw => ({ ok: true, json: async () => ({ raw }) });
+it('shows and saves the homepage carousel interval as seconds',async()=>{
+ api.GetSettings.mockResolvedValue(response([{key:'homepage_carousel_interval_seconds',value:'8',description:'Seconds between automatic homepage carousel slides (1-3600)'}]));
+ api.UpdateSetting.mockResolvedValue({ok:true});
+ render(<AdminSettings/>);
+ const interval=await screen.findByRole('spinbutton',{name:'Homepage Carousel Interval Seconds'});
+ expect(interval).toHaveValue(8);
+ fireEvent.change(interval,{target:{value:'12'}});
+ fireEvent.click(screen.getByRole('button',{name:'Save'}));
+ await waitFor(()=>expect(api.UpdateSetting).toHaveBeenCalledWith('homepage_carousel_interval_seconds','12'));
+});
 it.each([
  ['network failure', () => Promise.reject(new Error('offline'))],
  ['HTTP failure', () => Promise.resolve({ ok: false })],

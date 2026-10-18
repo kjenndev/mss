@@ -5,7 +5,7 @@ import * as helpers from '../../Data.Helper.Api';
 import { watchUrl } from '../../config';
 
 /** Playback and admission stay on the configured platform; homepage opts into video only. */
-export default function SyndicatePlayer({ channelName, isPaused = false, onResume, videoOnly = false }) {
+export default function SyndicatePlayer({ channelName, isPaused = false, onResume, videoOnly = false, onPlaybackInteraction }) {
   const [platformUrl, setPlatformUrl] = useState('');
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -28,6 +28,6 @@ export default function SyndicatePlayer({ channelName, isPaused = false, onResum
       <Typography>Platform player paused here.</Typography>
       <Typography>The other tab has its own join and playback controls.</Typography>
       <Button onClick={onResume}>Resume player</Button>
-    </Box> : <iframe src={watchUrl(platformUrl, channelName, videoOnly)} title={`${videoOnly ? 'Live video' : 'Full platform player'} - ${channelName}`} width="100%" height={videoOnly ? undefined : "600"} style={{ border: 0, maxWidth: '100%', ...(videoOnly ? { display: 'block', aspectRatio: '16 / 9' } : {}) }} allow={videoOnly ? "fullscreen; picture-in-picture" : "autoplay; fullscreen; picture-in-picture"} allowFullScreen />}
+    </Box> : <iframe onFocus={onPlaybackInteraction} src={watchUrl(platformUrl, channelName, videoOnly)} title={`${videoOnly ? 'Live video' : 'Full platform player'} - ${channelName}`} width="100%" height={videoOnly ? undefined : "600"} style={{ border: 0, maxWidth: '100%', ...(videoOnly ? { display: 'block', aspectRatio: '16 / 9' } : {}) }} allow={videoOnly ? "fullscreen; picture-in-picture" : "autoplay; fullscreen; picture-in-picture"} allowFullScreen />}
   </Box>;
 }
