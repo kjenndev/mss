@@ -27,11 +27,12 @@ it('places library below video before events and releases video playback while a
  fireEvent.click(await screen.findByRole('button',{name:'Play Library show'}));
  expect(video.isConnected).toBe(false);
  expect(screen.getByRole('region',{name:'Syndicate screen'})).toBeTruthy();
- expect(screen.getByRole('heading',{name:'DK Bean'})).toBeTruthy();
+ expect(screen.queryByRole('heading',{name:'DK Bean'})).toBeNull();
  expect(screen.getByText('Video disabled')).toBeTruthy();
  expect(screen.getByTestId('PauseIcon').getAttribute('aria-hidden')).toBe('true');
  expect(screen.getByRole('button',{name:'Return to video'}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
- expect(screen.getByRole('link',{name:/Watch on YouTube/}).closest('[inert]')).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Return to video'}).closest('[inert]')).toBeNull();
+ expect(screen.queryByRole('link',{name:/Watch on YouTube/})).toBeNull();
  expect(screen.getByTitle('Mixcloud player')).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Return to video'}));
  expect(screen.queryByTitle('Mixcloud player')).toBeNull();
@@ -48,21 +49,21 @@ it('shows a responsive click-to-play YouTube fallback when no streams are live',
  render(<MemoryRouter><Home/></MemoryRouter>);
  const iframe = await screen.findByTitle(videoTitle);
  expect(iframe.tagName).toBe('IFRAME');
- expect(iframe.getAttribute('src')).toBe('https://www.youtube-nocookie.com/embed/z6aXbSXNiHE?autoplay=0&rel=0');
+ expect(iframe.getAttribute('src')).toBe('https://www.youtube-nocookie.com/embed/z6aXbSXNiHE?autoplay=0&rel=0&enablejsapi=1&origin=http%3A%2F%2Flocalhost%3A3000');
  expect(iframe.getAttribute('allow') || '').not.toContain('autoplay');
  expect(iframe.hasAttribute('allowfullscreen')).toBe(true);
  expect(screen.getByRole('region',{name:'Syndicate screen'}).contains(iframe)).toBe(true);
  expect(screen.queryByText('LIVE')).toBeNull();
  expect(screen.queryByRole('button',{name:'Next'})).toBeNull();
 });
-it('keeps the selected channel paused across fresh polling arrays',async()=>{
- vi.useFakeTimers();vi.spyOn(window,'open').mockImplementation(()=>null);
+it('keeps the selected live player mounted across fresh polling arrays',async()=>{
+ vi.useFakeTimers();
  api.GetActiveSyndicateStreams.mockImplementation(async()=>({ok:true,json:async()=>({streams:[{artistId:1,artistName:'Artist',channelName:'abc'}]})}));
  api.GetSettings.mockResolvedValue({ok:true,json:async()=>({settings:{streaming_platform_url:'https://sp.test'}})});
  for(const method of ['GetGlobalFeed','GetAllEvents','GetAllImages']) api[method].mockResolvedValue({ok:true,json:async()=>({})});
  render(<MemoryRouter><Home/></MemoryRouter>);await act(async()=>{await vi.advanceTimersByTimeAsync(1);});
- fireEvent.click(screen.getByRole('button',{name:/Join Chat|Open platform player/}));expect(screen.getByText('Paused')).toBeTruthy();
- await act(async()=>{await vi.advanceTimersByTimeAsync(10000);});expect(screen.getByText('Paused')).toBeTruthy();vi.useRealTimers();
+ const player=screen.getByText('Playing');
+ await act(async()=>{await vi.advanceTimersByTimeAsync(10000);});expect(screen.getByText('Playing')).toBe(player);vi.useRealTimers();
 });
 
 it('shows unavailable discovery and load failures instead of false empty content',async()=>{
@@ -94,9 +95,9 @@ it('switches from fallback to live and back as polling updates',async()=>{
  api.GetActiveSyndicateStreams.mockResolvedValue({ok:true,json:async()=>({streams:[{artistId:1,artistName:'Artist',channelName:'abc'}]})});
  await act(async()=>{await vi.advanceTimersByTimeAsync(10000);});
  expect(screen.queryByTitle(videoTitle)).toBeNull();
- expect(screen.getByText('Artist')).toBeTruthy();
  expect(screen.getByText('Playing')).toBeTruthy();
- expect(screen.getByText('Syndicate Live · On air')).toBeTruthy();
+ expect(screen.queryByText('Artist')).toBeNull();
+ expect(screen.queryByText('Syndicate Live · On air')).toBeNull();
  api.GetActiveSyndicateStreams.mockResolvedValue({ok:true,json:async()=>({streams:[]})});
  await act(async()=>{await vi.advanceTimersByTimeAsync(10000);});
  expect(screen.getByTitle(videoTitle)).toBeTruthy();
@@ -129,12 +130,12 @@ it('retains an honest unavailable alert alongside the fallback and recovers on p
  expect(screen.getByTitle(videoTitle)).toBeTruthy();
 });
 
-it('presents Cinema replay metadata and honest empty discovery sections',async()=>{
+it('presents only the Cinema replay video and honest empty discovery sections',async()=>{
  mockHome(); render(<MemoryRouter><Home/></MemoryRouter>);
- expect(await screen.findByRole('heading',{name:'DK Bean'})).toBeTruthy();
- expect(screen.getByText('Featured selection · YouTube')).toBeTruthy();
- expect(screen.getByRole('link',{name:/Watch on YouTube/}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
- expect(screen.getByRole('link',{name:/Watch on YouTube/}).getAttribute('href')).toBe('https://www.youtube.com/watch?v=z6aXbSXNiHE');
+ expect(await screen.findByTitle(videoTitle)).toBeTruthy();
+ expect(screen.queryByRole('heading',{name:'DK Bean'})).toBeNull();
+ expect(screen.queryByText('Featured selection · YouTube')).toBeNull();
+ expect(screen.queryByRole('link',{name:/Watch on YouTube/})).toBeNull();
  for (const name of ['Artist library','Coming up','In the frame']) expect(screen.getByRole('region',{name})).toBeTruthy();
  expect(await screen.findByText('No upcoming events announced.')).toBeTruthy();
  expect(screen.queryByText('Latest content')).toBeNull();
@@ -171,16 +172,15 @@ it('distinguishes pending discovery from empty content and retries failed conten
  expect(screen.queryByRole('button',{name:'Retry content'})).toBeNull();
 });
 
-it('keeps carousel numbering and controls valid when the stream list shrinks',async()=>{
+it('keeps carousel selection valid when the stream list shrinks',async()=>{
  vi.useFakeTimers(); mockHome({streams:[1,2,3].map(i=>({artistId:i,artistName:`Artist ${i}`,channelName:`channel${i}`}))});
  render(<MemoryRouter><Home/></MemoryRouter>); await act(async()=>{await vi.advanceTimersByTimeAsync(1);});
- fireEvent.click(screen.getByRole('button',{name:'Next'})); fireEvent.click(screen.getByRole('button',{name:'Next'}));
- expect(screen.getByRole('heading',{name:'Artist 3'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Select Artist 3'}));
+ expect(document.querySelector('[data-carousel-active="true"]').getAttribute('data-carousel-id')).toBe('live:3:channel3');
  api.GetActiveSyndicateStreams.mockResolvedValue({ok:true,json:async()=>({streams:[{artistId:1,artistName:'Artist 1',channelName:'channel1'}]})});
  await act(async()=>{await vi.advanceTimersByTimeAsync(10000);});
- expect(screen.queryByRole('button',{name:'Next'})).toBeNull();
  expect(screen.queryByRole('button',{name:'Select Artist 1'})).toBeNull();
- expect(screen.getByRole('heading',{name:'Artist 1'})).toBeTruthy();
+ expect(document.querySelector('[data-carousel-active="true"]').getAttribute('data-carousel-id')).toBe('live:1:channel1');
  expect(screen.queryByText('Groovematics · July 4, 2021')).toBeNull();
 });
 
@@ -188,36 +188,37 @@ it('omits the title and no-live banner above the player',async()=>{
  mockHome(); render(<MemoryRouter><Home/></MemoryRouter>);
  await act(async()=>{});
  expect(screen.queryByRole('heading',{name:'Featured'})).toBeNull();
- expect(screen.getByTitle(videoTitle).parentElement).toBe(screen.getByRole('region',{name:'Syndicate screen'}).firstElementChild);
+ expect(screen.getByRole('region',{name:'Syndicate screen'}).contains(screen.getByTitle(videoTitle))).toBe(true);
+ expect(screen.getByLabelText('Featured video').contains(screen.getByTitle(videoTitle))).toBe(true);
  expect(screen.queryByText('Syndicate screen')).toBeNull();
  expect(screen.queryByText('No live streams · Enjoy a replay')).toBeNull();
  expect(screen.getByTitle(videoTitle)).toBeTruthy();
 });
 
-it('keeps live video details visible but inert during library selection',async()=>{
+it('keeps video recovery available without restoring a details block during library selection',async()=>{
  mockHome({streams:[{artistId:1,artistName:'Live DJ',channelName:'live'}],settings:{streaming_platform_url:'https://platform.test'}});
  api.GetMediaLibrary.mockResolvedValue({ok:true,json:async()=>({items:[{id:'a',provider:'mixcloud',title:'Library show',url:'https://www.mixcloud.com/dj/show/'}],total:1,nextOffset:null,sources:[],complete:true,cache:{}})});
  render(<MemoryRouter><MediaPlayerProvider><Home/></MediaPlayerProvider></MemoryRouter>);
  await screen.findByText('Playing');
  fireEvent.click(await screen.findByRole('button',{name:'Play Library show'}));
  expect(screen.queryByText('Playing')).toBeNull();
- expect(screen.getByRole('heading',{name:'Live DJ'})).toBeTruthy();
- expect(screen.getByRole('button',{name:'Open platform player'}).closest('[inert]')).toBeTruthy();
- expect(screen.getByRole('button',{name:'Open platform player'}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+ expect(screen.queryByRole('heading',{name:'Live DJ'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Open platform player'})).toBeNull();
  expect(screen.getByText('Video disabled')).toBeTruthy();
  expect(screen.getByTestId('PauseIcon').getAttribute('aria-hidden')).toBe('true');
  expect(screen.getByRole('button',{name:'Return to live'}).querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Return to live'}).closest('[inert]')).toBeNull();
  fireEvent.click(screen.getByRole('button',{name:'Return to live'}));
  expect(screen.getByText('Playing')).toBeTruthy();
  expect(screen.queryByTitle('Mixcloud player')).toBeNull();
 });
 
-it('uses labeled icon-only carousel and lightbox controls with touch targets',async()=>{
+it('keeps carousel playback controls out of the video and preserves the lightbox touch target',async()=>{
  mockHome({streams:[1,2].map(id=>({artistId:id,artistName:`Artist ${id}`,channelName:`channel${id}`}))});
  api.GetAllImages.mockResolvedValue({ok:true,json:async()=>({images:[{id:1,url:'/uploads/fixture.jpg'}]})});
  render(<MemoryRouter><Home/></MemoryRouter>);
- await screen.findByRole('heading',{name:'Artist 1'});
- for(const name of ['Prev','Next']) assertIconOnly(screen.getByRole('button',{name}),name);
+ await screen.findByText('Playing');
+ expect(screen.queryByRole('button',{name:/Pause carousel|Resume carousel/})).toBeNull();
  fireEvent.click(await screen.findByRole('button',{name:'Open photo 1'}));
  assertIconOnly(screen.getByRole('button',{name:'Close photo'}),'Close photo');
 });

@@ -39,6 +39,18 @@ test('settings batch updates an existing unknown key but rejects creation of an 
   assert.deepEqual(db.state(), before);
 });
 
+test('carousel interval rejects non-integer or out-of-range seconds without mutation', async () => {
+  for (const value of ['0', '1.5', '3601', '', null]) {
+    const db = memoryDb({ system_settings: [{ key: 'homepage_carousel_interval_seconds', value: '8' }] });
+    const h = await harness({ getDb: async () => db });
+    const res = response();
+    await h.route('put', '/api/settings/:key').handlers.at(-1)({ body: { value }, params: { key: 'homepage_carousel_interval_seconds' } }, res, error => { throw error; });
+    assert.equal(res.code, 400);
+    assert.equal(db.state().system_settings[0].value, '8');
+    assert.equal(db.operations.length, 0);
+  }
+});
+
 test('settings routes reject unsafe social URLs without any mutation', async () => {
   for (const [method, url, body] of [
     ['post', '/api/settings/batch', { settings: [{ key: 'social_discord', value: 'https://user:pass@example.com' }] }],

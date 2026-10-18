@@ -92,6 +92,16 @@ function normalizedSocialUrl(value) {
     return undefined;
   }
 }
+function normalizedSettingValue(key, value) {
+  if (socialSettingKeys.has(key)) return normalizedSocialUrl(value);
+  if (key === 'homepage_carousel_interval_seconds') {
+    if (typeof value !== 'string' || !/^\d+$/.test(value)) return undefined;
+    const seconds = Number(value);
+    return Number.isSafeInteger(seconds) && seconds >= 1 && seconds <= 3600 ? String(seconds) : undefined;
+  }
+  return value;
+}
+
 function validationError(req, method, route) {
   for (const [key, value] of Object.entries(req.params || {})) {
     if ((key === 'id' || key === 'imageId') && (!/^[1-9][0-9]*$/.test(String(value)) || !Number.isSafeInteger(Number(value)))) return 'Invalid resource id';
@@ -1105,7 +1115,8 @@ app.get('/api/settings', async (req, res) => {
 
 app.put('/api/settings/:key', authMiddleware, adminOnly, async (req, res) => {
   const submitted = req.body?.value;
-  const value = socialSettingKeys.has(req.params.key) ? normalizedSocialUrl(submitted) : submitted;
+  const value = normalizedSettingValue(req.params.key, submitted);
+  if (value === undefined) return res.status(400).json({ error: 'Invalid setting value' });
 
   const db = req.db || await getDb();
   try {
@@ -1127,7 +1138,8 @@ app.post('/api/settings/batch', authMiddleware, adminOnly, async (req, res) => {
   if (!Array.isArray(submitted)) {
     return res.status(400).json({ error: 'Settings array required' });
   }
-  const settings = submitted.map(setting => ({ ...setting, value: socialSettingKeys.has(setting.key) ? normalizedSocialUrl(setting.value) : setting.value }));
+  const settings = submitted.map(setting => ({ ...setting, value: normalizedSettingValue(setting.key, setting.value) }));
+  if (settings.some(setting => setting.value === undefined)) return res.status(400).json({ error: 'Invalid setting value' });
 
   const db = req.db || await getDb();
   try {

@@ -12,10 +12,19 @@ it('stretches the homepage library scroll area only on shared-row desktop layout
  expect(home).toMatch(/\.lower > \*\s*\{[^}]*min-width:\s*0/);
 });
 
+it('lets only the carousel break out to the full homepage width',()=>{
+ const home=readFileSync('src/components/Home.Component.module.css','utf8');
+ const featured=readFileSync('src/components/Media/Featured.module.css','utf8');
+ expect(home).toMatch(/\.container\s*\{[^}]*--home-gutter:\s*clamp\(20px, 4\.45vw, 80px\)/);
+ expect(home).toMatch(/@media \(max-width: 800px\)[\s\S]*\.container\s*\{[^}]*--home-gutter:\s*20px/);
+ expect(featured).toMatch(/\.screen\s*\{[^}]*margin-left:\s*calc\(var\(--home-gutter\) \* -1\)/);
+ expect(home).toMatch(/\.lower\s*\{[^}]*grid-template-columns:/);
+});
+
 it('keeps one modest 16px homepage-to-footer gap, not stacked spacing',()=>{
  const css=readFileSync('src/components/Home.Component.module.css','utf8');
- expect(css).toMatch(/\.container\s*\{[^}]*padding:\s*0 clamp\(20px, 4\.45vw, 80px\) 16px;/);
- expect(css).toMatch(/\.container\s*\{[^}]*padding:\s*0 20px 16px;/);
+ expect(css).toMatch(/\.container\s*\{[^}]*--home-gutter:\s*clamp\(20px, 4\.45vw, 80px\)[^}]*padding:\s*0 var\(--home-gutter\) 16px;/);
+ expect(css).toMatch(/\.container\s*\{[^}]*--home-gutter:\s*20px[^}]*padding:\s*0 var\(--home-gutter\) 16px;/);
  expect(css).toMatch(/\.container \+ footer\s*\{[^}]*margin-top:\s*0;/);
 });
 
@@ -85,4 +94,10 @@ it('keeps the homepage heading and nonshrinking reload in one flex row at narrow
  expect(css).toMatch(/\.compactHeading\s*\{[^}]*align-items:\s*center/);
  expect(css).toMatch(/\.compactHeading button\s*\{[^}]*flex-shrink:\s*0/);
  expect(css).toMatch(/\.compactHeading h2\s*\{[^}]*margin:\s*0/);
+});
+
+it('keeps the audio recovery control at the top of the disabled video above the fixed player dock',()=>{
+ const css=readFileSync('src/components/Home.Component.module.css','utf8');
+ expect(css).toMatch(/\.videoDisabled\s*\{[^}]*position:\s*relative/);
+ expect(css).toMatch(/\.disabledMessage > button\s*\{[^}]*position:\s*absolute[^}]*top:\s*12px[^}]*right:\s*12px/);
 });

@@ -204,7 +204,8 @@ export default function AdminSettings() {
                   </Button>
                 </Box>
                 <TextField
-                  slotProps={{ htmlInput: { 'aria-labelledby': `setting-title-${setting.key}`, 'aria-describedby': `setting-description-${setting.key}` } }}
+                  type={setting.key === 'homepage_carousel_interval_seconds' ? 'number' : 'text'}
+                  slotProps={{ htmlInput: { 'aria-labelledby': `setting-title-${setting.key}`, 'aria-describedby': `setting-description-${setting.key}`, ...(setting.key === 'homepage_carousel_interval_seconds' ? { min: 1, max: 3600, step: 1 } : {}) } }}
                   fullWidth
                   variant="outlined"
                   value={setting.value || ''}
