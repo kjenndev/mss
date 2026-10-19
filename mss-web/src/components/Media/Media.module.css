@@ -10,6 +10,8 @@
 .library button:disabled, .player button:disabled { cursor:default; opacity:.45; }
 .library button:focus-visible, .player button:focus-visible, .player a:focus-visible { outline:2px solid #90caf9; outline-offset:3px; }
 .library > p, .library > div[role] { font-size:14px; line-height:1.7; color:#bac4cf; padding:14px 0; }
+.partialWarning { display:flex; align-items:center; gap:8px; }
+.partialWarning svg { color:#f5c76b; flex-shrink:0; }
 .library div[role] ul { margin:8px 0; padding-left:20px; }
 .tracks { list-style:none; padding:0; margin:0 0 16px; border-top:1px solid #41454b; max-height:540px; overflow:auto; scrollbar-color:#505761 #181b1f; }
 .track { position:relative; isolation:isolate; overflow:hidden; background:#191e24; display:grid; grid-template-columns:minmax(0,1fr) 110px 155px; align-items:center; gap:20px; min-height:88px; padding:8px 10px 8px 0; border-bottom:1px solid #30353b; }

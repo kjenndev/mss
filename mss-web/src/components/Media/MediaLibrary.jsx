@@ -1,11 +1,13 @@
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import styles from './Media.module.css';
 import { useEffect, useRef, useState } from 'react';
 import { playableUrl, youtubeVideoId } from './mediaUrls';
 import { useMediaPlayer } from './MediaPlayerContext';
 import { GetMediaLibrary } from '../../Data.Helper.Api';
+import ProfileAvatar from '../User/ProfileAvatar';
 
 // Mirror the metadata adapter's provider artwork boundary; never resolve local uploads.
 function artworkUrl(item) {
@@ -27,10 +29,10 @@ const newestFirst = (a,b) => {
  if(aKnown!==bKnown) return aKnown ? -1 : 1;
  return (aKnown ? bTime-aTime : 0) || a.id.localeCompare(b.id);
 };
-export default function MediaLibrary({ artistId, renderIntro, fillHeight = false, compactHeader = false, onVideoSelect, selectedVideoId } = {}) {
- return <ScopedMediaLibrary key={artistId ?? 'all'} artistId={artistId} renderIntro={renderIntro} fillHeight={fillHeight} compactHeader={compactHeader} onVideoSelect={onVideoSelect} selectedVideoId={selectedVideoId} />;
+export default function MediaLibrary({ artistId, renderIntro, fillHeight = false, compactHeader = false, showArtistImages = false, onVideoSelect, selectedVideoId } = {}) {
+ return <ScopedMediaLibrary key={artistId ?? 'all'} artistId={artistId} renderIntro={renderIntro} fillHeight={fillHeight} compactHeader={compactHeader} showArtistImages={showArtistImages} onVideoSelect={onVideoSelect} selectedVideoId={selectedVideoId} />;
 }
-function ScopedMediaLibrary({ artistId, renderIntro, fillHeight, compactHeader, onVideoSelect, selectedVideoId }) {
+function ScopedMediaLibrary({ artistId, renderIntro, fillHeight, compactHeader, showArtistImages, onVideoSelect, selectedVideoId }) {
  const player=useMediaPlayer();
  const [snapshot,setSnapshot]=useState(null);
  const snapshotId=useRef(null);
@@ -79,12 +81,12 @@ function ScopedMediaLibrary({ artistId, renderIntro, fillHeight, compactHeader, 
  const reload = snapshot && <button aria-label="Reload library" title="Reload library" style={{ minWidth: 44, minHeight: 44 }} disabled={loading} onClick={()=>{refreshAttempts.current=0;load(0);}}><RefreshIcon aria-hidden="true" /></button>;
  return <>{renderIntro?.({canListen,listenToLatest:()=>{if(canListen) player.select(latest,items);}})}<section className={`${styles.library} ${fillHeight ? styles.fillHeight : ''}`} aria-label="Artist library">
   <header className={styles.libraryHeader}><div><p className={styles.eyebrow}>{artistId === undefined ? 'From the artists' : 'From this artist'}</p><div className={compactHeader ? styles.compactHeading : undefined}><h2>Artist library</h2>{compactHeader && reload}</div><p className={styles.subtitle}>SoundCloud, Mixcloud &amp; artist-linked YouTube videos.{!compactHeader && ' Newest published first.'}</p></div>{snapshot && <div><span className={styles.count}>{items.length} of {snapshot.total} uploads</span> {!compactHeader && reload}</div>}</header>
-  {snapshot?.complete===false && <div role="status"><p>Some artist sources are unavailable or incomplete.</p><ul>{snapshot.sources.filter(source=>source.status!=='ok').map((source,index)=><li key={`${source.artistId}:${source.provider}:${index}`}>{source.artistName} · {source.provider}: {source.message}</li>)}</ul></div>}
+  {snapshot?.complete===false && <p role="status" aria-label="Some entries may be missing" className={styles.partialWarning}><WarningAmberIcon aria-hidden="true" fontSize="small" /><span>Some entries may be missing</span></p>}
   {snapshot?.cache?.stale && <p role="status">Showing cached uploads{snapshot.cache.refreshing ? ' while sources refresh.' : '; some sources could not be refreshed.'}</p>}
   {unsafe && <p role="alert">Some uploads could not be displayed safely.</p>}
   {loading && <p role="status">Loading artist uploads…</p>}
   {error && <p role="alert">Unable to load the artist library. <button onClick={()=>load(request.offset)}><RefreshIcon aria-hidden="true" fontSize="small" /> Retry library</button></p>}
-  {items.length ? <ul className={styles.tracks}>{items.map(item=><li key={item.id} className={styles.track}><TrackArtwork item={item} /><button className={styles.selectTrack} onClick={()=>item.provider==='youtube' ? onVideoSelect?.(item) : player?.select(item,items)} disabled={item.provider==='youtube' && (!onVideoSelect || item.playable===false || item.providerAccess==='blocked')} aria-pressed={(item.provider==='youtube' ? selectedVideoId : player?.item?.id)===item.id} aria-label={`Play ${item.title}`}><span className={styles.playMark} aria-hidden="true"><PlayArrowIcon aria-hidden="true" /></span><span className={styles.trackTitle}><strong>{item.title}</strong><span className={styles.artist}>{item.artistName || 'Artist'}</span></span></button><span className={styles.provider}>{item.provider==='youtube'?'YouTube':item.provider==='soundcloud'?'SoundCloud':'Mixcloud'}</span><span className={styles.trackMeta}>{Number.isFinite(Date.parse(item.createdAt)) ? <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'})}</time> : <span>Upload date unknown</span>}{Number.isFinite(item.durationSeconds) && item.durationSeconds>0 && <span>{Math.ceil(item.durationSeconds/60)} min</span>}{item.providerAccess==='preview' && <span>Preview only</span>}{item.providerAccess==='blocked' && <span>Restricted · check provider</span>}{item.playable===false && <span>Embedding unavailable · check provider</span>}</span></li>)}</ul> : !loading && !error && <p>{snapshot?.complete===false ? 'No uploads are available from the responding sources.' : 'No public uploads found for linked artist profiles.'}</p>}
+  {items.length ? <ul className={styles.tracks}>{items.map(item=><li key={item.id} className={styles.track}><TrackArtwork item={item} /><button className={styles.selectTrack} onClick={()=>item.provider==='youtube' ? onVideoSelect?.(item) : player?.select(item,items)} disabled={item.provider==='youtube' && (!onVideoSelect || item.playable===false || item.providerAccess==='blocked')} aria-pressed={(item.provider==='youtube' ? selectedVideoId : player?.item?.id)===item.id} aria-label={`Play ${item.title}`}><span className={styles.playMark} aria-hidden="true"><PlayArrowIcon aria-hidden="true" /></span>{showArtistImages && <ProfileAvatar src={item.artistImage} name={item.artistName || 'Artist'} sx={{ width:44, height:44, borderRadius:'50%', border:'1px solid rgba(144, 202, 249, 0.55)' }} />}<span className={styles.trackTitle}><strong>{item.title}</strong><span className={styles.artist}>{item.artistName || 'Artist'}</span></span></button><span className={styles.provider}>{item.provider==='youtube'?'YouTube':item.provider==='soundcloud'?'SoundCloud':'Mixcloud'}</span><span className={styles.trackMeta}>{Number.isFinite(Date.parse(item.createdAt)) ? <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'})}</time> : <span>Upload date unknown</span>}{Number.isFinite(item.durationSeconds) && item.durationSeconds>0 && <span>{Math.ceil(item.durationSeconds/60)} min</span>}{item.providerAccess==='preview' && <span>Preview only</span>}{item.providerAccess==='blocked' && <span>Restricted · check provider</span>}{item.playable===false && <span>Embedding unavailable · check provider</span>}</span></li>)}</ul> : !loading && !error && <p>{snapshot?.complete===false ? 'No uploads are available from the responding sources.' : 'No public uploads found for linked artist profiles.'}</p>}
   {!error && snapshot?.nextOffset!=null && <button disabled={loading} onClick={()=>load(snapshot.nextOffset)}><ExpandMoreIcon aria-hidden="true" fontSize="small" /> Load more uploads</button>}
  </section></>;
 }
