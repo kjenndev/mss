@@ -47,11 +47,12 @@ it.each([{ok:false}, {ok:true,json:async()=>({items:null})}])('offers retry inst
  fireEvent.click(screen.getByRole('button',{name:'Retry library'}));
  expect(await screen.findByText('No public uploads found for linked artist profiles.')).toBeTruthy();
 });
-it('reports partial and stale sources without hiding available uploads or claiming an empty library',async()=>{
+it('condenses partial-source status into a warning without exposing provider details',async()=>{
  api.GetMediaLibrary.mockResolvedValue(response([track('available')],{complete:false,sources:[{artistId:1,artistName:'Test artist',provider:'soundcloud',status:'not_configured',message:'SoundCloud credentials are not configured.'}],cache:{stale:true,refreshing:true}})); setup();
  await screen.findByRole('button',{name:'Play Track available'});
- expect(screen.getByText('Some artist sources are unavailable or incomplete.')).toBeTruthy();
- expect(screen.getByText(/SoundCloud credentials are not configured/)).toBeTruthy();
+ const warning=screen.getByRole('status',{name:'Some entries may be missing'});
+ expect(warning.querySelector('[data-testid="WarningAmberIcon"][aria-hidden="true"]')).toBeTruthy();
+ expect(screen.queryByText(/SoundCloud credentials are not configured/)).toBeNull();
  expect(screen.getByText(/Showing cached uploads/)).toBeTruthy();
 });
 it('loads subsequent pages, deduplicates entries and resets when the server snapshot changes',async()=>{
@@ -290,4 +291,16 @@ it.each([undefined, '1'])('places the single play control immediately before tit
  fireEvent.click(icon);
  expect(button.getAttribute('aria-pressed')).toBe('true');
  expect(screen.getByTitle('SoundCloud player')).toBeTruthy();
+});
+
+it('shows a circular bordered artist profile image between play and track text when requested',async()=>{
+ const item={...track('portrait'),artistImage:'/uploads/artist-portrait.jpg'};
+ api.GetMediaLibrary.mockResolvedValue(response([item]));
+ render(<MediaPlayerProvider><MediaLibrary showArtistImages /></MediaPlayerProvider>);
+ const button=await screen.findByRole('button',{name:'Play Track portrait'});
+ const avatar=screen.getByRole('img',{name:"Test artist's profile picture"});
+ expect(button.children[1]).toBe(avatar.parentElement);
+ expect(button.children[2].querySelector('strong').textContent).toBe('Track portrait');
+ expect(avatar.getAttribute('src')).toContain('/uploads/artist-portrait.jpg');
+ expect(avatar.parentElement).toHaveStyle({borderRadius:'50%',border:'1px solid rgba(144, 202, 249, 0.55)'});
 });
