@@ -56,7 +56,7 @@ export default function AdminFeatured() {
  const current=videos.find(v=>v.id===selected)||videos[0];
  const move=(index,delta)=>{const next=[...videos];[next[index],next[index+delta]]=[next[index+delta],next[index]];changed(next);};
  return <ThemeProvider theme={theme}><main className={styles.admin}>
-  <p className={styles.label}>Site settings</p><h1>Homepage featured videos<span aria-hidden="true">.</span></h1>
+  <p className={styles.label}>Site settings</p><h1>Homepage featured videos</h1>
   <p>Choose YouTube videos and their order. Live artists take priority while broadcasting; your selection returns when nobody is live. Artist library order is unchanged.</p>
   {loading?<p role="status">Loading featured settings…</p>:<>{error && <Alert severity="error">{error}</Alert>}{success && <Alert severity="success">{success}</Alert>}
   {!ready?<Button onClick={()=>{setLoading(true);setError('');setAttempt(n=>n+1);}}>Retry featured settings</Button>:<>

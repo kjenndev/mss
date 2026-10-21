@@ -64,7 +64,7 @@ export default function About() {
       <div className={styles.identity}>
         <aside className={styles.identityColumn}>
           <p className={styles.eyebrow}>Midnight Sound Syndicate</p>
-          <h1 className={styles.title}>About <br />MSS<span aria-hidden="true">.</span></h1>
+          <h1 className={styles.title}>About <br />MSS</h1>
           {coverPhoto && failedCover !== coverPhoto && <img onError={() => setFailedCover(coverPhoto)} className={styles.cover} src={getImageUrl(coverPhoto)} alt="Midnight Sound Syndicate cover" />}
           <p className={styles.stamp}>Music / Artists / Community</p>
           {socialLinks.length > 0 && <nav className={styles.socialLinks} aria-label="Social links">

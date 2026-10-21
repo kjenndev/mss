@@ -77,7 +77,7 @@ export default function CreateUser() {
           <Stack spacing={4}>
             <Box>
               <Typography className={styles.eyebrow}>User management</Typography>
-              <Typography component="h1" variant="h4" className={styles.title}>Create New User<span aria-hidden="true">.</span></Typography>
+              <Typography component="h1" variant="h4" className={styles.title}>Create New User</Typography>
               <Typography variant="body2" color="text.secondary">
                 Manually create a new user account.
               </Typography>

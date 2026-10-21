@@ -29,7 +29,7 @@ it.each([
 ])('provides an editorial page heading and named form sections on case %#', async (Component, path, title, section) => {
   render(<MemoryRouter initialEntries={[path]}><Routes><Route path={path.includes('/1/') ? path.replace('/1/', '/:id/') : path} element={<Component />} /></Routes></MemoryRouter>);
   const heading = await screen.findByRole('heading', { level: 1, name: title });
-  expect(heading.querySelector('[aria-hidden="true"]').textContent).toBe('.');
+  expect(heading.querySelector('[aria-hidden="true"]')).toBeNull();
   expect(screen.getByRole('region', { name: section })).toBeTruthy();
   expect(screen.getByText(path.startsWith('/artists') ? 'Artist management' : 'Event management')).toBeTruthy();
 });

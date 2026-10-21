@@ -3,7 +3,6 @@
 .mainPaper { padding: 0; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
 .eyebrow { color: #90caf9; font-size: 11px !important; text-transform: uppercase; letter-spacing: 2px !important; }
 .title { font-size: clamp(36px, 5vw, 58px) !important; font-weight: 700 !important; letter-spacing: -2px !important; line-height: 1.08 !important; margin: 10px 0 16px !important; overflow-wrap: anywhere; }
-.title span { color: #90caf9; }
 .sectionBox { min-width: 0; border-top: 1px solid #343434; padding-top: 24px; }
 .sectionHeader { font-size: 20px !important; font-weight: 600 !important; margin-bottom: 20px !important; }
 .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }

@@ -140,7 +140,7 @@ export default function AdminAboutEditor() {
       <ThemeProvider theme={darkTheme}>
         <Box>
           <p className={styles.eyebrow}>Page Content</p>
-          <Typography component="h1" className={styles.title} gutterBottom>Edit About Page<span aria-hidden="true">.</span></Typography>
+          <Typography component="h1" className={styles.title} gutterBottom>Edit About Page</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
             Customize the content and appearance of your platform's About page.
           </Typography>

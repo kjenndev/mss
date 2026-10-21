@@ -2,7 +2,6 @@
 .loginBox { width: 100%; max-width: 480px; }
 .eyebrow { color: #90caf9; font-size: 11px !important; text-transform: uppercase; letter-spacing: 2px !important; }
 .loginTitle { margin: 10px 0 32px !important; font-size: 58px !important; line-height: 1.04 !important; letter-spacing: -2px !important; font-weight: 700 !important; }
-.loginTitle span { color: #90caf9; }
 .inputField { margin-bottom: 24px !important; }
 .content :global(.MuiOutlinedInput-root), .content :global(.MuiButton-root) { border-radius: 4px; }
 .errorText { margin-bottom: 16px !important; }

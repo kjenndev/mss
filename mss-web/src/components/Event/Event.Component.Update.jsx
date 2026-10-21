@@ -182,7 +182,7 @@ function EventEditor() {
             <Box className={styles.headerRow}>
               <Box>
                 <Typography className={styles.eyebrow}>Event management</Typography>
-              <Typography component="h1" className={styles.title}>Update Event<span aria-hidden="true">.</span></Typography>
+              <Typography component="h1" className={styles.title}>Update Event</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Update the details for this event.
                 </Typography>

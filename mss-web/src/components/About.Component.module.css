@@ -6,7 +6,6 @@
 .identityColumn, .story { min-width: 0; }
 .eyebrow { color: #90caf9; text-transform: uppercase; letter-spacing: 2px; font-size: 11px; margin: 0; }
 .title { font-size: 70px; line-height: 1.03; letter-spacing: -3px; margin: 20px 0 30px; }
-.title span { color: #90caf9; }
 .cover { display: block; width: 100%; height: 460px; object-fit: cover; object-position: center; border-radius: 4px; background: #242a2d; }
 .stamp { color: #8c9da6; letter-spacing: 3px; font-size: 11px; margin-top: 18px; line-height: 1.8; }
 .socialLinks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
