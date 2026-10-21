@@ -2,20 +2,20 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character =>
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[character]);
 
-function artistUrl(origin, id) {
+function artistUrl(origin, slug) {
   try {
     if (typeof origin !== 'string' || /[\u0000-\u001f\u007f]/.test(origin)) throw Error();
     const base = new URL(origin);
     if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.origin !== origin) throw Error();
-    if (!Number.isSafeInteger(Number(id)) || Number(id) < 1) throw Error();
-    return `${origin}/artists/${Number(id)}`;
+    if (typeof slug !== 'string' || slug.length > 100 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw Error();
+    return `${origin}/artists/${slug}`;
   } catch {
     throw Error('Invalid artist comment URL');
   }
 }
 
 export function artistCommentMessage({ artist, comment, origin }) {
-  const url = artistUrl(origin, artist?.id);
+  const url = artistUrl(origin, artist?.slug);
   const artistName = String(artist?.name ?? 'your artist profile');
   const authorName = String(comment?.author_name ?? 'A member');
   const content = String(comment?.content ?? '');

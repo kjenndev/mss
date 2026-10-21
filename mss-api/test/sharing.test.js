@@ -5,26 +5,52 @@ import { createSharingRouter } from '../sharing.js';
 
 test('artist HTML uses portrait, escaped title and trusted canonical origin, not Host or cover', async () => {
  const app = express();
- app.use(createSharingRouter({ origin: 'https://mss.example', loadEntity: async () => ({ id: 7, name: 'DJ <&"', location: 'Chicago', profile_picture: '/uploads/portrait.png', cover_photo: '/uploads/cover.png' }), loadIndex: async () => '<html><head><title>MSS</title></head><body><div id="root"></div></body></html>' }));
+ app.use(createSharingRouter({ origin: 'https://mss.example', loadEntity: async () => ({ id: 7, slug: 'dj', name: 'DJ <&"', location: 'Chicago', profile_picture: '/uploads/portrait.png', cover_photo: '/uploads/cover.png' }), loadIndex: async () => '<html><head><title>MSS</title></head><body><div id="root"></div></body></html>' }));
  const server = app.listen(0, '127.0.0.1');
  await new Promise(r => server.once('listening', r));
  try {
-  const res = await fetch(`http://127.0.0.1:${server.address().port}/artists/7`, { headers: { Host: 'evil.example' } });
+  const res = await fetch(`http://127.0.0.1:${server.address().port}/artists/dj`, { headers: { Host: 'evil.example' } });
   assert.equal(res.status, 200);
   const html = await res.text();
   assert.match(html, /property="og:image" content="https:\/\/mss.example\/uploads\/portrait.png"/);
   assert.match(html, /name="twitter:image" content="https:\/\/mss.example\/uploads\/portrait.png"/);
   assert.match(html, /name="twitter:title" content="DJ &lt;&amp;&quot;"/);
-  assert.match(html, /property="og:url" content="https:\/\/mss.example\/artists\/7"/);
+  assert.match(html, /property="og:url" content="https:\/\/mss.example\/artists\/dj"/);
   assert.match(html, /DJ &lt;&amp;&quot;/);
   assert.doesNotMatch(html, /cover.png|evil.example/);
+ } finally { await new Promise(r => server.close(r)); }
+});
+
+test('legacy numeric artist HTML redirects permanently to the canonical slug', async () => {
+ const app = express();
+ app.use(createSharingRouter({ origin: 'https://mss.example', loadEntity: async () => ({ id: 7, slug: 'midnight-sound-syndicate', name: 'MSS' }), loadIndex: async () => { throw new Error('redirect must not render'); } }));
+ const server = app.listen(0, '127.0.0.1'); await new Promise(r => server.once('listening', r));
+ try {
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/artists/7`, { redirect: 'manual' });
+  assert.equal(response.status, 308);
+  assert.equal(response.headers.get('location'), 'https://mss.example/artists/midnight-sound-syndicate');
+ } finally { await new Promise(r => server.close(r)); }
+});
+
+test('artist HTML rejects the reserved create route and invalid canonical numeric slug', async () => {
+ const app = express();
+ let lookups = 0;
+ app.use(createSharingRouter({ origin: 'https://mss.example', loadEntity: async () => { lookups += 1; return { id: 123, slug: '123', name: 'Numeric' }; }, loadIndex: async () => '<html><head></head><body></body></html>' }));
+ const server = app.listen(0, '127.0.0.1'); await new Promise(r => server.once('listening', r));
+ try {
+  const reserved = await fetch(`http://127.0.0.1:${server.address().port}/artists/create`);
+  assert.equal(reserved.status, 404);
+  assert.equal(lookups, 0);
+  const numeric = await fetch(`http://127.0.0.1:${server.address().port}/artists/123`, { redirect: 'manual' });
+  assert.equal(numeric.status, 404);
+  assert.equal(lookups, 1);
  } finally { await new Promise(r => server.close(r)); }
 });
 
 import { harness } from './harness.js';
 test('API mounts the public HTML renderer outside authentication', async () => {
  const { app } = await harness();
- for (const path of ['/', '/artists/:id', '/events/:id']) {
+ for (const path of ['/', '/artists/:profile', '/events/:id']) {
   assert.ok(app.middleware.some(args => args[0]?.stack?.some(layer => layer.route?.path === path)));
  }
 });
@@ -49,7 +75,7 @@ for (const [name, origin, path, record, expected, image] of [
 });
 
 test('disabled artist returns a generic 404 SPA shell without profile metadata',async()=>{
- const app=express();app.use(createSharingRouter({origin:'https://mss.example',loadEntity:async()=>({id:1,name:'Hidden artist',is_disabled:true,profile_picture:'/uploads/private.png'}),loadIndex:async()=>'<html><head><title>MSS</title></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'}));
+ const app=express();app.use(createSharingRouter({origin:'https://mss.example',loadEntity:async()=>({id:1,slug:'hidden-artist',name:'Hidden artist',is_disabled:true,profile_picture:'/uploads/private.png'}),loadIndex:async()=>'<html><head><title>MSS</title></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'}));
  const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
  try{const res=await fetch(`http://127.0.0.1:${server.address().port}/artists/1`);assert.equal(res.status,404);assert.equal(res.headers.get('cache-control'),'private, no-store');const html=await res.text();assert.match(html,/assets\/app.js/);assert.match(html, /name="robots" content="noindex"/);assert.doesNotMatch(html,/Hidden artist|private.png|og:|twitter:/);}finally{await new Promise(r=>server.close(r));}
 });
@@ -76,10 +102,10 @@ test('homepage initial HTML uses the public MSS JPEG logo without entity lookup 
 for (const profile of [null, '', 'javascript:alert(1)', '//evil.example/pic.png', 'https://user:pass@images.example/p.png', '/uploads/..', '/uploads/%2e%2e', '/uploads/bad.svg', '/uploads/a%2fb.png']) {
  test(`artist missing/unsafe profile uses logo, never cover/gallery: ${profile}`, async () => {
   const app = express();
-  app.use(createSharingRouter({ origin: 'https://mss.example', loadEntity: async () => ({ name: 'Artist', profile_picture: profile, cover_photo: '/uploads/cover.png', gallery: ['/uploads/gallery.png'] }), loadIndex: async () => '<html><head><title>MSS</title></head><body><div id="root"></div></body></html>' }));
+  app.use(createSharingRouter({ origin: 'https://mss.example', loadEntity: async () => ({ name: 'Artist', slug: 'artist', profile_picture: profile, cover_photo: '/uploads/cover.png', gallery: ['/uploads/gallery.png'] }), loadIndex: async () => '<html><head><title>MSS</title></head><body><div id="root"></div></body></html>' }));
   const server = app.listen(0, '127.0.0.1'); await new Promise(r => server.once('listening', r));
   try {
-   const res = await fetch(`http://127.0.0.1:${server.address().port}/artists/7`);
+   const res = await fetch(`http://127.0.0.1:${server.address().port}/artists/artist`);
    assert.equal(res.status, 200); const html = await res.text();
    assert.match(html, /property="og:image" content="https:\/\/mss.example\/msslogo.jpg"/);
    assert.match(html, /name="twitter:image" content="https:\/\/mss.example\/msslogo.jpg"/);
@@ -102,11 +128,11 @@ for (const origin of ['', 'http://mss.example', 'https://mss.example/path', 'htt
   } finally { await new Promise(r => server.close(r)); }
  });
 }
-for (const path of ['/', '/artists/7', '/events/9']) {
+for (const path of ['/', '/artists/artist', '/events/9']) {
  for (const build of [null, '<html><body>incomplete</body></html>']) {
   test(`missing or malformed build fails closed for ${path}: ${build}`, async () => {
    const app = express();
-   app.use(createSharingRouter({ origin: 'https://mss.example', loadEntity: async () => ({ name: 'Artist', title: 'Event' }), loadIndex: async () => { if (build === null) throw new Error('ENOENT'); return build; } }));
+   app.use(createSharingRouter({ origin: 'https://mss.example', loadEntity: async kind => kind === 'artists' ? ({ name: 'Artist', slug: 'artist' }) : ({ title: 'Event' }), loadIndex: async () => { if (build === null) throw new Error('ENOENT'); return build; } }));
    const server = app.listen(0, '127.0.0.1'); await new Promise(r => server.once('listening', r));
    try {
     const response = await fetch(`http://127.0.0.1:${server.address().port}${path}`);

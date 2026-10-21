@@ -17,6 +17,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import * as helpers from '../../Data.Helper.Api';
 import CommentSection from '../Comments/CommentSection';
 import styles from './Event.Component.Detail.module.css';
+import { artistProfilePath } from '../../artistRoutes';
 
 const darkTheme = createTheme({
   palette: {
@@ -159,7 +160,7 @@ function EventDetail({ id }) {
                 <h2>The lineup</h2>
                 <div className={styles.artists}>
                   {event.artists.map((artist) => (
-                    <Link key={artist.id} to={`/artists/${artist.id}`} className={styles.artistLink}>
+                    <Link key={artist.id} to={artistProfilePath(artist)} className={styles.artistLink}>
                       <Avatar src={getImageUrl(artist.profile_picture) || undefined} aria-hidden="true" />
                       <span>{artist.name}</span>
                     </Link>

@@ -6,7 +6,7 @@ import Detail from './components/Event/Event.Component.Detail';
 import * as api from './Data.Helper.Api';
 vi.mock('./Data.Helper.Api');
 vi.mock('./components/Comments/CommentSection', () => ({ default: ({ eventId }) => <div>Comments for {eventId}</div> }));
-const event = { id: 7, title: 'Night Assembly', date: '2026-10-24T21:00:00', location: 'Community Hall', description: 'Real event description', flyer: '/uploads/flyer.png', flyer_artist_name: 'Flyer Creator', flyer_artist_url: 'https://example.com/credit', ticket_link: 'https://example.com/tickets', artists: [{ id: 3, name: 'Performer' }], images: [{ id: 9, url: '/uploads/photo.png' }] };
+const event = { id: 7, title: 'Night Assembly', date: '2026-10-24T21:00:00', location: 'Community Hall', description: 'Real event description', flyer: '/uploads/flyer.png', flyer_artist_name: 'Flyer Creator', flyer_artist_url: 'https://example.com/credit', ticket_link: 'https://example.com/tickets', artists: [{ id: 3, slug: 'performer', name: 'Performer' }], images: [{ id: 9, url: '/uploads/photo.png' }] };
 function mount() {
  return render(<MemoryRouter initialEntries={['/events/7']}><Routes><Route path="/events/:id" element={<Detail />} /><Route path="/events/:id/update" element={<div>Event editor</div>} /><Route path="/artists/:id" element={<div>Artist profile</div>} /></Routes></MemoryRouter>);
 }
@@ -41,7 +41,7 @@ it('omits event breadcrumbs while retaining the event heading and lineup links',
  expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).toBeNull();
  expect(screen.queryByRole('link', { name: 'Events' })).toBeNull();
  expect(screen.getAllByText(event.title, { exact: true })).toHaveLength(1);
- expect(screen.getByRole('link', { name: 'Performer' }).getAttribute('href')).toBe('/artists/3');
+ expect(screen.getByRole('link', { name: 'Performer' }).getAttribute('href')).toBe('/artists/performer');
  expect(screen.getByText('Comments for 7')).toBeTruthy();
 });
 

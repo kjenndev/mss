@@ -12,7 +12,7 @@ beforeEach(() => {
  api.GetSessionUser.mockReturnValue('Synthetic User');
  api.IsAdmin.mockReturnValue(false);
  api.GetCurrentUser.mockResolvedValue({ ok: true, json: async () => ({ user: { username: 'Synthetic User' } }) });
- api.GetMyArtists.mockResolvedValue({ ok: true, json: async () => ({ artists: [{ id: 9, name: 'Synthetic Artist' }] }) });
+ api.GetMyArtists.mockResolvedValue({ ok: true, json: async () => ({ artists: [{ id: 9, slug: 'synthetic-artist', name: 'Synthetic Artist' }] }) });
  api.Logout.mockResolvedValue(undefined);
 });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -37,7 +37,7 @@ it.each([
  ['Account Settings', '/account'],
  ['Admin Dashboard', '/admin/dashboard'],
  ['System Settings', '/admin/settings'],
- ['Synthetic Artist Profile', '/artists/9'],
+ ['Synthetic Artist Profile', '/artists/synthetic-artist'],
  ['Logout', '/login'],
 ])('preserves the %s destination', async (label, path) => {
  api.IsAdmin.mockReturnValue(true);

@@ -26,7 +26,7 @@ const response=data=>({ok:true,json:async()=>data});
 beforeEach(()=>{
  vi.resetAllMocks();
  api.IsAdmin.mockReturnValue(true); api.CanCreateEvent.mockReturnValue(true); api.CanEditArtist.mockReturnValue(true); api.CanEditEvent.mockReturnValue(true);
- const artist={id:1,name:'Fixture artist',user_id:1};
+ const artist={id:1,name:'Fixture artist',slug:'fixture-artist',user_id:1};
  const event={id:1,title:'Fixture event',artists:[],images:[],date:null};
  api.GetAllArtists.mockResolvedValue(response({artists:[artist]}));
  api.GetArtistById.mockResolvedValue(response({artist}));
@@ -83,7 +83,7 @@ it('keeps a save icon in the admin user editor',async()=>{
 });
 
 it('keeps the artist external platform action text with an icon',async()=>{
- api.GetArtistById.mockResolvedValue(response({artist:{id:1,name:'Fixture artist',channel_name:'fixture'}}));
+ api.GetArtistById.mockResolvedValue(response({artist:{id:1,name:'Fixture artist',slug:'fixture-artist',channel_name:'fixture'}}));
  api.GetSettings.mockResolvedValue(response({settings:{streaming_platform_url:'https://platform.test'}}));
  api.GetActiveSyndicateStreams.mockResolvedValue(response({streams:[{artistId:1,channelName:'fixture'}]}));
  setup(ArtistDetail); iconAction(await screen.findByRole('button',{name:'Open platform player'}));

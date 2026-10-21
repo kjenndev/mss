@@ -1,5 +1,6 @@
 import { createBookingsRouter } from '../bookings.js';
 import { createSharingRouter } from '../sharing.js';
+import { slugifyArtistName, isCanonicalArtistSlug } from '../artist-slug.js';
 import { featuredUrls, featuredDto, prepareFeatured } from '../home-featured.js';
 import { createRegistrationRouter } from '../registration.js';
 import { createStreamManager, issueGrantForCurrentOwner } from '../stream-manager.js';
@@ -16,7 +17,7 @@ export async function harness(extra = {}) {
  const multer=()=>({single:()=> (req,res,next)=>next()}); multer.diskStorage=multer.memoryStorage=x=>x;
  let source=fs.readFileSync(new URL('index.js',root),'utf8').replace(/^import .*;\r?\n/gm,'').replace('fileURLToPath(import.meta.url)',"'/tmp/mss-test/index.js'");
  source=source.slice(0,source.indexOf('const server = app.listen'));
- const context={createBookingsRouter,createSharingRouter,createStreamManager,issueGrantForCurrentOwner,featuredUrls,featuredDto,prepareFeatured,youtubeMetadata,parseYouTubeUrl,youtubeVideoDto,YOUTUBE_LINK_LIMIT,createRegistrationRouter,getDb:async()=>{throw Error('Unexpected database access')},hashPassword:async()=>{throw Error('Unexpected password hash')},verifyPassword:async()=>false,URL,express,multer,cors:()=>()=>{},path,crypto,fs:{existsSync:()=>true},process:{env:{}},initializeDB:async()=>{},console, ...extra};
+ const context={createBookingsRouter,createSharingRouter,slugifyArtistName,isCanonicalArtistSlug,createStreamManager,issueGrantForCurrentOwner,featuredUrls,featuredDto,prepareFeatured,youtubeMetadata,parseYouTubeUrl,youtubeVideoDto,YOUTUBE_LINK_LIMIT,createRegistrationRouter,getDb:async()=>{throw Error('Unexpected database access')},hashPassword:async()=>{throw Error('Unexpected password hash')},verifyPassword:async()=>false,URL,express,multer,cors:()=>()=>{},path,crypto,fs:{existsSync:()=>true},process:{env:{}},initializeDB:async()=>{},console, ...extra};
  await vm.runInNewContext('(async()=>{'+source+'})()',context);
  return {route:(m,u)=>routes.find(r=>r.method===m&&r.url===u),app};
 }

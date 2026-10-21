@@ -23,7 +23,7 @@ it('stretches the native profile link over the card with independent provider an
  expect(provider.getAttribute('href')).toBe('https://soundcloud.com/fixture');
  expect(provider.getAttribute('target')).toBe('_blank');
  expect(provider.getAttribute('rel')).toBe('noopener noreferrer');
- expect(details.getAttribute('href')).toBe('/artists/1');
+ expect(details.getAttribute('href')).toBe('/artists/alpha-test');
  expect(edit.getAttribute('href')).toBe('/artists/1/update');
  expect(container.querySelector('a a')).toBeNull();
  expect(card.hasAttribute('tabindex')).toBe(false);
@@ -51,8 +51,8 @@ it('stretches the native profile link over the card with independent provider an
 
 const response = artists => ({ ok: true, json: async () => ({ artists }) });
 const artists = [
-  { id: 2, user_id: 20, name: 'Zulu Test', location: 'Detroit', profile_picture: '/uploads/fixture.jpg' },
-  { id: 1, user_id: 10, name: 'Alpha Test', location: 'Chicago' },
+  { id: 2, slug: 'zulu-test', user_id: 20, name: 'Zulu Test', location: 'Detroit', profile_picture: '/uploads/fixture.jpg' },
+  { id: 1, slug: 'alpha-test', user_id: 10, name: 'Alpha Test', location: 'Chicago' },
 ];
 beforeEach(() => { vi.resetAllMocks(); api.GetAllArtists.mockResolvedValue(response(artists)); });
 afterEach(cleanup);
@@ -66,7 +66,7 @@ it('renders the portrait directory with semantic identity and existing owner act
   expect(screen.getByRole('img', { name: 'Zulu Test' }).getAttribute('src')).toBe('/uploads/fixture.jpg');
   expect(screen.getByText('AT')).toBeTruthy();
   expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe('/artists/1/update');
-  expect(cards.map(card => within(card).getByRole('link', { name: within(card).getByRole('heading').textContent }).getAttribute('href'))).toEqual(['/artists/1', '/artists/2']);
+  expect(cards.map(card => within(card).getByRole('link', { name: within(card).getByRole('heading').textContent }).getAttribute('href'))).toEqual(['/artists/alpha-test', '/artists/zulu-test']);
   expect(container.querySelector('.MuiPaper-root')).toBeNull();
 });
 
@@ -90,7 +90,7 @@ it('searches names and locations case-insensitively, sorts without mutating reco
 });
 
 it('replaces a broken portrait with initials and omits absent location copy', async () => {
-  api.GetAllArtists.mockResolvedValue(response([{ ...artists[0], location: null }, { id: 3, name: '  single  ' }]));
+  api.GetAllArtists.mockResolvedValue(response([{ ...artists[0], location: null }, { id: 3, slug: 'single', name: '  single  ' }]));
   render(<ArtistList />);
   fireEvent.error(await screen.findByRole('img', { name: 'Zulu Test' }));
   expect(screen.queryByRole('img', { name: 'Zulu Test' })).toBeNull();
@@ -102,9 +102,9 @@ it('replaces a broken portrait with initials and omits absent location copy', as
 
 it('links only supplied safe provider URLs without inventing provider metadata', async () => {
   api.GetAllArtists.mockResolvedValue(response([
-    { id: 1, name: 'Linked Test', soundcloud: 'https://soundcloud.com/fixture', mixcloud: 'https://www.mixcloud.com/fixture/', youtube: 'https://youtube.com/@fixture', twitch: 'fixture_channel' },
-    { id: 2, name: 'Unsafe Test', soundcloud: 'javascript:alert(1)', mixcloud: '//evil.test', youtube: 'data:text/html,bad' },
-    { id: 3, name: 'Absent Test' },
+    { id: 1, slug: 'linked-test', name: 'Linked Test', soundcloud: 'https://soundcloud.com/fixture', mixcloud: 'https://www.mixcloud.com/fixture/', youtube: 'https://youtube.com/@fixture', twitch: 'fixture_channel' },
+    { id: 2, slug: 'unsafe-test', name: 'Unsafe Test', soundcloud: 'javascript:alert(1)', mixcloud: '//evil.test', youtube: 'data:text/html,bad' },
+    { id: 3, slug: 'absent-test', name: 'Absent Test' },
   ]));
   render(<ArtistList />);
   const cards = await screen.findAllByRole('article');

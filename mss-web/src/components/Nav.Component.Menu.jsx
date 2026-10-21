@@ -16,6 +16,7 @@ import LiveTvOutlined from '@mui/icons-material/LiveTvOutlined';
 
 import * as helpers from '../Data.Helper.Api';
 import styles from './Nav.Component.Menu.module.css';
+import { artistProfilePath } from '../artistRoutes';
 
 function AccountIdentity({ user, name }) {
   return <li role="presentation" className={styles.identity}>
@@ -109,9 +110,9 @@ export default function NavMenu({ guestClassName }) {
     navigate('/login');
   };
 
-  const handleArtistClick = (artistId) => {
+  const handleArtistClick = (artist) => {
     handleClose();
-    navigate(`/artists/${artistId}`);
+    navigate(artistProfilePath(artist));
   };
 
   if (hasSession) {
@@ -166,7 +167,7 @@ export default function NavMenu({ guestClassName }) {
 
           {myArtists.length > 0 && <Divider />}
           {myArtists.map((artist) => (
-            <MenuItem className={styles.menuRow} key={artist.id} onClick={() => handleArtistClick(artist.id)}>
+            <MenuItem className={styles.menuRow} key={artist.id} onClick={() => handleArtistClick(artist)}>
               <PersonOutline fontSize="small" />
               <Typography variant="body2" className={styles.menuItemButton}>
                 {artist.name} Profile
