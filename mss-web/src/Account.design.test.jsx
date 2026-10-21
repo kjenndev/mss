@@ -19,7 +19,7 @@ function mount(component, state) {
 }
 function openHeading(container, name) {
   const heading = screen.getByRole('heading', { level: 1, name });
-  expect(heading.querySelector('[aria-hidden="true"]').textContent).toBe('.');
+  expect(heading.querySelector('[aria-hidden="true"]')).toBeNull();
   expect(container.querySelector('.MuiPaper-root')).toBeNull();
 }
 it('presents an open Login heading and preserves sign-in messages and credentials', async () => {

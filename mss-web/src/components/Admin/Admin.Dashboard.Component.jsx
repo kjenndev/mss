@@ -183,7 +183,7 @@ export default function AdminDashboard() {
       <ThemeProvider theme={darkTheme}>
         <header className={styles.header}>
           <p className={styles.eyebrow}>Syndicate / Administration</p>
-          <Typography component="h1" className={styles.title}>Admin Dashboard<span aria-hidden="true">.</span></Typography>
+          <Typography component="h1" className={styles.title}>Admin Dashboard</Typography>
           <Typography variant="body1" className={styles.subTitle}>
            Manage Syndicate artists and user accounts.
           </Typography>

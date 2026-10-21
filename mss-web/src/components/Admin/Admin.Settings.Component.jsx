@@ -157,7 +157,7 @@ export default function AdminSettings() {
       <ThemeProvider theme={darkTheme}>
         <Box>
           <p className={styles.eyebrow}>Site Settings</p>
-          <Typography component="h1" className={styles.title} gutterBottom>System Settings<span aria-hidden="true">.</span></Typography>
+          <Typography component="h1" className={styles.title} gutterBottom>System Settings</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
             Manage global configuration for the Midnight Sound Syndicate platform.
           </Typography>

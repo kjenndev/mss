@@ -141,7 +141,7 @@ function EventDetail({ id }) {
             </aside>
             <article className={styles.summary}>
               <p className={styles.eyebrow}>Midnight Sound Syndicate / Event</p>
-              <h1 className={styles.title}>{event.title}<span aria-hidden="true">.</span></h1>
+              <h1 className={styles.title}>{event.title}</h1>
               <dl className={styles.facts}>
                 <div><dt>When</dt><dd>{event.date ? new Date(event.date).toLocaleString() : 'Date TBD'}</dd></div>
                 <div><dt>Where</dt><dd>{event.location || 'Location TBD'}</dd></div>

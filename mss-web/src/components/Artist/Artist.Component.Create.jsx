@@ -75,7 +75,7 @@ export default function CreateArtist() {
           <Stack spacing={4}>
             <Box>
               <Typography className={styles.eyebrow}>Artist management</Typography>
-              <Typography component="h1" className={styles.title}>Create New Artist Profile<span aria-hidden="true">.</span></Typography>
+              <Typography component="h1" className={styles.title}>Create New Artist Profile</Typography>
               <Typography variant="body2" color="text.secondary">
                 Enter the details for the new artist. You can link this profile to an existing user account.
               </Typography>

@@ -52,7 +52,7 @@ export default function Login() {
               {location.state?.message && <Typography role="status">{location.state.message}</Typography>}
               <Typography className={styles.eyebrow}>Account access</Typography>
               <Typography component="h1" className={styles.loginTitle} variant="h4">
-                Login<span aria-hidden="true">.</span>
+                Login
               </Typography>
               <TextField
                 id="username"

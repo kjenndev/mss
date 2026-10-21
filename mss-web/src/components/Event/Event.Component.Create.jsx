@@ -109,7 +109,7 @@ export default function CreateEvent() {
           <Stack spacing={4}>
             <Box>
               <Typography className={styles.eyebrow}>Event management</Typography>
-              <Typography component="h1" className={styles.title}>Create New Event<span aria-hidden="true">.</span></Typography>
+              <Typography component="h1" className={styles.title}>Create New Event</Typography>
               <Typography variant="body2" color="text.secondary">
                 Fill out the details for the upcoming event.
               </Typography>

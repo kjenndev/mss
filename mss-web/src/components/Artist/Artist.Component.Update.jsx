@@ -284,7 +284,7 @@ function ArtistEditor() {
             <Stack spacing={4}>
               <Box>
                 <Typography className={styles.eyebrow}>Artist management</Typography>
-                <Typography component="h1" className={styles.title}>Update Artist Profile<span aria-hidden="true">.</span></Typography>
+                <Typography component="h1" className={styles.title}>Update Artist Profile</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Manage your details, social links, and gallery.
                 </Typography>

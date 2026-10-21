@@ -50,7 +50,5 @@ export default function RegistrationLayout({
         },
         fontWeight: 750,
         mb: 4
-      }}>{title}<span aria-hidden="true" style={{
-          color: '#90caf9'
-        }}>.</span></Typography><Stack spacing={3}>{children}</Stack></Container></ThemeProvider>;
+      }}>{title}</Typography><Stack spacing={3}>{children}</Stack></Container></ThemeProvider>;
 }

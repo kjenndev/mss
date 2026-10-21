@@ -99,7 +99,7 @@ it('presents the editorial artist identity and collection before actual video',a
  api.GetArtistImages.mockResolvedValue({ok:true,json:async()=>({images:[{url:'/uploads/portrait.jpg'},{url:'/uploads/gallery.jpg'}]})});
  view();
  const heading=await screen.findByRole('heading',{level:1,name:'Real artist'});
- expect(heading.querySelector('[aria-hidden="true"]').textContent).toBe('.');
+ expect(heading.querySelector('[aria-hidden="true"]')).toBeNull();
  expect(screen.getByText('Actual biography')).toBeTruthy();
  expect(screen.getByText('Chicago')).toBeTruthy();
  expect(screen.getByRole('img',{name:'Real artist'}).getAttribute('src')).toContain('/uploads/portrait.jpg');

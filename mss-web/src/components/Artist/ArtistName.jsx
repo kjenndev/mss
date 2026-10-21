@@ -66,5 +66,5 @@ export default function ArtistName({ name }) {
       document.fonts?.removeEventListener('loadingdone', schedule);
     };
   }, [name]);
-  return <Typography ref={ref} component="h1" className={styles.artistName}>{name}<span aria-hidden="true">.</span></Typography>;
+  return <Typography ref={ref} component="h1" className={styles.artistName}>{name}</Typography>;
 }

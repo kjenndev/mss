@@ -7,7 +7,6 @@
 .lead { margin: 36px 0 28px; }
 .eyebrow { color: #90caf9; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
 .lead h1 { font-size: 58px; letter-spacing: -2px; margin: 10px 0 15px; line-height: 1.04; }
-.lead h1 span { color: #90caf9; }
 .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 24px; }
 .event { min-width: 0; position: relative; isolation: isolate; }
 /* The native details link covers the card; secondary controls stay above it. */

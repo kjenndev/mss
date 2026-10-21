@@ -145,7 +145,7 @@ export default function UserProfile() {
       <ThemeProvider theme={darkTheme}>
         <Box className={styles.content}>
           <Typography className={styles.eyebrow}>Your account</Typography>
-          <Typography component="h1" variant="h4" className={styles.title}>Account Settings<span aria-hidden="true">.</span></Typography>
+          <Typography component="h1" variant="h4" className={styles.title}>Account Settings</Typography>
 
           <Stack spacing={3}>
             {loaded && <AccountAvatar key={emailInfo.id} user={emailInfo} />}
