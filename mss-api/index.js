@@ -1305,6 +1305,10 @@ app.post('/api/comments', authMiddleware, async (req, res) => {
     // Match newest GET precision before pg can truncate created_at to a JS Date.
     const comment = await db('comments').where('id', commentId)
       .select('*', db.raw(`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as created_at`)).first();
+    if (artist_id) {
+      await bookingsRouter.queueArtistCommentNotification(db, comment, target, req.user);
+      req.afterCommit.push(() => bookingsRouter.wakeNotifications());
+    }
 
     res.status(201).json({ comment: (await publicComments(db, [comment], ['artist', 'admin'].includes(req.user.role)))[0] });
   } catch (err) {
