@@ -9,6 +9,7 @@ import {
   sendResendMail,
 } from "./email-settings.js";
 import { bookingMessage } from "./booking-email.js";
+import { artistCommentMessage } from "./artist-comment-email.js";
 const digest = (value) =>
   crypto.createHash("sha256").update(value).digest("hex");
 const error = (status) => Object.assign(Error(), { status });
@@ -192,6 +193,108 @@ export function createBookingsRouter({
     };
   };
   let running = false, timer = null, flight = null;
+  const processCandidate = async (db, candidate) => {
+    const item = await db.transaction(async (trx) => {
+      // Account mutations lock actor then target (not necessarily ascending IDs).
+      // Serialize before ANY user lock, then entity -> notification.
+      await trx.raw("SELECT pg_advisory_xact_lock(1297306453)");
+      let comment, artist, recipient, current, booking;
+      if (candidate.comment_id) {
+        comment = await trx("comments").where({ id: candidate.comment_id }).first();
+        artist = comment?.artist_id
+          ? await trx("artists").where({ id: comment.artist_id }).first()
+          : null;
+        recipient = artist?.user_id
+          ? await trx("users").where({ id: artist.user_id }).forUpdate().first()
+          : null;
+      } else {
+        current = await recipients(trx, true);
+        booking = await getBooking(trx, candidate.booking_id, true).catch(e => {
+          if (e.status === 404) return null;
+          throw e;
+        });
+      }
+      const r = await trx("booking_notifications")
+        .where({ id: candidate.id })
+        .forUpdate()
+        .first();
+      if (!r || !canAttempt(r)) return null;
+
+      let message, recipientAllowed = false, idempotencyPrefix = "mss-booking-";
+      if (r.comment_id) {
+        recipientAllowed = Boolean(
+          comment && artist && recipient &&
+          Number(comment.user_id) !== Number(recipient.id) &&
+          !recipient.is_disabled && recipient.email_alerts_opt_in && recipient.email_verified_at &&
+          normalizeEmail(recipient.email) === r.email && validEmail(r.email)
+        );
+        if (recipientAllowed) {
+          const settings = await trx("private_email_settings").where({ id: 1 }).first();
+          if (!readySettings(settings, env)) recipientAllowed = false;
+          else message = {
+            settings,
+            rendered: artistCommentMessage({ artist, comment, origin: settings.public_url }),
+          };
+        }
+        idempotencyPrefix = "mss-artist-comment-";
+      } else {
+        const settings = await trx("private_email_settings").where({ id: 1 }).first();
+        recipientAllowed = Boolean(booking && readySettings(settings, env) && current.emails.includes(r.email));
+        if (recipientAllowed) message = { settings, rendered: bookingMessage(booking, settings.public_url) };
+      }
+      if (!recipientAllowed) {
+        await trx("booking_notifications").where({ id: r.id })
+          .update({ status: "unavailable", lease_until: new Date(now() + 60000) });
+        return null;
+      }
+      const payload = r.payload || {
+        settings: publicSettings(message.settings),
+        message: message.rendered,
+        api_key_encrypted: message.settings.api_key_encrypted,
+      };
+      const apiKey = decryptKey(payload.api_key_encrypted, env);
+      // Keep the original provider account as well as payload/key stable across retries.
+      if (!apiKey || payload.settings.from_email.split("@")[1] !== env.EMAIL_VERIFIED_SENDER_DOMAIN?.trim().toLowerCase()) {
+        await trx("booking_notifications").where({ id: r.id })
+          .update({ status: "unavailable", lease_until: new Date(now() + 60000) });
+        return null;
+      }
+      await trx("booking_notifications").where({ id: r.id }).update({
+        payload: JSON.stringify(payload),
+        status: "sending",
+        attempts: r.attempts + 1,
+        first_attempt_at: r.first_attempt_at || new Date(now()),
+        lease_until: new Date(now() + 60000),
+      });
+      return {
+        id: r.id,
+        attempt: r.attempts + 1,
+        args: {
+          settings: payload.settings,
+          message: payload.message,
+          email: r.email,
+          apiKey,
+          idempotencyKey: idempotencyPrefix + r.id,
+        },
+      };
+    });
+    if (!item) return false;
+    let sent = false;
+    try {
+      await sendMail(item.args);
+      sent = true;
+    } catch {
+      /* Provider details and credentials never leave this boundary. */
+    }
+    await db("booking_notifications")
+      .where({ id: item.id, attempts: item.attempt, status: "sending" })
+      .update({
+        status: sent ? "sent" : "failed",
+        lease_until: sent ? null : new Date(now() + (item.attempt === 1 ? 60000 : 300000)),
+        ...(sent ? { sent_at: new Date() } : {}),
+      });
+    return true;
+  };
   const dispatch = async (id) => {
     const db = await getDb();
     // Bound each database scan and provider batch. Subsequent batches are scheduled
@@ -205,86 +308,7 @@ export function createBookingsRouter({
     const candidates = await query;
     for (const candidate of candidates) {
       if (!id && !running) break;
-      const item = await db.transaction(async (trx) => {
-        // Account mutations lock actor then target (not necessarily ascending IDs).
-        // Serialize before ANY user lock, then users -> booking -> notification.
-        // Never acquire this advisory lock from inside auth/recipients: callers
-        // may already hold a user lock, which would invert the account order.
-        await trx.raw("SELECT pg_advisory_xact_lock(1297306453)");
-        const current = await recipients(trx, true);
-        // The candidate scan precedes the lock; deletion may have cascaded it away.
-        const b = await getBooking(trx, candidate.booking_id, true).catch(e => {
-          if (e.status === 404) return null;
-          throw e;
-        });
-        if (!b) return null;
-        const r = await trx("booking_notifications")
-          .where({ id: candidate.id })
-          .forUpdate()
-          .first();
-        if (!r || !canAttempt(r)) return null;
-        const row = await trx("private_email_settings")
-          .where({ id: 1 })
-          .first();
-        if (!readySettings(row, env) || !current.emails.includes(r.email)) {
-          await trx("booking_notifications")
-            .where({ id: r.id })
-            .update({ status: "unavailable", lease_until: new Date(now() + 60000) });
-          return null;
-        }
-        const payload = r.payload || {
-          settings: publicSettings(row),
-          message: bookingMessage(b, row.public_url),
-          api_key_encrypted: row.api_key_encrypted,
-        };
-        const apiKey = decryptKey(payload.api_key_encrypted, env);
-        // Keep the original provider account as well as payload/key stable across retries.
-        if (
-          !apiKey ||
-          payload.settings.from_email.split("@")[1] !==
-            env.EMAIL_VERIFIED_SENDER_DOMAIN?.trim().toLowerCase()
-        ) {
-          await trx("booking_notifications")
-            .where({ id: r.id })
-            .update({ status: "unavailable", lease_until: new Date(now() + 60000) });
-          return null;
-        }
-        await trx("booking_notifications")
-          .where({ id: r.id })
-          .update({
-            payload: JSON.stringify(payload),
-            status: "sending",
-            attempts: r.attempts + 1,
-            first_attempt_at: r.first_attempt_at || new Date(now()),
-            lease_until: new Date(now() + 60000),
-          });
-        return {
-          id: r.id,
-          attempt: r.attempts + 1,
-          args: {
-            settings: payload.settings,
-            message: payload.message,
-            email: r.email,
-            apiKey,
-            idempotencyKey: "mss-booking-" + r.id,
-          },
-        };
-      });
-      if (!item) continue;
-      let sent = false;
-      try {
-        await sendMail(item.args);
-        sent = true;
-      } catch {
-        /* Provider details and credentials never leave this boundary. */
-      }
-      await db("booking_notifications")
-        .where({ id: item.id, attempts: item.attempt, status: "sending" })
-        .update({
-          status: sent ? "sent" : "failed",
-          lease_until: sent ? null : new Date(now() + (item.attempt === 1 ? 60000 : 300000)),
-          ...(sent ? { sent_at: new Date() } : {}),
-        });
+      await processCandidate(db, candidate);
     }
     return candidates.length;
   };
@@ -302,6 +326,20 @@ export function createBookingsRouter({
     timer?.unref?.();
   };
   router.startNotifications = () => { running = true; wake(); };
+  router.wakeNotifications = wake;
+  router.queueArtistCommentNotification = async (db, comment, artist, author) => {
+    if (!comment?.id || !artist?.user_id || Number(artist.user_id) === Number(author?.id)) return false;
+    const recipient = await db("users").where({ id: artist.user_id }).first();
+    const email = normalizeEmail(recipient?.email);
+    if (!recipient || recipient.is_disabled || !recipient.email_alerts_opt_in || !recipient.email_verified_at || !validEmail(email)) return false;
+    await db("booking_notifications").insert({
+      id: crypto.randomUUID(),
+      booking_id: null,
+      comment_id: comment.id,
+      email,
+    });
+    return true;
+  };
   router.stopNotifications = async () => {
     running = false;
     if (timer !== null) cancel(timer);
@@ -310,6 +348,11 @@ export function createBookingsRouter({
   };
   // Deterministic single-booking batch for native tests / embedded hosts.
   router.dispatchNotifications = dispatch;
+  router.dispatchOutboxNotification = async id => {
+    const db = await getDb();
+    const candidate = await db("booking_notifications").where({ id }).first();
+    return candidate ? processCandidate(db, candidate) : false;
+  };
   const notification = async (db, b) => {
     const rows = await db("booking_notifications").where({ booking_id: b.id });
     const settings = await db("private_email_settings")
