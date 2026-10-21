@@ -97,7 +97,7 @@ test('provider failure leaves the comment committed and marks its durable outbox
   };
   const db = memoryDb({
     users: [{ id: 8, username: 'Owner', role: 'artist', email: 'artist@example.com', email_verified_at: '2026-01-01', email_alerts_opt_in: true, is_disabled: 0 }],
-    artists: [{ id: 1, name: 'Target <Artist>', user_id: 8 }],
+    artists: [{ id: 1, name: 'Target <Artist>', slug: 'target-artist', user_id: 8 }],
     comments: [{ id: 41, artist_id: 1, user_id: 7, author_name: 'Reader & Friend', content: 'A <useful> comment' }],
     private_email_settings: [{ id: 1, enabled: true, from_email: 'sender@example.com', from_name: 'MSS', reply_to: 'support@midnightsoundsyndicate.com', public_url: 'https://example.com', api_key_encrypted: encryptKey('synthetic-key', env) }],
     booking_notifications: [{ id: 'comment-mail-1', booking_id: null, comment_id: 41, email: 'artist@example.com', status: 'pending', attempts: 0 }],

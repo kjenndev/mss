@@ -47,6 +47,7 @@ import TimerIcon from '@mui/icons-material/Timer';
 import DeleteArtist from '../Artist/Artist.Component.Delete';
 import * as helpers from '../../Data.Helper.Api';
 import styles from './Admin.Dashboard.Component.module.css';
+import { artistProfilePath } from '../../artistRoutes';
 
 const darkTheme = createTheme({
   shape: { borderRadius: 4 },
@@ -224,7 +225,7 @@ export default function AdminDashboard() {
                       <Typography className={styles.artistDesc}>{artist.description}</Typography>
                     </CardContent>
                     <CardActions>
-                      <Button href={`/artists/${artist.id}`}>View</Button>
+                      <Button href={artistProfilePath(artist)}>View</Button>
                       <Button startIcon={<EditIcon aria-hidden="true" />} href={`/artists/${artist.id}/update`} size="small">Edit</Button>
                       <DeleteArtist
                         id={artist.id}

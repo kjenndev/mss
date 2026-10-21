@@ -117,8 +117,8 @@ async function GetMyArtists() {
 export const GetStreamManagerConfig=()=>request('/stream-manager/config','GET');
 export const GetStreamManagerGrant=id=>request(`/stream-manager/artists/${encodeURIComponent(id)}/grant`,'POST',{});
 
-async function GetArtistById(id) {
-  return await request(`/artists/${id}`, 'GET', null, true);
+async function GetArtistById(profile) {
+  return await request(`/artists/${encodeURIComponent(profile)}`, 'GET', null, true);
 }
 
 async function GetArtistManageData(id) {
@@ -142,7 +142,6 @@ async function UpdateArtist(data) {
     profile_picture: data.profile_picture,
     cover_photo: data.cover_photo,
     channel_name: data.channel_name,
-    slug: data.slug,
   };
   return await request(`/artists/${data.id}`, 'PUT', updateData);
 }

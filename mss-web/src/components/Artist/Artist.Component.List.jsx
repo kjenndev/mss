@@ -6,6 +6,7 @@ import Button from '@mui/material/Button';
 import { useState, useEffect } from 'react';
 import { getImageUrl } from '../../config';
 import * as helpers from '../../Data.Helper.Api';
+import { artistProfilePath } from '../../artistRoutes';
 import styles from './Artist.Component.List.module.css';
 
 const providers = [['soundcloud', 'SoundCloud'], ['mixcloud', 'Mixcloud'], ['youtube', 'YouTube'], ['twitch', 'Twitch']];
@@ -62,7 +63,7 @@ export default function ArtistList() {
           {getImageUrl(artist.profile_picture) && failedPortraits[artist.id] !== artist.profile_picture ? <img src={getImageUrl(artist.profile_picture)} alt={artist.name} loading="lazy" onError={() => setFailedPortraits(current => ({ ...current, [artist.id]: artist.profile_picture }))} /> : <span aria-hidden="true">{artist.name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span>}
         </div>
         <div className={styles.info}>
-          <h2><a className={styles.cardLink} href={`/artists/${artist.id}`}>{artist.name}</a></h2>
+          <h2><a className={styles.cardLink} href={artistProfilePath(artist)}>{artist.name}</a></h2>
           {artist.location && <p className={styles.location}>{artist.location}</p>}
           <div className={styles.bottom}>
             <div className={styles.providers}>{providers.map(([key, label]) => {

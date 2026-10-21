@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { sharingData } from './components/Sharing/shareCard';
 describe('sharing identity', () => {
- it('uses only the artist portrait and numeric route, never cover or slug', () => {
-  expect(sharingData('artists', { id: 7, name: '音楽 DJ', slug: 'other', profile_picture: '/uploads/portrait.png', cover_photo: '/uploads/cover.png' }, 'https://mss.example')).toMatchObject({ title: '音楽 DJ', image: '/uploads/portrait.png', url: 'https://mss.example/artists/7' });
+ it('uses only the artist portrait and canonical slug route', () => {
+  expect(sharingData('artists', { id: 7, name: '音楽 DJ', slug: 'music-dj', profile_picture: '/uploads/portrait.png', cover_photo: '/uploads/cover.png' }, 'https://mss.example')).toMatchObject({ title: '音楽 DJ', image: '/uploads/portrait.png', url: 'https://mss.example/artists/music-dj' });
  });
 });
 
@@ -42,7 +42,7 @@ it('exports the full natural source into a 1080x1350 PNG without using cover art
 
 it('offers Instagram manual download and copy, with no automatic provider posting', () => {
  vi.stubEnv('VITE_PUBLIC_SITE_ORIGIN', 'https://mss.example');
- render(<ShareSheet kind="artists" entity={{ id: 7, name: 'DJ' }} />);
+ render(<ShareSheet kind="artists" entity={{ id: 7, slug: 'dj', name: 'DJ' }} />);
  fireEvent.click(screen.getByRole('button', { name: 'Share artist' }));
  expect(screen.getByRole('button', { name: /Instagram/ })).toBeEnabled();
  expect(screen.getByText(/Nothing is posted automatically/)).toBeInTheDocument();
@@ -53,7 +53,7 @@ it('does not claim copy success while clipboard is still pending', async () => {
  vi.stubEnv('VITE_PUBLIC_SITE_ORIGIN', 'https://mss.example');
  let resolve;
  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => new Promise(r => { resolve=r; }) } });
- render(<ShareSheet kind="artists" entity={{ id: 7, name: 'DJ' }} />);
+ render(<ShareSheet kind="artists" entity={{ id: 7, slug: 'dj', name: 'DJ' }} />);
  fireEvent.click(screen.getByRole('button', { name:'Share artist' }));
  fireEvent.click(screen.getByRole('button', { name:'Copy link' }));
  expect(screen.queryByText('Link copied.')).toBeNull();
@@ -78,8 +78,8 @@ it('reports export image and canvas failures instead of returning a fake PNG',as
 
 it('prints the canonical URL on the downloaded card',async()=>{
  const context={fillRect:vi.fn(),fillText:vi.fn(),measureText:text=>({width:text.length*10})};
- await createSharePng({title:'DJ',url:'https://mss.example/artists/7'}, {canvas:{getContext:()=>context,toBlob:cb=>cb(new Blob())}});
- expect(context.fillText).toHaveBeenCalledWith('https://mss.example/artists/7',48,1320);
+ await createSharePng({title:'DJ',url:'https://mss.example/artists/dj'}, {canvas:{getContext:()=>context,toBlob:cb=>cb(new Blob())}});
+ expect(context.fillText).toHaveBeenCalledWith('https://mss.example/artists/dj',48,1320);
 });
 
 import { downloadCard } from './components/Sharing/shareCard';

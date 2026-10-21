@@ -4,7 +4,7 @@ import { artistCommentMessage } from '../artist-comment-email.js';
 
 test('artist comment email matches the MSS transactional design and escapes every dynamic HTML value', () => {
   const message = artistCommentMessage({
-    artist: { id: 9, name: `DJ <Night> & "Day"` },
+    artist: { id: 9, slug: 'dj-night-day', name: `DJ <Night> & "Day"` },
     comment: { author_name: `A <script>alert('x')</script> & B`, content: `Nice <img src=x onerror="bad"> & 'loud'` },
     origin: 'https://example.com',
   });
@@ -20,12 +20,12 @@ test('artist comment email matches the MSS transactional design and escapes ever
   assert.match(message.html, /Nice &lt;img src=x onerror=&quot;bad&quot;&gt; &amp; &#39;loud&#39;/);
   assert.doesNotMatch(message.html, /<script|<img/i);
   assert.equal((message.html.match(/>View artist profile<\/a>/g) || []).length, 1, 'one action button');
-  assert.match(message.html, /href="https:\/\/example\.com\/artists\/9"/);
+  assert.match(message.html, /href="https:\/\/example\.com\/artists\/dj-night-day"/);
   assert.match(message.html, /word-break:break-all/);
   assert.match(message.text, /New comment on DJ <Night> & "Day"/);
   assert.match(message.text, /A <script>alert\('x'\)<\/script> & B/);
   assert.match(message.text, /Nice <img src=x onerror="bad"> & 'loud'/);
-  assert.match(message.text, /https:\/\/example\.com\/artists\/9/);
+  assert.match(message.text, /https:\/\/example\.com\/artists\/dj-night-day/);
 });
 
 test('artist comment email rejects an unsafe configured origin', () => {

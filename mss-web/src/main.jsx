@@ -54,7 +54,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/" element={<Home key={window.location.pathname}/>} />
           <Route path="/about" element={<About key={window.location.pathname}/>} />
           <Route path="/artists" element={<ArtistList key={window.location.pathname} />} />
-          <Route path="/artists/:id" element={<ArtistDetail key={window.location.pathname} />} />
+          <Route path="/artists/:profile" element={<ArtistDetail key={window.location.pathname} />} />
           <Route path="/artists/create" element={<RouteGuard admin><CreateArtist /></RouteGuard>} />
           <Route path="/artists/:id/update" element={<RouteGuard><ArtistUpdate /></RouteGuard>} />
           <Route path="/events" element={<EventList key={window.location.pathname} />} />

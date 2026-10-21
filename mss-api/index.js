@@ -1,4 +1,5 @@
 import { createSharingRouter } from './sharing.js';
+import { slugifyArtistName, isCanonicalArtistSlug } from './artist-slug.js';
 import { createRegistrationRouter } from './registration.js';
 import { createBookingsRouter } from './bookings.js';
 import { decodeImage } from './uploads.js';
@@ -104,6 +105,7 @@ function normalizedSettingValue(key, value) {
 
 function validationError(req, method, route) {
   for (const [key, value] of Object.entries(req.params || {})) {
+    if (method === 'get' && route === '/api/artists/:id' && key === 'id' && isCanonicalArtistSlug(String(value))) continue;
     if ((key === 'id' || key === 'imageId') && (!/^[1-9][0-9]*$/.test(String(value)) || !Number.isSafeInteger(Number(value)))) return 'Invalid resource id';
   }
   if (!['post', 'put'].includes(method)) return null;
@@ -260,10 +262,11 @@ app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(express.json());
 app.use(createSharingRouter({
   origin: process.env.PUBLIC_SITE_ORIGIN,
-  loadEntity: async (kind, id) => {
+  loadEntity: async (kind, profile) => {
     const db = await getDb();
-    const fields = kind === 'artists' ? ['id', 'name', 'location', 'profile_picture', 'is_disabled'] : ['id', 'title', 'date', 'location', 'flyer'];
-    return db(kind).select(fields).where({ id }).first();
+    const fields = kind === 'artists' ? ['id', 'name', 'slug', 'location', 'profile_picture', 'is_disabled'] : ['id', 'title', 'date', 'location', 'flyer'];
+    const where = kind === 'artists' && typeof profile === 'string' ? { slug: profile } : { id: profile };
+    return db(kind).select(fields).where(where).first();
   },
   loadIndex: () => fs.promises.readFile(path.join(__dirname, '../mss-web/dist/index.html'), 'utf8'),
 }));
@@ -684,14 +687,12 @@ app.get('/api/artists', async (req, res) => {
 
 app.get('/api/artists/:id', async (req, res) => {
   const db = req.db || await getDb();
-  const artist = await db('artists')
-    .where({ id: req.params.id })
-    .first();
-    
-  if (!artist) {
-    return res.status(404).json({ error: 'Artist not found' });
-  }
-  res.json({ artist: publicArtist(artist) });
+  const profile = String(req.params.id || '');
+  const numeric = /^[1-9][0-9]*$/.test(profile) && Number.isSafeInteger(Number(profile));
+  if (!numeric && !isCanonicalArtistSlug(profile)) return res.status(404).json({ error: 'Artist not found' });
+  const artist = await db('artists').where(numeric ? { id: Number(profile) } : { slug: profile }).first();
+  if (!artist || (artist.is_disabled && !req.canViewDisabled)) return res.status(404).json({ error: 'Artist not found' });
+  res.json({ artist: publicArtist(artist), canonicalPath: `/artists/${artist.slug}` });
 });
 
 app.get('/api/artists/:id/manage', authMiddleware, canManageArtist, async (req, res) => {
@@ -699,12 +700,16 @@ app.get('/api/artists/:id/manage', authMiddleware, canManageArtist, async (req, 
 });
 
 app.post('/api/artists', authMiddleware, adminOnly, async (req, res) => {
-  const { name, location, description, twitch, soundcloud, mixcloud, youtube, cover_photo, slug, user_id, channel_name } = req.body || {};
+  const { name, location, description, twitch, soundcloud, mixcloud, youtube, cover_photo, user_id, channel_name } = req.body || {};
+  if (Object.hasOwn(req.body || {}, 'slug')) return res.status(400).json({ error: 'Artist slug is derived from the name' });
   if (!name) {
     return res.status(400).json({ error: 'Artist name is required' });
   }
 
   const db = req.db || await getDb();
+  const slug = slugifyArtistName(name);
+  if (!isCanonicalArtistSlug(slug)) return res.status(400).json({ error: 'Artist name must form an available non-numeric profile URL' });
+  if (await db('artists').where({ slug }).first()) return res.status(409).json({ error: 'An artist profile already uses this name URL' });
   try {
     const [artistIdObj] = await db('artists').insert({
       name,
@@ -715,7 +720,7 @@ app.post('/api/artists', authMiddleware, adminOnly, async (req, res) => {
       mixcloud: mixcloud || '',
       youtube: youtube || '',
       cover_photo: cover_photo || null,
-      slug: slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      slug,
       user_id: user_id || null,
       channel_name: channel_name || ''
     }).returning('id');
@@ -726,13 +731,9 @@ app.post('/api/artists', authMiddleware, adminOnly, async (req, res) => {
   const artist = await artistQuery.first();
     res.status(201).json({ artist: publicArtist(artist) });
   } catch (err) {
-    if (['23503', '23505', '23514', '22P02', '22007'].includes(err.code)) throw err;
-    if (err.message.includes('unique constraint') || err.message.includes('UNIQUE constraint')) {
-      res.status(409).json({ error: 'Slug is already taken' });
-    } else {
-
-      res.status(500).json({ error: 'Unable to create artist' });
-    }
+    if (err.code === '23505') return res.status(409).json({ error: 'An artist profile already uses this name URL' });
+    if (['23503', '23514', '22P02', '22007'].includes(err.code)) throw err;
+    res.status(500).json({ error: 'Unable to create artist' });
   }
 });
 
@@ -747,13 +748,20 @@ app.put('/api/artists/:id/visibility', authMiddleware, adminOnly, async (req, re
 app.put('/api/artists/:id', authMiddleware, canManageArtist, async (req, res) => {
   const update = req.body || {};
   if ('is_disabled' in update) return res.status(400).json({ error: 'Use the admin visibility action to change profile visibility' });
+  if ('slug' in update) return res.status(400).json({ error: 'Artist slug is derived from the name' });
   const artist = req.artist;
   if (update.channel_name !== undefined && update.channel_name !== (artist.channel_name || '') && req.user.role !== 'admin') return res.status(403).json({ error: 'Only admins may assign channels' });
   const db = req.db || await getDb();
 
-  const permitted = ['name', 'location', 'description', 'twitch', 'soundcloud', 'mixcloud', 'youtube', 'profile_picture', 'cover_photo', 'slug'];
+  const permitted = ['name', 'location', 'description', 'twitch', 'soundcloud', 'mixcloud', 'youtube', 'profile_picture', 'cover_photo'];
   if (req.user.role === 'admin') permitted.push('channel_name');
   const updateFields = Object.fromEntries(permitted.filter(key => update[key] !== undefined).map(key => [key, update[key]]));
+  if (update.name !== undefined) {
+    updateFields.slug = slugifyArtistName(update.name);
+    if (!isCanonicalArtistSlug(updateFields.slug)) return res.status(400).json({ error: 'Artist name must form an available non-numeric profile URL' });
+    const collision = await db('artists').where({ slug: updateFields.slug }).first();
+    if (collision && Number(collision.id) !== Number(artist.id)) return res.status(409).json({ error: 'An artist profile already uses this name URL' });
+  }
   updateFields.updated_at = db.fn.now();
 
   if (req.user.role === 'admin' && update.user_id !== undefined) {
@@ -769,13 +777,9 @@ app.put('/api/artists/:id', authMiddleware, canManageArtist, async (req, res) =>
     const updatedArtist = await db('artists').where({ id: artist.id }).first();
     res.json({ artist: publicArtist(updatedArtist) });
   } catch (err) {
-    if (['23503', '23505', '23514', '22P02', '22007'].includes(err.code)) throw err;
-    if (err.message.includes('unique constraint') || err.message.includes('UNIQUE constraint')) {
-      res.status(409).json({ error: 'Slug is already taken' });
-    } else {
-
-      res.status(500).json({ error: 'Unable to update artist' });
-    }
+    if (err.code === '23505') return res.status(409).json({ error: 'An artist profile already uses this name URL' });
+    if (['23503', '23514', '22P02', '22007'].includes(err.code)) throw err;
+    res.status(500).json({ error: 'Unable to update artist' });
   }
 });
 

@@ -1,4 +1,5 @@
 import { getImageUrl } from '../../config';
+import { artistProfilePath } from '../../artistRoutes';
 export function sharingData(kind, entity, origin = import.meta.env.VITE_PUBLIC_SITE_ORIGIN) {
  const artist = kind === 'artists';
  let base = '';
@@ -7,7 +8,9 @@ export function sharingData(kind, entity, origin = import.meta.env.VITE_PUBLIC_S
   if (u.protocol === 'https:' && !u.username && !u.password && u.pathname === '/' && !u.search && !u.hash) base = u.origin;
  } catch { /* Sharing requires an explicitly configured public origin. */ }
  const date = !artist && entity.date && Number.isFinite(new Date(entity.date).getTime()) ? new Date(entity.date).toLocaleString() : '';
- return { title: String((artist ? entity.name : entity.title) || (artist ? 'Artist' : 'Event')), kind, image: getImageUrl(artist ? entity.profile_picture : entity.flyer), detail: [date, entity.location].filter(Boolean).join(' · '), url: base && Number.isSafeInteger(Number(entity.id)) && Number(entity.id) > 0 ? `${base}/${kind}/${entity.id}` : '' };
+ let path = '';
+ try { path = artist ? artistProfilePath(entity) : (Number.isSafeInteger(Number(entity.id)) && Number(entity.id) > 0 ? `/events/${entity.id}` : ''); } catch { path = ''; }
+ return { title: String((artist ? entity.name : entity.title) || (artist ? 'Artist' : 'Event')), kind, image: getImageUrl(artist ? entity.profile_picture : entity.flyer), detail: [date, entity.location].filter(Boolean).join(' · '), url: base && path ? `${base}${path}` : '' };
 }
 
 export function loadCardImage(source) {

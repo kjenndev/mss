@@ -16,7 +16,7 @@ it('uses the scoped library instead of profile embeds and gates live/video durin
  const {container}=render(<MemoryRouter initialEntries={['/artists/1']}><MediaPlayerProvider><SelectAudio/><Routes><Route path="/artists/:id" element={<Detail/>}/></Routes></MediaPlayerProvider></MemoryRouter>);
  await screen.findByText('Live player');
  expect(screen.getByRole('region',{name:'Artist library'})).toBeTruthy();
- expect(api.GetMediaLibrary).toHaveBeenCalledWith(0,'1');
+ expect(api.GetMediaLibrary).toHaveBeenCalledWith(0,1);
  expect(container.querySelectorAll('iframe')).toHaveLength(0);
  fireEvent.click(screen.getByRole('button',{name:'Select library audio'}));
  expect(screen.queryByText('Live player')).toBeNull();
@@ -38,7 +38,7 @@ it('omits artist breadcrumbs while retaining the artist heading and scoped libra
  expect(screen.queryByRole('navigation',{name:/breadcrumb/i})).toBeNull();
  expect(screen.getAllByText('Breadcrumb-free artist',{exact:true})).toHaveLength(1);
  expect(screen.getByRole('region',{name:'Artist library'})).toBeTruthy();
- expect(api.GetMediaLibrary).toHaveBeenCalledWith(0,'1');
+ expect(api.GetMediaLibrary).toHaveBeenCalledWith(0,1);
 });
 
 it('offers a retry after artist load failure',async()=>{
@@ -58,7 +58,7 @@ it('clears the old artist and library immediately on route change and ignores la
  render(<MemoryRouter initialEntries={['/artists/1']}><Link to="/artists/2">Second</Link><Routes><Route path="/artists/:id" element={<Detail/>}/></Routes></MemoryRouter>);
  fireEvent.click(screen.getByRole('link',{name:'Second'}));
  await screen.findByRole('heading',{level:1,name:'Second artist'});
- expect(api.GetMediaLibrary).toHaveBeenCalledWith(0,'2');
+ expect(api.GetMediaLibrary).toHaveBeenCalledWith(0,2);
  await act(async()=>old({ok:true,json:async()=>({artist:{id:1,name:'Obsolete artist'}})}));
  expect(screen.queryByRole('heading',{level:1,name:'Obsolete artist'})).toBeNull();
  expect(screen.getByRole('heading',{level:1,name:'Second artist'})).toBeTruthy();
@@ -76,7 +76,7 @@ it('does not retain a loaded artist library while the next artist is pending',as
  expect(screen.queryByRole('heading',{level:1,name:'First artist'})).toBeNull();
  expect(screen.queryByRole('region',{name:'Artist library'})).toBeNull();
  await act(async()=>next({ok:true,json:async()=>({artist:{id:2,name:'Next loaded'}})}));
- expect(api.GetMediaLibrary.mock.calls).toEqual([[0,'1'],[0,'2']]);
+ expect(api.GetMediaLibrary.mock.calls).toEqual([[0,1],[0,2]]);
  cleanup();
 });
 
@@ -138,7 +138,7 @@ it.each(['Ansibl', 'Another artist'])('omits editorial intro copy for %s while r
  expect(screen.queryByText(new RegExp(`Explore ${name}’s audio and linked YouTube videos\\.`))).toBeNull();
  const action=screen.getByRole('button',{name:'Listen to latest'});
  expect(action.disabled).toBe(false);
- expect(api.GetMediaLibrary.mock.calls).toEqual([[0,'1']]);
+ expect(api.GetMediaLibrary.mock.calls).toEqual([[0,1]]);
  expect(screen.queryByRole('button',{name:'Edit Profile'})).toBeNull();
  fireEvent.click(action);
  expect(screen.getByTitle('Mixcloud player')).toBeTruthy();

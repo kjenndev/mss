@@ -24,7 +24,7 @@ it('clears only the cover, returns its image to the gallery and preserves portra
   fireEvent.change(screen.getByRole('textbox', { name: 'Comment draft' }), { target: { value: 'Keep my draft' } });
   fireEvent.click(button);
   await waitFor(() => expect(screen.queryByRole('img', { name: 'Synthetic artist cover' })).toBeNull());
-  expect(api.UpdateArtist).toHaveBeenCalledExactlyOnceWith({ id: '1', cover_photo: null });
+  expect(api.UpdateArtist).toHaveBeenCalledExactlyOnceWith({ id: 1, cover_photo: null });
   expect(screen.getByRole('img', { name: 'Synthetic artist' })).toHaveAttribute('src', artist.profile_picture);
   expect(screen.getByRole('button', { name: 'Open gallery photo 1' }).querySelector('img')).toHaveAttribute('src', artist.cover_photo);
   expect(screen.getByRole('textbox', { name: 'Comment draft' })).toHaveValue('Keep my draft');

@@ -1,4 +1,5 @@
 import express from 'express';
+import { isCanonicalArtistSlug } from './artist-slug.js';
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function publicOrigin(value) {
@@ -41,29 +42,47 @@ export function createSharingRouter({ origin, loadEntity, loadIndex }) {
    res.type('html').send(renderIndex(await loadIndex(), title, meta));
   } catch { res.status(503).type('text').send('Sharing preview is temporarily unavailable.'); }
  });
- for (const kind of ['artists', 'events']) router.get(`/${kind}/:id`, async (req, res) => {
+ router.get('/artists/:profile', async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if (!base) return res.status(503).type('text').send('Public sharing origin is not configured.');
+  const profile = req.params.profile;
+  const numeric = /^[1-9]\d*$/.test(profile) && Number.isSafeInteger(Number(profile));
+  const canonical = isCanonicalArtistSlug(profile);
+  if (!numeric && !canonical) return res.sendStatus(404);
+  try {
+   const entity = await loadEntity('artists', numeric ? Number(profile) : profile);
+   if (!entity) return res.sendStatus(404);
+   if (entity.is_disabled) {
+    const index = await loadIndex();
+    if (!index.includes('</head>')) throw new Error('Missing web build');
+    return res.status(404).type('html').send(index.replace('</head>', '<meta name="robots" content="noindex"></head>'));
+   }
+   if (!isCanonicalArtistSlug(entity.slug)) return res.sendStatus(404);
+   const url = `${base}/artists/${entity.slug}`;
+   if (numeric) return res.redirect(308, url);
+   if (profile !== entity.slug) return res.sendStatus(404);
+   const title = String(entity.name || 'Artist');
+   const description = ['Artist on Midnight Sound Syndicate', entity.location].filter(Boolean).join(' · ');
+   const artwork = imageUrl(entity.profile_picture, base);
+   const image = artwork || `${base}/msslogo.jpg`;
+   const imageAlt = artwork ? `${title} artist portrait` : 'Midnight Sound Syndicate logo';
+   res.type('html').send(renderIndex(await loadIndex(), `${title} | MSS`, metadata({ title, description, url, image, imageAlt })));
+  } catch { res.status(503).type('text').send('Sharing preview is temporarily unavailable.'); }
+ });
+ router.get('/events/:id', async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   if (!base) return res.status(503).type('text').send('Public sharing origin is not configured.');
   if (!/^[1-9]\d*$/.test(req.params.id) || !Number.isSafeInteger(Number(req.params.id))) return res.sendStatus(404);
   try {
-   const entity = await loadEntity(kind, Number(req.params.id));
+   const entity = await loadEntity('events', Number(req.params.id));
    if (!entity) return res.sendStatus(404);
-   const artist = kind === 'artists';
-   if (artist && entity.is_disabled) {
-    const index = await loadIndex();
-    if (!index.includes('</head>')) throw new Error('Missing web build');
-    // Document navigation cannot send localStorage bearer tokens. Keep only the
-    // generic app shell so authenticated viewers can resolve the API themselves.
-    return res.status(404).type('html').send(index.replace('</head>', '<meta name="robots" content="noindex"></head>'));
-   }
-   const title = String((artist ? entity.name : entity.title) || (artist ? 'Artist' : 'Event'));
-   const date = !artist && entity.date && Number.isFinite(new Date(entity.date).getTime()) ? new Date(entity.date).toISOString() : '';
-   const description = [artist ? 'Artist on Midnight Sound Syndicate' : 'Event on Midnight Sound Syndicate', date, entity.location].filter(Boolean).join(' · ');
-   const url = `${base}/${kind}/${req.params.id}`;
-   const artwork = imageUrl(artist ? entity.profile_picture : entity.flyer, base);
-   const image = artwork || (artist ? `${base}/msslogo.jpg` : '');
-   const imageAlt = artwork ? (artist ? `${title} artist portrait` : `${title} event flyer`) : 'Midnight Sound Syndicate logo';
-   const meta = metadata({ title, description, url, image, imageAlt });
+   const title = String(entity.title || 'Event');
+   const date = entity.date && Number.isFinite(new Date(entity.date).getTime()) ? new Date(entity.date).toISOString() : '';
+   const description = ['Event on Midnight Sound Syndicate', date, entity.location].filter(Boolean).join(' · ');
+   const url = `${base}/events/${req.params.id}`;
+   const artwork = imageUrl(entity.flyer, base);
+   const imageAlt = `${title} event flyer`;
+   const meta = metadata({ title, description, url, image: artwork, imageAlt });
    res.type('html').send(renderIndex(await loadIndex(), `${title} | MSS`, meta));
   } catch { res.status(503).type('text').send('Sharing preview is temporarily unavailable.'); }
  });

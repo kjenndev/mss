@@ -30,6 +30,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import Tooltip from '@mui/material/Tooltip';
 
 import * as helpers from '../../Data.Helper.Api';
+import { artistProfilePath } from '../../artistRoutes';
 import styles from './Artist.Component.Update.module.css';
 import YouTubeLinks from '../Media/YouTubeLinks';
 
@@ -237,7 +238,9 @@ function ArtistEditor() {
         setSaving(false);
         return;
       }
-      navigate(`/artists/${id}`);
+      const { artist: savedArtist } = await response.json();
+      if (!active.current) return;
+      navigate(artistProfilePath(savedArtist));
     } catch {
       if (!active.current) return;
       setError('An unexpected error occurred while saving');
@@ -414,7 +417,7 @@ function ArtistEditor() {
               <Box className={styles.formFooter}>
                 <Button
                   variant="outlined"
-                  onClick={() => navigate(`/artists/${id}`)}
+                  onClick={() => navigate(artistProfilePath(artist))}
                   disabled={saving}
                   className={styles.cancelButton}
                 >

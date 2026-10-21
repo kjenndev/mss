@@ -43,10 +43,11 @@ const darkTheme = createTheme({
 });
 
 export default function ArtistDetail() {
-  const { id } = useParams();
-  return <ArtistDetailContent key={id} id={id} />;
+  const params = useParams();
+  const profile = params.profile ?? params.id;
+  return <ArtistDetailContent key={profile} profile={profile} />;
 }
-function ArtistDetailContent({ id }) {
+function ArtistDetailContent({ profile }) {
   const mediaPlayer = useMediaPlayer();
   const { video, selectVideo, closeVideo } = useLocalVideo();
   const navigate = useNavigate();
@@ -61,29 +62,48 @@ function ArtistDetailContent({ id }) {
   const [platformUrl, setPlatformUrl] = useState('');
   const [isStreamPaused, setIsStreamPaused] = useState(false);
 
-
   useEffect(() => {
     let active = true;
     setError('');
-    Promise.all([helpers.GetArtistById(id), helpers.GetArtistImages(id), helpers.GetSettings()]).then(async ([artistRes, imagesRes, settingsRes]) => {
+    setArtist(null);
+    setImages([]);
+    (async () => {
+      const artistRes = await helpers.GetArtistById(profile);
       if (artistRes.status === 404) throw new Error('Artist not found.');
-      if (!artistRes.ok || !imagesRes.ok || !settingsRes.ok) throw new Error('Unable to load artist data.');
-      const [artistData, imagesData, settingsData] = await Promise.all([artistRes.json(), imagesRes.json(), settingsRes.json()]);
+      if (!artistRes.ok) throw new Error('Unable to load artist data.');
+      const artistData = await artistRes.json();
+      const resolved = artistData.artist;
+      if (!resolved || !Number.isSafeInteger(Number(resolved.id))) throw new Error('Unable to load artist data.');
+      if (!active) return;
+      setArtist(resolved);
+      const canonicalPath = typeof artistData.canonicalPath === 'string' ? artistData.canonicalPath : '';
+      if (/^[1-9][0-9]*$/.test(String(profile)) && /^\/artists\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(canonicalPath)) {
+        navigate(canonicalPath, { replace: true });
+      }
+      const [imagesRes, settingsRes] = await Promise.all([helpers.GetArtistImages(resolved.id), helpers.GetSettings()]);
+      if (!imagesRes.ok || !settingsRes.ok) throw new Error('Unable to load artist data.');
+      const [imagesData, settingsData] = await Promise.all([imagesRes.json(), settingsRes.json()]);
       if (active) {
-        setArtist(artistData.artist); setImages(imagesData.images || []);
+        setImages(imagesData.images || []);
         setPlatformUrl(settingsData.settings?.streaming_platform_url || '');
       }
-    }).catch(cause => { if (active) setError(cause.message === 'Artist not found.' ? cause.message : 'Unable to load artist data.'); });
+    })().catch(cause => { if (active) setError(cause.message === 'Artist not found.' ? cause.message : 'Unable to load artist data.'); });
+    return () => { active = false; };
+  }, [profile, attempt, navigate]);
+
+  useEffect(() => {
+    if (!artist?.id) return undefined;
+    let active = true;
     const stop = poll(async () => {
       try {
         const response = await helpers.GetActiveSyndicateStreams();
         if (!response.ok) throw new Error();
         const data = await response.json();
-        if (active) { setActiveStream((data.streams || []).find(s => Number(s.artistId) === Number(id)) || null); setStreamError(''); }
+        if (active) { setActiveStream((data.streams || []).find(s => Number(s.artistId) === Number(artist.id)) || null); setStreamError(''); }
       } catch { if (active) { setActiveStream(null); setStreamError('Live status unavailable. Retrying automatically.'); } }
     });
     return () => { active = false; stop(); };
-  }, [id, attempt]);
+  }, [artist?.id]);
 
   if (error) return <Alert severity="error">{error}<Button startIcon={<RefreshIcon aria-hidden="true" />} onClick={() => setAttempt(n => n + 1)}>Retry</Button></Alert>;
   if (!artist) {
@@ -95,7 +115,7 @@ function ArtistDetailContent({ id }) {
       <ThemeProvider theme={darkTheme}>
         {video ? <YouTubeVideo item={video} onClose={closeVideo} /> : <Box sx={{ position: 'relative' }}>
           {artist.cover_photo && <img className={styles.coverPhoto} src={getImageUrl(artist.cover_photo)} alt={`${artist.name} cover`} />}
-          <ArtistCoverRemoval id={id} artist={artist} onRemoved={() => setArtist(current => ({ ...current, cover_photo: null }))} />
+          <ArtistCoverRemoval id={artist.id} artist={artist} onRemoved={() => setArtist(current => ({ ...current, cover_photo: null }))} />
         </Box>}
         <Box className={styles.contentWrapper}>
           {streamError && <Alert severity="warning">{streamError}</Alert>}
@@ -110,7 +130,7 @@ function ArtistDetailContent({ id }) {
                 {artist.profile_picture && failedPortrait !== artist.profile_picture ? <img onError={() => setFailedPortrait(artist.profile_picture)} className={styles.portrait} src={getImageUrl(artist.profile_picture)} alt={artist.name} /> : <Box className={styles.portraitFallback}><span aria-hidden="true">{artist.name?.charAt(0)}</span><Typography>No artist photo yet</Typography></Box>}
                 <Box className={styles.artistActions}>
                   {artist.is_disabled && <ArtistDisabledStatus />}
-                  {helpers.CanEditArtist(id, artist.user_id) && <Button startIcon={<EditIcon aria-hidden="true" />} variant="outlined" onClick={() => navigate(`/artists/${id}/update`)} className={styles.editButton}>Edit Profile</Button>}
+                  {helpers.CanEditArtist(artist.id, artist.user_id) && <Button startIcon={<EditIcon aria-hidden="true" />} variant="outlined" onClick={() => navigate(`/artists/${artist.id}/update`)} className={styles.editButton}>Edit Profile</Button>}
                 </Box>
                 <Box className={styles.aboutBox}>
                   <Typography className={styles.sectionLabel}>Behind the sound</Typography>
@@ -233,7 +253,7 @@ function ArtistDetailContent({ id }) {
             <Grid size={{ xs: 12, md: 8, lg: 8 }}>
               <Box className={styles.mainArea}>
                 <Stack spacing={4}>
-                  <MediaLibrary artistId={id} onVideoSelect={selectVideo} selectedVideoId={video?.id} renderIntro={({ canListen, listenToLatest }) => (
+                  <MediaLibrary artistId={artist.id} onVideoSelect={selectVideo} selectedVideoId={video?.id} renderIntro={({ canListen, listenToLatest }) => (
                     <Box className={styles.editorial}>
                       <Typography className={styles.eyebrow}>The artist collection</Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, width: '100%', '& button:focus-visible': { outline: '2px solid #90caf9', outlineOffset: '3px' } }}>
